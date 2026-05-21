@@ -1,0 +1,33 @@
+# Xcode
+*.xcodeproj/
+*.xcworkspace/
+!*.xcworkspace/contents.xcworkspacedata
+Derived/
+DerivedData/
+*.ipa
+*.dSYM.zip
+*.dSYM
+
+# Build
+build/
+
+# Swift Package Manager
+.build/
+Packages/checkouts/
+Package.resolved
+
+# Tuist
+.tuist-bin/
+Tuist/.build/
+
+# OS
+.DS_Store
+*.swp
+
+# JPEG screens (design refs, not source)
+*.jpeg
+*.jpg
+atfood-view.*
+
+# DB
+ruvector.db
