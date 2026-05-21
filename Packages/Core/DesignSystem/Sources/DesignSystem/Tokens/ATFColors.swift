@@ -45,6 +45,8 @@ public extension Color {
 // MARK: - Dark mode adaptive tokens
 
 public extension Color {
+    // UIKit-backed dynamic color — resolves correctly on device and in UIHostingController.
+    // In pure SwiftUI Previews using .preferredColorScheme(), use colorScheme env var directly.
     static func atfAdaptive(light: Color, dark: Color) -> Color {
         Color(UIColor { trait in
             trait.userInterfaceStyle == .dark

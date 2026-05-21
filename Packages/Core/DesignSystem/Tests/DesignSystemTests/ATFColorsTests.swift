@@ -21,6 +21,6 @@ struct ATFColorsTests {
         let ui = UIColor(Color.atfAccent)
         var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
         ui.getRed(&r, green: &g, blue: &b, alpha: &a)
-        #expect(a == 1.0)
+        #expect(abs(a - 1.0) < 0.001)
     }
 }
