@@ -1,4 +1,3 @@
-// Packages/Core/DesignSystem/Package.swift
 // swift-tools-version: 6.0
 import PackageDescription
 
@@ -12,6 +11,12 @@ let package = Package(
         .target(
             name: "DesignSystem",
             path: "Sources/DesignSystem",
+            exclude: [
+                "Tokens/.gitkeep",
+                "Icons/.gitkeep",
+                "Wordmark/.gitkeep",
+                "Components/.gitkeep",
+            ],
             resources: [
                 .process("Resources"),
             ],
@@ -22,7 +27,11 @@ let package = Package(
         .testTarget(
             name: "DesignSystemTests",
             dependencies: ["DesignSystem"],
-            path: "Tests/DesignSystemTests"
+            path: "Tests/DesignSystemTests",
+            exclude: [".gitkeep"],
+            swiftSettings: [
+                .swiftLanguageMode(.v6),
+            ]
         ),
     ]
 )
