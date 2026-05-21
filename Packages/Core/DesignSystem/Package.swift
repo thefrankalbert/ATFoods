@@ -12,8 +12,6 @@ let package = Package(
             name: "DesignSystem",
             path: "Sources/DesignSystem",
             exclude: [
-                "Icons/.gitkeep",
-                "Wordmark/.gitkeep",
                 "Components/.gitkeep",
             ],
             resources: [
