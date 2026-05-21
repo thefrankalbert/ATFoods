@@ -52,14 +52,17 @@ public struct ATFTextField: View {
                             .frame(minHeight: 96)
                             .padding(14)
                             .scrollContentBackground(.hidden)
+                            .focused($isFocused)
                     } else if isSecure {
                         SecureField(placeholder, text: $text)
                             .padding(.horizontal, 14)
                             .padding(.trailing, suffix != nil ? 56 : 14)
+                            .focused($isFocused)
                     } else {
                         TextField(placeholder, text: $text)
                             .padding(.horizontal, 14)
                             .padding(.trailing, suffix != nil ? 56 : (rightIcon != nil ? 44 : 14))
+                            .focused($isFocused)
                     }
                 }
                 .frame(height: isMultiline ? nil : 52)
@@ -76,7 +79,6 @@ public struct ATFTextField: View {
                             lineWidth: 1
                         )
                 )
-                .focused($isFocused)
 
                 if let suffix {
                     Text(suffix)
