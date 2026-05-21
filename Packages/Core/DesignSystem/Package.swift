@@ -12,7 +12,6 @@ let package = Package(
             name: "DesignSystem",
             path: "Sources/DesignSystem",
             exclude: [
-                "Tokens/.gitkeep",
                 "Icons/.gitkeep",
                 "Wordmark/.gitkeep",
                 "Components/.gitkeep",
@@ -28,7 +27,6 @@ let package = Package(
             name: "DesignSystemTests",
             dependencies: ["DesignSystem"],
             path: "Tests/DesignSystemTests",
-            exclude: [".gitkeep"],
             swiftSettings: [
                 .swiftLanguageMode(.v6),
             ]
