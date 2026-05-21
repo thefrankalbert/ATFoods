@@ -56,7 +56,7 @@ public struct ATFTextField: View {
                     } else if isSecure {
                         SecureField(placeholder, text: $text)
                             .padding(.horizontal, 14)
-                            .padding(.trailing, suffix != nil ? 56 : 14)
+                            .padding(.trailing, suffix != nil ? 56 : (rightIcon != nil ? 44 : 14))
                             .focused($isFocused)
                     } else {
                         TextField(placeholder, text: $text)
@@ -85,8 +85,7 @@ public struct ATFTextField: View {
                         .font(.system(size: 14, weight: .medium, design: .monospaced))
                         .foregroundStyle(Color.atfText3)
                         .padding(.trailing, 14)
-                }
-                if let rightIcon {
+                } else if let rightIcon {
                     ATFIconView(rightIcon, size: 18, color: .atfText3)
                         .padding(.trailing, 10)
                 }
