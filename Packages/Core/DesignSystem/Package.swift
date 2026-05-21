@@ -11,9 +11,7 @@ let package = Package(
         .target(
             name: "DesignSystem",
             path: "Sources/DesignSystem",
-            exclude: [
-                "Components/.gitkeep",
-            ],
+            exclude: [],
             resources: [
                 .process("Resources"),
             ],
