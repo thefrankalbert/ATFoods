@@ -31,3 +31,8 @@ atfood-view.*
 
 # DB
 ruvector.db
+
+# Tooling
+.claude-flow/
+.swarm/
+.playwright-mcp/
