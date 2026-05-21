@@ -28,10 +28,6 @@ let project = Project(
                 "UILaunchScreen": .dictionary([:]),
                 "NSCameraUsageDescription": .string("At Food utilise l'appareil photo pour photographier vos plats."),
                 "NSPhotoLibraryUsageDescription": .string("At Food accède à votre galerie pour importer des photos de plats."),
-                "UIAppFonts": .array([
-                    .string("InstrumentSerif-Regular.ttf"),
-                    .string("InstrumentSerif-Italic.ttf"),
-                ]),
             ]),
             sources: ["App/**"],
             dependencies: [

@@ -37,7 +37,6 @@ private func serifFont(_ name: String, size: CGFloat) -> Font {
 public struct ATFOverlineModifier: ViewModifier {
     public init() {}
 
-    @MainActor
     public func body(content: Content) -> some View {
         content
             .font(.atfOverline)
