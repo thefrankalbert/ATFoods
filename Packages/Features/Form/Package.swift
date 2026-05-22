@@ -21,5 +21,11 @@ let package = Package(
             path: "Sources/Form",
             swiftSettings: [.swiftLanguageMode(.v6)]
         ),
+        .testTarget(
+            name: "FormTests",
+            dependencies: ["Form"],
+            path: "Tests/FormTests",
+            swiftSettings: [.swiftLanguageMode(.v6)]
+        ),
     ]
 )

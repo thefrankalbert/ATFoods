@@ -21,5 +21,11 @@ let package = Package(
             path: "Sources/Home",
             swiftSettings: [.swiftLanguageMode(.v6)]
         ),
+        .testTarget(
+            name: "HomeTests",
+            dependencies: ["Home"],
+            path: "Tests/HomeTests",
+            swiftSettings: [.swiftLanguageMode(.v6)]
+        ),
     ]
 )

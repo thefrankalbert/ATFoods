@@ -21,5 +21,11 @@ let package = Package(
             path: "Sources/Capture",
             swiftSettings: [.swiftLanguageMode(.v6)]
         ),
+        .testTarget(
+            name: "CaptureTests",
+            dependencies: ["Capture"],
+            path: "Tests/CaptureTests",
+            swiftSettings: [.swiftLanguageMode(.v6)]
+        ),
     ]
 )

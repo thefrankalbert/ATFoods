@@ -15,5 +15,11 @@ let package = Package(
             path: "Sources/Networking",
             swiftSettings: [.swiftLanguageMode(.v6)]
         ),
+        .testTarget(
+            name: "NetworkingTests",
+            dependencies: ["Networking"],
+            path: "Tests/NetworkingTests",
+            swiftSettings: [.swiftLanguageMode(.v6)]
+        ),
     ]
 )

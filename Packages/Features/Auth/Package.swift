@@ -21,5 +21,11 @@ let package = Package(
             path: "Sources/Auth",
             swiftSettings: [.swiftLanguageMode(.v6)]
         ),
+        .testTarget(
+            name: "AuthTests",
+            dependencies: ["Auth"],
+            path: "Tests/AuthTests",
+            swiftSettings: [.swiftLanguageMode(.v6)]
+        ),
     ]
 )
