@@ -36,7 +36,7 @@ public struct NewCategorySheet: View {
                 }
                 .padding(.horizontal, 20)
 
-                ATFButton("Annuler", kind: .ghost, action: onDismiss)
+                ATFButton("Annuler", kind: .ghost) { onDismiss() }
                     .padding(.horizontal, 20)
                     .padding(.bottom, 24)
             }

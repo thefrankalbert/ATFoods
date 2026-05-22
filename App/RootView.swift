@@ -3,11 +3,14 @@ import SwiftUI
 import DesignSystem
 import Models
 import Networking
+import Auth
+import Home
+import Capture
+import Form
 
 // MARK: — Route
 
 public enum ATFRoute: Hashable {
-    case login
     case restaurantPicker
     case home
     case camera
@@ -20,28 +23,31 @@ public enum ATFRoute: Hashable {
 
 @MainActor
 struct RootView: View {
+    @State private var hasSeenOnboarding = false
     @State private var path: [ATFRoute] = []
     @State private var toast: ATFToastData?
+
     private let networking: any ATFNetworking = MockNetworking()
+
+    @State private var authStore = AuthStore()
+    @State private var homeStore: HomeStore? = nil
+    @State private var captureStore: CaptureStore? = nil
+    @State private var formStore: FormStore? = nil
 
     var body: some View {
         ZStack(alignment: .top) {
-            NavigationStack(path: $path) {
-                // Placeholder until OnboardingView is implemented in Task 7
-                Color.atfBg
-                    .ignoresSafeArea()
-                    .overlay(
-                        VStack(spacing: 16) {
-                            ATFWordmark(size: 32)
-                            Text("ATFood — loading…")
-                                .font(.atfSubhead)
-                                .foregroundStyle(Color.atfText3)
-                        }
-                    )
+            if !hasSeenOnboarding {
+                OnboardingView { hasSeenOnboarding = true }
+            } else {
+                NavigationStack(path: $path) {
+                    LoginView(store: authStore, networking: networking) {
+                        path.append(.restaurantPicker)
+                    }
                     .navigationBarHidden(true)
                     .navigationDestination(for: ATFRoute.self) { route in
-                        routePlaceholder(route)
+                        routeView(route)
                     }
+                }
             }
 
             if let toast {
@@ -55,27 +61,86 @@ struct RootView: View {
         .animation(.spring(response: 0.35, dampingFraction: 0.8), value: toast != nil)
     }
 
+    // MARK: — Route destinations
+
     @ViewBuilder
-    private func routePlaceholder(_ route: ATFRoute) -> some View {
+    private func routeView(_ route: ATFRoute) -> some View {
         switch route {
-        case .login:
-            Text("Login — Task 6").font(.atfBody).foregroundStyle(Color.atfText2)
         case .restaurantPicker:
-            Text("RestaurantPicker — Task 8").font(.atfBody).foregroundStyle(Color.atfText2)
+            RestaurantPickerView(store: authStore) {
+                if let restaurant = authStore.selectedRestaurant {
+                    homeStore = HomeStore(restaurant: restaurant)
+                    path = [.home]
+                }
+            }
+            .navigationBarHidden(true)
+
         case .home:
-            Text("Home — Task 9").font(.atfBody).foregroundStyle(Color.atfText2)
+            if let store = homeStore {
+                HomeView(store: store, networking: networking) {
+                    captureStore = CaptureStore(restaurant: store.restaurant)
+                    path.append(.camera)
+                }
+                .navigationBarHidden(true)
+            }
+
         case .camera:
-            Text("Camera — Task 10").font(.atfBody).foregroundStyle(Color.atfText2)
+            if let store = captureStore {
+                CameraView(store: store, onCapture: {
+                    path.append(.photoPreview(photoID: UUID()))
+                }, onClose: {
+                    path.removeLast()
+                })
+                .navigationBarHidden(true)
+            }
+
         case .photoPreview:
-            Text("PhotoPreview — Task 11").font(.atfBody).foregroundStyle(Color.atfText2)
+            if let store = captureStore {
+                PhotoPreviewView(store: store, onRetake: {
+                    path.removeLast()
+                }, onUse: {
+                    path.append(.attachDish(photoID: UUID()))
+                })
+                .navigationBarHidden(true)
+            }
+
         case .attachDish:
-            Text("AttachDish — Task 11").font(.atfBody).foregroundStyle(Color.atfText2)
+            if let store = captureStore {
+                AttachDishView(
+                    store: store,
+                    networking: networking,
+                    onNewDish: {
+                        formStore = FormStore(restaurant: store.restaurant)
+                        path.append(.dishForm(photoID: nil))
+                    },
+                    onAttached: {
+                        showToast("Photo attachée !")
+                        popToHome()
+                    },
+                    onBack: { path.removeLast() }
+                )
+                .navigationBarHidden(true)
+            }
+
         case .dishForm:
-            Text("DishForm — Task 12").font(.atfBody).foregroundStyle(Color.atfText2)
+            if let store = formStore {
+                DishFormView(
+                    store: store,
+                    networking: networking,
+                    onSaved: {
+                        showToast("Plat enregistré !")
+                        popToHome()
+                    },
+                    onBack: { path.removeLast() }
+                )
+                .navigationBarHidden(true)
+            }
         }
     }
 
-    func showToast(_ message: String) {
+    // MARK: — Helpers
+
+    private func showToast(_ message: String) {
         toast = ATFToastData(message)
         Task {
             try? await Task.sleep(for: .seconds(3))
@@ -83,7 +148,7 @@ struct RootView: View {
         }
     }
 
-    func popToHome() {
+    private func popToHome() {
         if let idx = path.firstIndex(of: .home) {
             path = Array(path[...idx])
         } else {
