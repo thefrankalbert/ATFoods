@@ -39,7 +39,7 @@ public struct ATFSkeleton: View {
 #Preview("ATFSkeleton") {
     VStack(alignment: .leading, spacing: 12) {
         ATFSkeleton(width: 148, height: 170, radius: 12)
-        ATFSkeleton(width: .infinity, height: 52)
+        ATFSkeleton(height: 52)
         ATFSkeleton(width: 160, height: 16)
     }
     .padding()

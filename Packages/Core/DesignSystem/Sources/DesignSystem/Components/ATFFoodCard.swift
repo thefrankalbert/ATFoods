@@ -28,7 +28,8 @@ public struct ATFFoodCard: View {
                               fallback: Color(hex: "1A1410"),
                               radius: 12,
                               height: 170,
-                              width: 148)
+                              width: 148,
+                              overlay: false)
 
                 // Gradient for text legibility
                 LinearGradient(
