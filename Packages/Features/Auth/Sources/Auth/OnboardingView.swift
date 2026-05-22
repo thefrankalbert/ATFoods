@@ -72,6 +72,7 @@ public struct OnboardingView: View {
                 .scaleEffect(kenBurnsScale)
                 .animation(.linear(duration: 8).repeatForever(autoreverses: true), value: kenBurnsScale)
                 .ignoresSafeArea()
+                .id(currentIndex)
                 .onAppear { kenBurnsScale = 1.08 }
 
                 // Gradient overlays
@@ -117,7 +118,7 @@ public struct OnboardingView: View {
             HStack(spacing: 6) {
                 ForEach(0..<3, id: \.self) { i in
                     RoundedRectangle(cornerRadius: 2)
-                        .fill(i <= currentIndex ? Color.white : Color.white.opacity(0.3))
+                        .fill(i == currentIndex ? Color.white : Color.white.opacity(0.3))
                         .frame(height: 3)
                         .animation(.easeInOut(duration: 0.3), value: currentIndex)
                 }
@@ -203,11 +204,6 @@ public struct OnboardingView: View {
     private func advanceSlide() {
         if currentIndex < 2 {
             withAnimation(.easeInOut(duration: 0.3)) { currentIndex += 1 }
-            // Reset Ken Burns on slide change
-            kenBurnsScale = 1.0
-            withAnimation(.linear(duration: 8).repeatForever(autoreverses: true)) {
-                kenBurnsScale = 1.08
-            }
         } else {
             onFinish()
         }
