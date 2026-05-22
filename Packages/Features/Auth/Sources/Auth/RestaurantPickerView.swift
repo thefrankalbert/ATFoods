@@ -134,7 +134,6 @@ private struct RestaurantRow: View {
                 )
         )
         .animation(.easeInOut(duration: 0.18), value: isSelected)
-        .buttonStyle(ATFScaleButtonStyle())
     }
 }
 
