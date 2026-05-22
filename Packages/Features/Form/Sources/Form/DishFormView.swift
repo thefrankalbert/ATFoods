@@ -9,6 +9,8 @@ public struct DishFormView: View {
     let onSaved: () -> Void
     let onBack: () -> Void
 
+    @State private var showCategorySheet = false
+
     public init(
         store: FormStore,
         networking: any ATFNetworking,
@@ -148,9 +150,29 @@ public struct DishFormView: View {
                     ForEach(MenuCategory.allCases, id: \.self) { cat in
                         categoryChip(cat)
                     }
+                    Button {
+                        showCategorySheet = true
+                    } label: {
+                        Image(systemName: "plus")
+                            .font(.atfCaption)
+                            .foregroundStyle(Color.atfAccent)
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 7)
+                            .background(Color.atfSurface2)
+                            .clipShape(Capsule())
+                    }
                 }
                 .padding(.horizontal, 20)
             }
+        }
+        .sheet(isPresented: $showCategorySheet) {
+            NewCategorySheet(
+                onSelect: { cat in
+                    store.category = cat
+                    showCategorySheet = false
+                },
+                onDismiss: { showCategorySheet = false }
+            )
         }
     }
 
