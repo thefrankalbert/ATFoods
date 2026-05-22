@@ -1,4 +1,4 @@
-// Tuist/Project.swift
+// Project.swift
 import ProjectDescription
 
 let project = Project(
@@ -10,6 +10,12 @@ let project = Project(
     ),
     packages: [
         .local(path: "Packages/Core/DesignSystem"),
+        .local(path: "Packages/Core/Models"),
+        .local(path: "Packages/Core/Networking"),
+        .local(path: "Packages/Features/Auth"),
+        .local(path: "Packages/Features/Home"),
+        .local(path: "Packages/Features/Capture"),
+        .local(path: "Packages/Features/Form"),
     ],
     settings: .settings(
         base: [
@@ -31,7 +37,10 @@ let project = Project(
             ]),
             sources: ["App/**"],
             dependencies: [
-                .package(product: "DesignSystem"),
+                .package(product: "Auth"),
+                .package(product: "Home"),
+                .package(product: "Capture"),
+                .package(product: "Form"),
             ]
         )
     ]
