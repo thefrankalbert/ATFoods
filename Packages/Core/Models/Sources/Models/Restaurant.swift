@@ -21,7 +21,7 @@ public struct Restaurant: Identifiable, Hashable, Sendable {
     }
 }
 
-public enum RestaurantRole: String, Sendable { case owner = "Gérant", manager = "Manager" }
+public enum RestaurantRole: String, Sendable, Hashable { case owner = "Gérant", manager = "Manager" }
 
 public struct AppUser: Sendable {
     public let id: UUID
