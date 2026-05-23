@@ -7,6 +7,9 @@ import Auth
 import Home
 import Capture
 import Form
+import Drafts
+import AIRetouch
+import Profile
 
 // MARK: — Navigation state
 
@@ -16,6 +19,10 @@ import Form
     var homeStore: HomeStore?
     var captureStore: CaptureStore?
     var formStore: FormStore?
+    var draftsStore: DraftsStore?
+    var aiRetouchStore: AIRetouchStore?
+    var profileStore: ProfileStore?
+    var showUpgradeSheet: Bool = false
 }
 
 // MARK: — Route
@@ -27,6 +34,12 @@ public enum ATFRoute: Hashable {
     case photoPreview
     case attachDish
     case dishForm
+    case drafts
+    case aiRetouch(dishID: UUID)
+    case backgrounds(dishID: UUID)
+    case credits
+    case profile
+    case offline
 }
 
 // MARK: — Root
@@ -68,6 +81,9 @@ struct RootView: View {
             }
         }
         .animation(.spring(response: 0.35, dampingFraction: 0.8), value: toast != nil)
+        .sheet(isPresented: $nav.showUpgradeSheet) {
+            UpgradeSheet { nav.showUpgradeSheet = false }
+        }
     }
 
     // MARK: — Route destinations
@@ -87,10 +103,25 @@ struct RootView: View {
 
         case .home:
             if let store = nav.homeStore {
-                HomeView(store: store, networking: networking) {
-                    nav.captureStore = CaptureStore(restaurant: store.restaurant)
-                    path.append(.camera)
-                }
+                HomeView(
+                    store: store,
+                    networking: networking,
+                    onCamera: {
+                        nav.captureStore = CaptureStore(restaurant: store.restaurant)
+                        path.append(.camera)
+                    },
+                    onDrafts: {
+                        nav.draftsStore = DraftsStore(restaurantID: store.restaurant.id)
+                        path.append(.drafts)
+                    },
+                    onProfile: {
+                        if let user = authStore.currentUser,
+                           let restaurant = authStore.selectedRestaurant {
+                            nav.profileStore = ProfileStore(user: user, restaurant: restaurant)
+                            path.append(.profile)
+                        }
+                    }
+                )
                 .navigationBarHidden(true)
             }
 
@@ -148,6 +179,91 @@ struct RootView: View {
                 )
                 .navigationBarHidden(true)
             }
+
+        case .drafts:
+            if let store = nav.draftsStore {
+                DraftsView(
+                    store: store,
+                    networking: networking,
+                    onAIRetouch: { dishID in
+                        let draft = store.drafts.first { $0.id == dishID }
+                        nav.aiRetouchStore = AIRetouchStore(
+                            dishID: dishID,
+                            originalURL: draft?.photoURL,
+                            creditsBalance: nav.profileStore?.creditsBalance ?? 5
+                        )
+                        path.append(.aiRetouch(dishID: dishID))
+                    },
+                    onBack: { path.removeLast() }
+                )
+                .navigationBarHidden(true)
+            }
+
+        case .aiRetouch(let dishID):
+            if let store = nav.aiRetouchStore {
+                AIRetouchView(
+                    store: store,
+                    networking: networking,
+                    onSelectBackground: { path.append(.backgrounds(dishID: dishID)) },
+                    onBack: { path.removeLast() },
+                    onUpgrade: { nav.showUpgradeSheet = true }
+                )
+                .navigationBarHidden(true)
+            }
+
+        case .backgrounds(_):
+            if let store = nav.aiRetouchStore {
+                BackgroundsView(
+                    store: store,
+                    networking: networking,
+                    onApplied: { path.removeLast() },
+                    onBack: { path.removeLast() }
+                )
+                .navigationBarHidden(true)
+            }
+
+        case .credits:
+            if let store = nav.profileStore {
+                CreditsView(
+                    store: store,
+                    onUpgrade: { nav.showUpgradeSheet = true },
+                    onBack: { path.removeLast() }
+                )
+                .navigationBarHidden(true)
+            }
+
+        case .profile:
+            if let store = nav.profileStore {
+                ProfileView(
+                    store: store,
+                    networking: networking,
+                    onCredits: { path.append(.credits) },
+                    onUpgrade: { nav.showUpgradeSheet = true },
+                    onOffline: { path.append(.offline) },
+                    onSignOut: {
+                        Task {
+                            await store.signOut(networking: networking)
+                            authStore.currentUser = nil
+                            authStore.selectedRestaurant = nil
+                            authStore.restaurants = []
+                            nav.homeStore = nil
+                            nav.draftsStore = nil
+                            nav.profileStore = nil
+                            path = []
+                        }
+                    },
+                    onBack: { path.removeLast() }
+                )
+                .navigationBarHidden(true)
+            }
+
+        case .offline:
+            OfflineView(
+                pendingCount: 0,
+                onRetry: { path.removeLast() },
+                onBack: { path.removeLast() }
+            )
+            .navigationBarHidden(true)
         }
     }
 

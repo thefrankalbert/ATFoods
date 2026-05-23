@@ -36,6 +36,24 @@ public final class MockNetworking: ATFNetworking {
         }
         return url
     }
+
+    public func fetchDrafts(restaurantID: UUID) async throws -> [Draft] {
+        try await Task.sleep(for: .milliseconds(400))
+        return Draft.mocks
+    }
+
+    public func applyAIRetouch(dishID: UUID, effect: AIRetouchEffect) async throws -> URL {
+        try await Task.sleep(for: .seconds(1.5))
+        guard let url = URL(string: "https://images.unsplash.com/photo-1565299507177-b0ac66763828?w=600") else {
+            throw ATFError.networkUnavailable
+        }
+        return url
+    }
+
+    public func fetchCredits(userID: UUID) async throws -> Int {
+        try await Task.sleep(for: .milliseconds(200))
+        return 5
+    }
 }
 
 public enum ATFError: Error, LocalizedError, Sendable {

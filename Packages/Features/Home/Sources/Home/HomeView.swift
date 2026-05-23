@@ -7,11 +7,21 @@ public struct HomeView: View {
     @Bindable var store: HomeStore
     let networking: any ATFNetworking
     let onCamera: () -> Void
+    let onDrafts: () -> Void
+    let onProfile: () -> Void
 
-    public init(store: HomeStore, networking: any ATFNetworking, onCamera: @escaping () -> Void) {
+    public init(
+        store: HomeStore,
+        networking: any ATFNetworking,
+        onCamera: @escaping () -> Void,
+        onDrafts: @escaping () -> Void = {},
+        onProfile: @escaping () -> Void = {}
+    ) {
         self.store = store
         self.networking = networking
         self.onCamera = onCamera
+        self.onDrafts = onDrafts
+        self.onProfile = onProfile
     }
 
     private let bgColor = Color(red: 0.059, green: 0.035, blue: 0.024)
@@ -32,23 +42,40 @@ public struct HomeView: View {
     // MARK: - Top Bar
 
     private var topBar: some View {
-        HStack {
-            ATFWordmark(size: 20, color: .white)
-
-            Spacer()
-
-            Text(store.restaurant.name)
-                .font(.atfCaption)
-                .foregroundStyle(Color.white.opacity(0.7))
-
-            Spacer()
-
-            Button(action: onCamera) {
-                Image(systemName: "camera.fill")
-                    .font(.system(size: 18))
+        HStack(spacing: 0) {
+            Button(action: onProfile) {
+                Image(systemName: "person.circle")
+                    .font(.system(size: 22))
                     .foregroundStyle(.white)
             }
-            .accessibilityIdentifier("cameraButton")
+            .accessibilityIdentifier("profileButton")
+
+            Spacer()
+
+            VStack(spacing: 2) {
+                ATFWordmark(size: 18, color: .white)
+                Text(store.restaurant.name)
+                    .font(.atfCaption)
+                    .foregroundStyle(Color.white.opacity(0.7))
+            }
+
+            Spacer()
+
+            HStack(spacing: 16) {
+                Button(action: onDrafts) {
+                    Image(systemName: "rectangle.stack")
+                        .font(.system(size: 18))
+                        .foregroundStyle(.white)
+                }
+                .accessibilityIdentifier("draftsButton")
+
+                Button(action: onCamera) {
+                    Image(systemName: "camera.fill")
+                        .font(.system(size: 18))
+                        .foregroundStyle(.white)
+                }
+                .accessibilityIdentifier("cameraButton")
+            }
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
@@ -166,5 +193,5 @@ public struct HomeView: View {
 #Preview("HomeView") {
     let store = HomeStore(restaurant: Restaurant.mocks[0])
     store.menuItems = MenuItem.mocks
-    return HomeView(store: store, networking: MockNetworking()) {}
+    return HomeView(store: store, networking: MockNetworking(), onCamera: {})
 }
