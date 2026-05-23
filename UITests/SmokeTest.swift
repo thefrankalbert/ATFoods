@@ -84,6 +84,57 @@ final class SmokeTest: XCTestCase {
         takeScreenshot("DishForm_home_base")
     }
 
+    // MARK: - Plan 3 screens: visual capture
+
+    func testPlan3_screensCapture() throws {
+        navigateToHome()
+        takeScreenshot("P3_01_Home")
+
+        // → Drafts
+        if app.buttons["draftsButton"].waitForExistence(timeout: 4) {
+            app.buttons["draftsButton"].tap()
+            sleep(2)
+            takeScreenshot("P3_02_Drafts")
+            // Back to Home
+            if app.buttons["arrow.left"].waitForExistence(timeout: 3) {
+                app.buttons["arrow.left"].tap(); sleep(1)
+            }
+        }
+
+        // → Profile
+        if app.buttons["profileButton"].waitForExistence(timeout: 4) {
+            app.buttons["profileButton"].tap()
+            sleep(2)
+            takeScreenshot("P3_03_Profile")
+
+            // → Credits
+            let creditsRow = app.staticTexts["Crédits IA"]
+            if creditsRow.waitForExistence(timeout: 3) {
+                creditsRow.tap(); sleep(2)
+                takeScreenshot("P3_04_Credits")
+                if app.buttons["arrow.left"].waitForExistence(timeout: 3) {
+                    app.buttons["arrow.left"].tap(); sleep(1)
+                }
+            }
+
+            // → Offline
+            let offlineRow = app.staticTexts["Mode hors-ligne"]
+            if offlineRow.waitForExistence(timeout: 2) {
+                offlineRow.tap(); sleep(2)
+                takeScreenshot("P3_05_Offline")
+                if app.buttons["arrow.left"].waitForExistence(timeout: 3) {
+                    app.buttons["arrow.left"].tap(); sleep(1)
+                }
+            }
+
+            // Back to Home
+            if app.buttons["arrow.left"].waitForExistence(timeout: 3) {
+                app.buttons["arrow.left"].tap(); sleep(1)
+            }
+        }
+    }
+
+
     // MARK: - Helpers
 
     private func tapIfExists(_ label: String, timeout: TimeInterval = 4) {
@@ -108,14 +159,22 @@ final class SmokeTest: XCTestCase {
         navigateToLogin()
         app.buttons["Se connecter"].tap()
         sleep(3) // login (1.1s) + fetchRestaurants (0.4s) + nav animation
+        // Dismiss iOS "Save Password?" dialog if it appears
+        let saveDialog = app.buttons["Plus tard"]
+        if saveDialog.waitForExistence(timeout: 2) { saveDialog.tap(); sleep(1) }
         let chezFlora = app.buttons["restaurant_Chez Flora"]
         if chezFlora.waitForExistence(timeout: 3) {
-            chezFlora.tap()
+            chezFlora.coordinate(withNormalizedOffset: .init(dx: 0.5, dy: 0.5)).tap()
         }
-        sleep(1) // state update + CTA enable animation
+        sleep(2) // state update + CTA enable animation
         let cta = app.buttons["Continuer"]
-        if cta.isEnabled { cta.tap() }
-        sleep(2) // navigation + HomeStore.load (500ms)
+        let enabledPred = NSPredicate(format: "enabled == true")
+        let ctaWait = XCTNSPredicateExpectation(predicate: enabledPred, object: cta)
+        _ = XCTWaiter.wait(for: [ctaWait], timeout: 4)
+        if cta.exists && cta.isEnabled {
+            cta.coordinate(withNormalizedOffset: .init(dx: 0.5, dy: 0.5)).tap()
+        }
+        sleep(3) // navigation + HomeStore.load (500ms)
     }
 
     private func takeScreenshot(_ name: String) {
