@@ -43,6 +43,17 @@ let project = Project(
                 .package(product: "Capture"),
                 .package(product: "Form"),
             ]
+        ),
+        .target(
+            name: "ATFoodUITests",
+            destinations: .iOS,
+            product: .uiTests,
+            bundleId: "com.attable.atfood.uitests",
+            deploymentTargets: .iOS("17.0"),
+            sources: ["UITests/**"],
+            dependencies: [
+                .target(name: "ATFood"),
+            ]
         )
     ]
 )

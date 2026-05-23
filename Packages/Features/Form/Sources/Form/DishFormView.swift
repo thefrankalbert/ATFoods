@@ -91,7 +91,14 @@ public struct DishFormView: View {
 
     private var photoSection: some View {
         Group {
-            if let url = store.photoURL {
+            if let image = store.capturedImage {
+                Image(uiImage: image)
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: 120, height: 120)
+                    .clipped()
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+            } else if let url = store.photoURL {
                 AsyncImage(url: url) { phase in
                     switch phase {
                     case .success(let image):

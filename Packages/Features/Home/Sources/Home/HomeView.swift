@@ -48,6 +48,7 @@ public struct HomeView: View {
                     .font(.system(size: 18))
                     .foregroundStyle(.white)
             }
+            .accessibilityIdentifier("cameraButton")
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 12)

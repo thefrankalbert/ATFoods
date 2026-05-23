@@ -8,15 +8,25 @@ import Home
 import Capture
 import Form
 
+// MARK: — Navigation state
+
+// Class-backed navigator: mutations from any captured closure reach the same instance,
+// bypassing the @State struct-copy issue in navigationDestination closures.
+@MainActor @Observable final class AppNavigator {
+    var homeStore: HomeStore?
+    var captureStore: CaptureStore?
+    var formStore: FormStore?
+}
+
 // MARK: — Route
 
 public enum ATFRoute: Hashable {
     case restaurantPicker
     case home
     case camera
-    case photoPreview(photoID: UUID)
-    case attachDish(photoID: UUID)
-    case dishForm(photoID: UUID?)
+    case photoPreview
+    case attachDish
+    case dishForm
 }
 
 // MARK: — Root
@@ -30,9 +40,8 @@ struct RootView: View {
     private let networking: any ATFNetworking = MockNetworking()
 
     @State private var authStore = AuthStore()
-    @State private var homeStore: HomeStore? = nil
-    @State private var captureStore: CaptureStore? = nil
-    @State private var formStore: FormStore? = nil
+    // AppNavigator is a class — mutations from captured closures always reach the same instance
+    @State private var nav = AppNavigator()
 
     var body: some View {
         ZStack(alignment: .top) {
@@ -69,25 +78,26 @@ struct RootView: View {
         case .restaurantPicker:
             RestaurantPickerView(store: authStore) {
                 if let restaurant = authStore.selectedRestaurant {
-                    homeStore = HomeStore(restaurant: restaurant)
+                    // nav is a class — mutation reaches the real instance from any closure context
+                    nav.homeStore = HomeStore(restaurant: restaurant)
                     path = [.home]
                 }
             }
             .navigationBarHidden(true)
 
         case .home:
-            if let store = homeStore {
+            if let store = nav.homeStore {
                 HomeView(store: store, networking: networking) {
-                    captureStore = CaptureStore(restaurant: store.restaurant)
+                    nav.captureStore = CaptureStore(restaurant: store.restaurant)
                     path.append(.camera)
                 }
                 .navigationBarHidden(true)
             }
 
         case .camera:
-            if let store = captureStore {
+            if let store = nav.captureStore {
                 CameraView(store: store, onCapture: {
-                    path.append(.photoPreview(photoID: UUID()))
+                    path.append(.photoPreview)
                 }, onClose: {
                     path.removeLast()
                 })
@@ -95,23 +105,26 @@ struct RootView: View {
             }
 
         case .photoPreview:
-            if let store = captureStore {
+            if let store = nav.captureStore {
                 PhotoPreviewView(store: store, onRetake: {
                     path.removeLast()
                 }, onUse: {
-                    path.append(.attachDish(photoID: UUID()))
+                    path.append(.attachDish)
                 })
                 .navigationBarHidden(true)
             }
 
         case .attachDish:
-            if let store = captureStore {
+            if let store = nav.captureStore {
                 AttachDishView(
                     store: store,
                     networking: networking,
                     onNewDish: {
-                        formStore = FormStore(restaurant: store.restaurant)
-                        path.append(.dishForm(photoID: nil))
+                        nav.formStore = FormStore(
+                            restaurant: store.restaurant,
+                            capturedImage: store.capturedImage
+                        )
+                        path.append(.dishForm)
                     },
                     onAttached: {
                         showToast("Photo attachée !")
@@ -123,7 +136,7 @@ struct RootView: View {
             }
 
         case .dishForm:
-            if let store = formStore {
+            if let store = nav.formStore {
                 DishFormView(
                     store: store,
                     networking: networking,

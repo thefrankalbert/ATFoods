@@ -31,7 +31,10 @@ public final class MockNetworking: ATFNetworking {
 
     public func attachPhoto(imageData: Data, toDishID dishID: UUID, restaurantID: UUID) async throws -> URL {
         try await Task.sleep(for: .milliseconds(400))
-        return URL(string: "https://images.unsplash.com/photo-1604908176997-125f25cc6f3d?w=400")!
+        guard let url = URL(string: "https://images.unsplash.com/photo-1604908176997-125f25cc6f3d?w=400") else {
+            throw ATFError.networkUnavailable
+        }
+        return url
     }
 }
 

@@ -1,6 +1,7 @@
 import Foundation
 import Models
 import Networking
+import UIKit
 
 @MainActor @Observable public final class FormStore {
     public var name: String = ""
@@ -10,11 +11,12 @@ import Networking
     public var isLoading: Bool = false
     public var error: String? = nil
     public let restaurant: Restaurant
+    public var capturedImage: UIImage? = nil
     public var photoURL: URL? = nil
 
-    public init(restaurant: Restaurant, photoURL: URL? = nil) {
+    public init(restaurant: Restaurant, capturedImage: UIImage? = nil) {
         self.restaurant = restaurant
-        self.photoURL = photoURL
+        self.capturedImage = capturedImage
     }
 
     public var priceInCents: Int? {
@@ -30,7 +32,7 @@ import Networking
         guard isValid, let price = priceInCents else { return }
         isLoading = true
         error = nil
-        let item = MenuItem(
+        var item = MenuItem(
             name: name.trimmingCharacters(in: .whitespaces),
             price: price,
             category: category,
@@ -38,7 +40,16 @@ import Networking
             isAvailable: isAvailable
         )
         do {
-            _ = try await networking.createMenuItem(item, restaurantID: restaurant.id)
+            item = try await networking.createMenuItem(item, restaurantID: restaurant.id)
+            if let image = capturedImage,
+               let data = image.jpegData(compressionQuality: 0.85) {
+                let url = try await networking.attachPhoto(
+                    imageData: data,
+                    toDishID: item.id,
+                    restaurantID: restaurant.id
+                )
+                photoURL = url
+            }
         } catch {
             self.error = error.localizedDescription
         }

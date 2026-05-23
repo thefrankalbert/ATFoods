@@ -33,13 +33,16 @@ public struct RestaurantPickerView: View {
             ScrollView {
                 VStack(spacing: 12) {
                     ForEach(store.restaurants) { restaurant in
-                        RestaurantRow(
-                            restaurant: restaurant,
-                            isSelected: store.selectedRestaurant?.id == restaurant.id
-                        )
-                        .onTapGesture {
+                        Button {
                             store.selectedRestaurant = restaurant
+                        } label: {
+                            RestaurantRow(
+                                restaurant: restaurant,
+                                isSelected: store.selectedRestaurant?.id == restaurant.id
+                            )
                         }
+                        .buttonStyle(.plain)
+                        .accessibilityIdentifier("restaurant_\(restaurant.name)")
                     }
                 }
                 .padding(.horizontal, 24)
