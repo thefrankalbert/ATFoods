@@ -12,7 +12,7 @@ public struct CreditEntry: Identifiable, Sendable {
         self.id = id; self.description = description; self.amount = amount; self.date = date
     }
 
-    static let mocks: [CreditEntry] = [
+    public static let mocks: [CreditEntry] = [
         CreditEntry(description: "Allocation mensuelle", amount: +20,
                     date: Date().addingTimeInterval(-86400 * 30)),
         CreditEntry(description: "Suppression fond", amount: -1,
@@ -37,7 +37,7 @@ public struct CreditEntry: Identifiable, Sendable {
     public var restaurant: Restaurant
     public var creditsBalance: Int = 5
     public var creditsTotal: Int = 20
-    public var creditHistory: [CreditEntry] = CreditEntry.mocks
+    public var creditHistory: [CreditEntry] = []
     public var isSigningOut: Bool = false
 
     public init(user: AppUser, restaurant: Restaurant) {
@@ -46,8 +46,10 @@ public struct CreditEntry: Identifiable, Sendable {
     }
 
     public func loadCredits(networking: any ATFNetworking) async {
-        do { creditsBalance = try await networking.fetchCredits(userID: user.id) }
-        catch {}
+        do {
+            creditsBalance = try await networking.fetchCredits(userID: user.id)
+            if creditHistory.isEmpty { creditHistory = CreditEntry.mocks }
+        } catch {}
     }
 
     public func signOut(networking: any ATFNetworking) async {

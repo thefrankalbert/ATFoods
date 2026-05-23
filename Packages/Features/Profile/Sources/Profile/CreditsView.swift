@@ -175,5 +175,6 @@ public struct CreditsView: View {
 
 #Preview("CreditsView") {
     let store = ProfileStore(user: AppUser.mock, restaurant: Restaurant.mocks[0])
+    store.creditHistory = CreditEntry.mocks
     return CreditsView(store: store, onUpgrade: {}, onBack: {})
 }

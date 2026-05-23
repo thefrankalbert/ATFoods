@@ -67,7 +67,7 @@ public struct AIRetouchView: View {
                 dividerLine(width: geo.size.width)
                 sliderHandle(width: geo.size.width)
                 if store.isProcessing { processingOverlay }
-                labels(width: geo.size.width)
+                labelsOverlay
             }
         }
         .frame(height: 280)
@@ -142,7 +142,7 @@ public struct AIRetouchView: View {
             )
     }
 
-    private func labels(width: CGFloat) -> some View {
+    private var labelsOverlay: some View {
         VStack {
             HStack {
                 Text("Avant")
