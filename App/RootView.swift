@@ -3,7 +3,7 @@ import SwiftUI
 import DesignSystem
 import Models
 import Networking
-import Auth
+import ATFAuth
 import Home
 import Capture
 import Form
@@ -50,7 +50,9 @@ struct RootView: View {
     @State private var path: [ATFRoute] = []
     @State private var toast: ATFToastData?
 
-    private let networking: any ATFNetworking = MockNetworking()
+    private let networking: any ATFNetworking = Env.isUITesting
+        ? MockNetworking()
+        : SupabaseNetworking(url: Env.supabaseURL, anonKey: Env.supabaseAnonKey)
 
     @State private var authStore = AuthStore()
     // AppNavigator is a class — mutations from captured closures always reach the same instance

@@ -4,7 +4,7 @@ import PackageDescription
 let package = Package(
     name: "Auth",
     platforms: [.iOS(.v17)],
-    products: [.library(name: "Auth", targets: ["Auth"])],
+    products: [.library(name: "ATFAuth", targets: ["ATFAuth"])],
     dependencies: [
         .package(path: "../../Core/DesignSystem"),
         .package(path: "../../Core/Models"),
@@ -12,7 +12,7 @@ let package = Package(
     ],
     targets: [
         .target(
-            name: "Auth",
+            name: "ATFAuth",
             dependencies: [
                 .product(name: "DesignSystem", package: "DesignSystem"),
                 .product(name: "Models", package: "Models"),
@@ -23,7 +23,7 @@ let package = Package(
         ),
         .testTarget(
             name: "AuthTests",
-            dependencies: ["Auth"],
+            dependencies: ["ATFAuth"],
             path: "Tests/AuthTests",
             swiftSettings: [.swiftLanguageMode(.v6)]
         ),

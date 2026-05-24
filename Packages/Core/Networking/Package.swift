@@ -7,11 +7,15 @@ let package = Package(
     products: [.library(name: "Networking", targets: ["Networking"])],
     dependencies: [
         .package(path: "../Models"),
+        .package(url: "https://github.com/supabase/supabase-swift.git", from: "2.0.0"),
     ],
     targets: [
         .target(
             name: "Networking",
-            dependencies: [.product(name: "Models", package: "Models")],
+            dependencies: [
+                .product(name: "Models", package: "Models"),
+                .product(name: "Supabase", package: "supabase-swift"),
+            ],
             path: "Sources/Networking",
             swiftSettings: [.swiftLanguageMode(.v6)]
         ),
