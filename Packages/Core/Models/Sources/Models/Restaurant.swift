@@ -21,7 +21,18 @@ public struct Restaurant: Identifiable, Hashable, Sendable {
     }
 }
 
-public enum RestaurantRole: String, Sendable, Hashable { case owner = "Gérant", manager = "Manager" }
+public enum RestaurantRole: String, Sendable, Hashable {
+    case owner = "owner"
+    case admin = "admin"
+    case manager = "manager"
+    public var displayName: String {
+        switch self {
+        case .owner: "Propriétaire"
+        case .admin: "Admin"
+        case .manager: "Manager"
+        }
+    }
+}
 
 public struct AppUser: Sendable {
     public let id: UUID
@@ -34,12 +45,23 @@ public struct AppUser: Sendable {
     public static let mock = AppUser(name: "Mariam", email: "mariam@chezflora.cm")
 }
 
-public enum AppPlan: String, Sendable { case starter, pro }
+public enum AppPlan: String, Sendable {
+    case starter, pro, business, enterprise
+    // Map renamed legacy plans
+    public init(fromDB value: String) {
+        switch value {
+        case "pro", "premium": self = .pro
+        case "business": self = .business
+        case "enterprise": self = .enterprise
+        default: self = .starter
+        }
+    }
+}
 
 public extension Restaurant {
     static let mocks: [Restaurant] = [
         Restaurant(name: "Chez Flora", city: "Douala", role: .owner, dishCount: 47,
                    photoURL: URL(string: "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=200")),
-        Restaurant(name: "Le Maquis du Port", city: "Yaoundé", role: .manager, dishCount: 23),
+        Restaurant(name: "Le Maquis du Port", city: "Yaoundé", role: .admin, dishCount: 23),
     ]
 }

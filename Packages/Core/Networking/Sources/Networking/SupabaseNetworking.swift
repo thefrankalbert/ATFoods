@@ -21,48 +21,59 @@ public struct SupabaseNetworking: ATFNetworking {
         try await client.auth.signOut()
     }
 
-    // MARK: - Restaurants
+    // MARK: - Restaurants (= Tenants in À Table SaaS)
 
     public func fetchRestaurants(userID: UUID) async throws -> [Restaurant] {
         struct LinkRow: Decodable, Sendable {
             let role: String
-            let restaurants: RestaurantDB
-            struct RestaurantDB: Decodable, Sendable {
+            let is_active: Bool?
+            let tenants: TenantDB
+            struct TenantDB: Decodable, Sendable {
                 let id: UUID
                 let name: String
                 let city: String?
-                let image_url: String?
+                let logo_url: String?
+                let subscription_plan: String?
+                let subscription_status: String?
+                let is_active: Bool?
             }
-        }
-        struct CountRow: Decodable, Sendable {
-            let restaurant_id: UUID
         }
 
         let links: [LinkRow] = try await client
-            .from("user_restaurants")
-            .select("role, restaurants(id, name, city, image_url)")
+            .from("admin_users")
+            .select("role, is_active, tenants(id, name, city, logo_url, subscription_plan, subscription_status, is_active)")
+            .eq("user_id", value: userID.uuidString)
             .execute()
             .value
 
-        let restaurantIDs = links.map { $0.restaurants.id.uuidString.lowercased() }
+        let validLinks = links.filter { link in
+            let roleOK = ["owner", "admin", "manager"].contains(link.role)
+            let userActive = link.is_active ?? true
+            let status = link.tenants.subscription_status
+            let tenantActive = link.tenants.is_active ?? true
+            let statusOK = status == nil || ["trial", "active", "past_due"].contains(status)
+            return roleOK && userActive && tenantActive && statusOK
+        }
+
+        let tenantIDs = validLinks.map { $0.tenants.id.uuidString.lowercased() }
+        struct CountRow: Decodable, Sendable { let tenant_id: UUID }
         let counts: [CountRow] = (try? await client
             .from("menu_items")
-            .select("restaurant_id")
-            .in("restaurant_id", value: restaurantIDs)
+            .select("tenant_id")
+            .in("tenant_id", value: tenantIDs)
             .execute()
             .value) ?? []
 
-        let countMap = Dictionary(grouping: counts, by: { $0.restaurant_id })
-            .mapValues { $0.count }
+        let countMap = Dictionary(grouping: counts, by: { $0.tenant_id }).mapValues { $0.count }
 
-        return links.map { link in
+        return validLinks.map { link in
             Restaurant(
-                id: link.restaurants.id,
-                name: link.restaurants.name,
-                city: link.restaurants.city ?? "",
+                id: link.tenants.id,
+                name: link.tenants.name,
+                city: link.tenants.city ?? "",
                 role: RestaurantRole(rawValue: link.role) ?? .manager,
-                dishCount: countMap[link.restaurants.id] ?? 0,
-                photoURL: link.restaurants.image_url.flatMap(URL.init)
+                dishCount: countMap[link.tenants.id] ?? 0,
+                photoURL: link.tenants.logo_url.flatMap(URL.init)
             )
         }
     }
@@ -85,7 +96,7 @@ public struct SupabaseNetworking: ATFNetworking {
         let rows: [ItemRow] = try await client
             .from("menu_items")
             .select("id, name, price, description, image_url, is_available, is_featured, categories(name)")
-            .eq("restaurant_id", value: restaurantID.uuidString)
+            .eq("tenant_id", value: restaurantID.uuidString)
             .execute()
             .value
 
@@ -106,7 +117,7 @@ public struct SupabaseNetworking: ATFNetworking {
     public func createMenuItem(_ item: MenuItem, restaurantID: UUID) async throws -> MenuItem {
         let categoryID = try await findOrCreateCategory(
             name: item.category.rawValue,
-            restaurantID: restaurantID
+            tenantID: restaurantID
         )
 
         struct Payload: Encodable {
@@ -117,7 +128,8 @@ public struct SupabaseNetworking: ATFNetworking {
             let is_available: Bool
             let is_featured: Bool
             let category_id: String
-            let restaurant_id: String
+            let tenant_id: String
+            let image_source: String
         }
 
         try await client
@@ -130,7 +142,8 @@ public struct SupabaseNetworking: ATFNetworking {
                 is_available: item.isAvailable,
                 is_featured: item.isFeatured,
                 category_id: categoryID.uuidString,
-                restaurant_id: restaurantID.uuidString
+                tenant_id: restaurantID.uuidString,
+                image_source: "at_food_ios"
             ))
             .execute()
 
@@ -141,15 +154,18 @@ public struct SupabaseNetworking: ATFNetworking {
         let path = "\(restaurantID.uuidString)/\(dishID.uuidString).jpg"
 
         try await client.storage
-            .from("dishes")
+            .from("menu-items")
             .upload(path, data: imageData, options: FileOptions(contentType: "image/jpeg", upsert: true))
 
-        let publicURL = try client.storage.from("dishes").getPublicURL(path: path)
+        let publicURL = try client.storage.from("menu-items").getPublicURL(path: path)
 
-        struct PhotoUpdate: Encodable { let image_url: String }
+        struct PhotoUpdate: Encodable {
+            let image_url: String
+            let image_source: String
+        }
         try await client
             .from("menu_items")
-            .update(PhotoUpdate(image_url: publicURL.absoluteString))
+            .update(PhotoUpdate(image_url: publicURL.absoluteString, image_source: "at_food_ios"))
             .eq("id", value: dishID.uuidString)
             .execute()
 
@@ -161,20 +177,21 @@ public struct SupabaseNetworking: ATFNetworking {
     public func fetchDrafts(restaurantID: UUID) async throws -> [Draft] {
         struct DraftRow: Decodable, Sendable {
             let id: UUID
-            let photo_url: String
+            let public_url: String?
             let status: String
         }
 
-        let rows: [DraftRow] = try await client
-            .from("drafts")
-            .select("id, photo_url, status")
-            .eq("restaurant_id", value: restaurantID.uuidString)
+        // dish_photo_drafts requires AT Food V1 migration — return empty if table missing
+        let rows: [DraftRow] = (try? await client
+            .from("dish_photo_drafts")
+            .select("id, public_url, status")
+            .eq("tenant_id", value: restaurantID.uuidString)
             .order("created_at", ascending: false)
             .execute()
-            .value
+            .value) ?? []
 
         return rows.compactMap { row in
-            guard let url = URL(string: row.photo_url) else { return nil }
+            guard let urlStr = row.public_url, let url = URL(string: urlStr) else { return nil }
             return Draft(id: row.id, photoURL: url, status: row.status == "attached" ? .attached : .pending)
         }
     }
@@ -182,59 +199,58 @@ public struct SupabaseNetworking: ATFNetworking {
     // MARK: - AI Retouch
 
     public func applyAIRetouch(dishID: UUID, effect: AIRetouchEffect) async throws -> URL {
-        // Edge function not yet deployed — throw so callers don't decrement credits for a no-op
+        // Edge function not yet deployed
         throw URLError(.unsupportedURL)
     }
 
     // MARK: - Credits
 
     public func fetchCredits(userID: UUID) async throws -> Int {
-        struct CreditsRow: Decodable, Sendable { let balance: Int }
-        let row: CreditsRow = try await client
-            .from("ai_credits")
-            .select("balance")
-            .eq("user_id", value: userID.uuidString)
-            .single()
-            .execute()
-            .value
-        return row.balance
+        // ai_photo_credits uses tenant_id — returns 0 until AT Food V1 migration applied
+        return 0
     }
 
     // MARK: - Helpers
 
     private func resolveUser(_ user: User) async throws -> AppUser {
-        struct ProfileRow: Decodable, Sendable { let name: String; let plan: String }
-        let profile = try? await client
-            .from("profiles")
-            .select("name, plan")
-            .eq("id", value: user.id.uuidString)
-            .single()
+        struct LinkRow: Decodable, Sendable {
+            let tenants: TenantInfo
+            struct TenantInfo: Decodable, Sendable {
+                let subscription_plan: String?
+            }
+        }
+
+        let links: [LinkRow] = (try? await client
+            .from("admin_users")
+            .select("tenants(subscription_plan)")
+            .eq("user_id", value: user.id.uuidString)
+            .limit(1)
             .execute()
-            .value as ProfileRow
-        let plan = AppPlan(rawValue: profile?.plan ?? "starter") ?? .starter
-        let name = profile?.name.nilIfEmpty
-            ?? user.email?.components(separatedBy: "@").first
-            ?? "Utilisateur"
+            .value) ?? []
+
+        let planStr = links.first?.tenants.subscription_plan ?? "starter"
+        let plan = AppPlan(fromDB: planStr)
+        let name = user.email?.components(separatedBy: "@").first ?? "Utilisateur"
         return AppUser(id: user.id, name: name, email: user.email ?? "", plan: plan)
     }
 
-    private func findOrCreateCategory(name: String, restaurantID: UUID) async throws -> UUID {
+    private func findOrCreateCategory(name: String, tenantID: UUID) async throws -> UUID {
         struct CategoryRow: Decodable, Sendable { let id: UUID }
 
         let existing: [CategoryRow] = try await client
             .from("categories")
             .select("id")
-            .eq("restaurant_id", value: restaurantID.uuidString)
+            .eq("tenant_id", value: tenantID.uuidString)
             .eq("name", value: name)
             .execute()
             .value
 
         if let found = existing.first { return found.id }
 
-        struct InsertPayload: Encodable { let name: String; let restaurant_id: String }
+        struct InsertPayload: Encodable { let name: String; let tenant_id: String }
         let created: CategoryRow = try await client
             .from("categories")
-            .insert(InsertPayload(name: name, restaurant_id: restaurantID.uuidString))
+            .insert(InsertPayload(name: name, tenant_id: tenantID.uuidString))
             .select("id")
             .single()
             .execute()
@@ -242,8 +258,4 @@ public struct SupabaseNetworking: ATFNetworking {
 
         return created.id
     }
-}
-
-private extension String {
-    var nilIfEmpty: String? { isEmpty ? nil : self }
 }

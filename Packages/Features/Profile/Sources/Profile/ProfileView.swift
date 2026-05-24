@@ -6,6 +6,7 @@ import Networking
 public struct ProfileView: View {
     @Bindable var store: ProfileStore
     let networking: any ATFNetworking
+    @Environment(\.openURL) private var openURL
     let onCredits: () -> Void
     let onUpgrade: () -> Void
     let onOffline: () -> Void
@@ -182,7 +183,7 @@ public struct ProfileView: View {
                     .foregroundStyle(Color.atfText1)
             }
             Spacer()
-            ATFBadge(store.restaurant.role.rawValue, kind: .soft)
+            ATFBadge(store.restaurant.role.displayName, kind: .soft)
         }
         .padding(16)
         .background(Color.atfSurface)
@@ -199,15 +200,30 @@ public struct ProfileView: View {
 
     private var settingsList: some View {
         VStack(spacing: 0) {
-            settingsRow(icon: "bell", label: "Notifications", action: {})
+            // Compte
+            settingsRow(icon: "safari", label: "Ouvrir le dashboard web", action: openDashboard)
+            Divider().padding(.leading, 52)
+            settingsRow(icon: "faceid", label: "Activer Face ID", action: {})
+
+            Divider().padding(.leading, 16).padding(.vertical, 8)
+
+            // Préférences
+            settingsRow(icon: "bell", label: "Notifications", action: openNotificationSettings)
             Divider().padding(.leading, 52)
             settingsRow(icon: "globe", label: "Langue", action: {})
             Divider().padding(.leading, 52)
             settingsRow(icon: "wifi.slash", label: "Mode hors-ligne", action: onOffline)
+
+            Divider().padding(.leading, 16).padding(.vertical, 8)
+
+            // À propos
+            settingsRow(icon: "ant", label: "Signaler un bug", action: reportBug)
             Divider().padding(.leading, 52)
-            settingsRow(icon: "info.circle", label: "Aide & Support", action: {})
+            settingsRow(icon: "info.circle", label: "Aide & Support", action: openSupport)
             Divider().padding(.leading, 52)
-            settingsRow(icon: "doc.text", label: "Conditions d'utilisation", action: {})
+            settingsRow(icon: "doc.text", label: "Conditions d'utilisation", action: openTerms)
+            Divider().padding(.leading, 52)
+            settingsRowInfo(icon: "number", label: "Version", value: appVersion)
         }
         .background(Color.atfSurface)
         .clipShape(RoundedRectangle(cornerRadius: 14))
@@ -216,6 +232,50 @@ public struct ProfileView: View {
                 .strokeBorder(Color.atfBorder, lineWidth: 1)
         )
         .padding(.horizontal, 16)
+    }
+
+    private func settingsRowInfo(icon: String, label: String, value: String) -> some View {
+        HStack(spacing: 14) {
+            Image(systemName: icon)
+                .font(.system(size: 16))
+                .foregroundStyle(Color.atfText2)
+                .frame(width: 22)
+            Text(label)
+                .font(.atfSubhead)
+                .foregroundStyle(Color.atfText1)
+            Spacer()
+            Text(value)
+                .font(.atfCaption)
+                .foregroundStyle(Color.atfText3)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 14)
+    }
+
+    private var appVersion: String {
+        let v = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0"
+        let b = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "1"
+        return "v\(v) (\(b))"
+    }
+
+    private func openDashboard() {
+        openURL(URL(string: "https://attabl.com")!)
+    }
+
+    private func openNotificationSettings() {
+        openURL(URL(string: "app-settings:")!)
+    }
+
+    private func reportBug() {
+        openURL(URL(string: "mailto:support@attabl.com?subject=Bug%20At%20Food")!)
+    }
+
+    private func openSupport() {
+        openURL(URL(string: "https://attabl.com/support")!)
+    }
+
+    private func openTerms() {
+        openURL(URL(string: "https://attabl.com/terms")!)
     }
 
     private func settingsRow(icon: String, label: String, action: @escaping () -> Void) -> some View {
