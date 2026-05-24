@@ -129,7 +129,6 @@ public struct SupabaseNetworking: ATFNetworking {
             let is_featured: Bool
             let category_id: String
             let tenant_id: String
-            let image_source: String
         }
 
         try await client
@@ -142,8 +141,7 @@ public struct SupabaseNetworking: ATFNetworking {
                 is_available: item.isAvailable,
                 is_featured: item.isFeatured,
                 category_id: categoryID.uuidString,
-                tenant_id: restaurantID.uuidString,
-                image_source: "at_food_ios"
+                tenant_id: restaurantID.uuidString
             ))
             .execute()
 
@@ -159,13 +157,10 @@ public struct SupabaseNetworking: ATFNetworking {
 
         let publicURL = try client.storage.from("menu-items").getPublicURL(path: path)
 
-        struct PhotoUpdate: Encodable {
-            let image_url: String
-            let image_source: String
-        }
+        struct PhotoUpdate: Encodable { let image_url: String }
         try await client
             .from("menu_items")
-            .update(PhotoUpdate(image_url: publicURL.absoluteString, image_source: "at_food_ios"))
+            .update(PhotoUpdate(image_url: publicURL.absoluteString))
             .eq("id", value: dishID.uuidString)
             .execute()
 
