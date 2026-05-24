@@ -6,6 +6,7 @@ public protocol ATFNetworking: Sendable {
     func signOut() async throws
     func fetchRestaurants(userID: UUID) async throws -> [Restaurant]
     func fetchMenuItems(restaurantID: UUID) async throws -> [MenuItem]
+    func fetchCategories(restaurantID: UUID) async throws -> [String]
     func createMenuItem(_ item: MenuItem, restaurantID: UUID) async throws -> MenuItem
     func attachPhoto(imageData: Data, toDishID dishID: UUID, restaurantID: UUID) async throws -> URL
     func fetchDrafts(restaurantID: UUID) async throws -> [Draft]

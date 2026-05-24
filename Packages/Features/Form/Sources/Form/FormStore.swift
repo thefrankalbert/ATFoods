@@ -6,7 +6,8 @@ import UIKit
 @MainActor @Observable public final class FormStore {
     public var name: String = ""
     public var priceText: String = ""
-    public var category: MenuCategory = .plat
+    public var category: String = "Plat"
+    public var categories: [String] = []
     public var isAvailable: Bool = true
     public var isLoading: Bool = false
     public var error: String? = nil
@@ -17,6 +18,14 @@ import UIKit
     public init(restaurant: Restaurant, capturedImage: UIImage? = nil) {
         self.restaurant = restaurant
         self.capturedImage = capturedImage
+    }
+
+    public func loadCategories(networking: any ATFNetworking) async {
+        guard categories.isEmpty else { return }
+        categories = (try? await networking.fetchCategories(restaurantID: restaurant.id)) ?? []
+        if categories.isEmpty {
+            categories = ["Plat", "Entrée", "Grillades", "Spécialité", "Boisson", "Dessert"]
+        }
     }
 
     public var priceInCents: Int? {

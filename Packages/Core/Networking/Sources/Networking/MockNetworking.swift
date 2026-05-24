@@ -24,6 +24,11 @@ public final class MockNetworking: ATFNetworking {
         return MenuItem.mocks
     }
 
+    public func fetchCategories(restaurantID: UUID) async throws -> [String] {
+        try await Task.sleep(for: .milliseconds(200))
+        return ["Plat", "Grillades", "Spécialité", "Boisson", "Dessert", "Entrée"]
+    }
+
     public func createMenuItem(_ item: MenuItem, restaurantID: UUID) async throws -> MenuItem {
         try await Task.sleep(for: .milliseconds(600))
         return item

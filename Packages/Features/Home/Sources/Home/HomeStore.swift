@@ -5,9 +5,10 @@ import Networking
 @MainActor @Observable public final class HomeStore {
     public var restaurant: Restaurant
     public var menuItems: [MenuItem] = []
+    public var categories: [String] = []
     public var isLoading = false
     public var error: String?
-    public var selectedCategory: MenuCategory? = nil  // nil = show all
+    public var selectedCategory: String? = nil
 
     public init(restaurant: Restaurant) { self.restaurant = restaurant }
 
@@ -15,7 +16,10 @@ import Networking
         isLoading = true
         error = nil
         do {
-            menuItems = try await networking.fetchMenuItems(restaurantID: restaurant.id)
+            async let items = networking.fetchMenuItems(restaurantID: restaurant.id)
+            async let cats = networking.fetchCategories(restaurantID: restaurant.id)
+            menuItems = try await items
+            categories = try await cats
         } catch {
             self.error = error.localizedDescription
         }

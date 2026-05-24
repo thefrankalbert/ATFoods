@@ -90,9 +90,9 @@ public struct HomeView: View {
                     store.selectedCategory = nil
                 }
 
-                ForEach(MenuCategory.allCases, id: \.self) { category in
+                ForEach(store.categories, id: \.self) { category in
                     categoryChip(
-                        label: category.displayName,
+                        label: category,
                         isSelected: store.selectedCategory == category
                     ) {
                         store.selectedCategory = category

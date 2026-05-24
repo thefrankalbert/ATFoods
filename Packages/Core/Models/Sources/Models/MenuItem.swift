@@ -4,7 +4,7 @@ public struct MenuItem: Identifiable, Hashable, Sendable {
     public let id: UUID
     public var name: String
     public var price: Int          // FCFA
-    public var category: MenuCategory
+    public var category: String    // category name from Supabase categories table
     public var photoURL: URL?
     public var isAvailable: Bool
     public var isFeatured: Bool
@@ -15,7 +15,7 @@ public struct MenuItem: Identifiable, Hashable, Sendable {
         id: UUID = UUID(),
         name: String,
         price: Int,
-        category: MenuCategory,
+        category: String = "Plat",
         photoURL: URL? = nil,
         isAvailable: Bool = true,
         isFeatured: Bool = false,
@@ -37,27 +37,17 @@ public struct MenuItem: Identifiable, Hashable, Sendable {
     }
 }
 
-public enum MenuCategory: String, CaseIterable, Sendable, Hashable {
-    case entree     = "Entrée"
-    case plat       = "Plat"
-    case grillades  = "Grillades"
-    case specialite = "Spécialité"
-    case boisson    = "Boisson"
-    case dessert    = "Dessert"
-    public var displayName: String { rawValue }
-}
-
 public extension MenuItem {
     static let mocks: [MenuItem] = [
-        MenuItem(name: "Mafé bœuf",      price: 3800, category: .plat,
+        MenuItem(name: "Mafé bœuf",       price: 3800, category: "Plat",
                  photoURL: URL(string: "https://images.unsplash.com/photo-1604908176997-125f25cc6f3d?w=400"),
                  isFeatured: true),
-        MenuItem(name: "Thieboudienne",  price: 4500, category: .plat,
+        MenuItem(name: "Thieboudienne",   price: 4500, category: "Plat",
                  photoURL: URL(string: "https://images.unsplash.com/photo-1547928576-b822bc410bdf?w=400")),
-        MenuItem(name: "Ndolé crevettes", price: 4200, category: .specialite),
-        MenuItem(name: "Brochettes mixtes", price: 2800, category: .grillades),
-        MenuItem(name: "Salade maison",  price: 1500, category: .entree),
-        MenuItem(name: "Jus de bissap", price: 800,  category: .boisson),
-        MenuItem(name: "Koki", price: 1200, category: .specialite),
+        MenuItem(name: "Ndolé crevettes", price: 4200, category: "Spécialité"),
+        MenuItem(name: "Brochettes mixtes", price: 2800, category: "Grillades"),
+        MenuItem(name: "Salade maison",   price: 1500, category: "Entrée"),
+        MenuItem(name: "Jus de bissap",   price: 800,  category: "Boisson"),
+        MenuItem(name: "Koki",            price: 1200, category: "Spécialité"),
     ]
 }

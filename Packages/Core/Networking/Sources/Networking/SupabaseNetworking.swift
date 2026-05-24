@@ -105,7 +105,7 @@ public struct SupabaseNetworking: ATFNetworking {
                 id: row.id,
                 name: row.name,
                 price: Int(row.price),
-                category: MenuCategory(rawValue: row.categories?.name ?? "") ?? .plat,
+                category: row.categories?.name ?? "Plat",
                 photoURL: row.image_url.flatMap(URL.init),
                 isAvailable: row.is_available ?? true,
                 isFeatured: row.is_featured ?? false,
@@ -114,9 +114,21 @@ public struct SupabaseNetworking: ATFNetworking {
         }
     }
 
+    public func fetchCategories(restaurantID: UUID) async throws -> [String] {
+        struct CatRow: Decodable, Sendable { let name: String }
+        let rows: [CatRow] = try await client
+            .from("categories")
+            .select("name")
+            .eq("tenant_id", value: restaurantID.uuidString)
+            .order("display_order", ascending: true)
+            .execute()
+            .value
+        return rows.map { $0.name }
+    }
+
     public func createMenuItem(_ item: MenuItem, restaurantID: UUID) async throws -> MenuItem {
         let categoryID = try await findOrCreateCategory(
-            name: item.category.rawValue,
+            name: item.category,
             tenantID: restaurantID
         )
 

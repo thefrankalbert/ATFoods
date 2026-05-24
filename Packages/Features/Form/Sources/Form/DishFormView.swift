@@ -59,6 +59,7 @@ public struct DishFormView: View {
                     )
             }
         }
+        .task { await store.loadCategories(networking: networking) }
     }
 
     // MARK: - Header
@@ -154,7 +155,7 @@ public struct DishFormView: View {
 
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 8) {
-                    ForEach(MenuCategory.allCases, id: \.self) { cat in
+                    ForEach(store.categories, id: \.self) { cat in
                         categoryChip(cat)
                     }
                     Button {
@@ -174,8 +175,11 @@ public struct DishFormView: View {
         }
         .sheet(isPresented: $showCategorySheet) {
             NewCategorySheet(
-                onSelect: { cat in
-                    store.category = cat
+                onCreated: { newName in
+                    if !store.categories.contains(newName) {
+                        store.categories.append(newName)
+                    }
+                    store.category = newName
                     showCategorySheet = false
                 },
                 onDismiss: { showCategorySheet = false }
@@ -183,12 +187,12 @@ public struct DishFormView: View {
         }
     }
 
-    private func categoryChip(_ cat: MenuCategory) -> some View {
+    private func categoryChip(_ cat: String) -> some View {
         let isSelected = store.category == cat
         return Button {
             store.category = cat
         } label: {
-            Text(cat.displayName)
+            Text(cat)
                 .font(.atfCaption)
                 .foregroundStyle(isSelected ? Color.white : Color.atfText2)
                 .padding(.horizontal, 14)
