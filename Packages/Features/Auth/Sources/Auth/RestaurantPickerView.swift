@@ -112,7 +112,7 @@ private struct RestaurantRow: View {
             Spacer()
 
             // Role badge
-            ATFBadge(restaurant.role.rawValue, kind: .soft)
+            ATFBadge(restaurant.role.displayName, kind: .soft)
 
             // Selected checkmark
             if isSelected {
