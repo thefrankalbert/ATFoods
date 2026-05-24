@@ -41,7 +41,7 @@ let project = Project(
             sources: ["App/**"],
             dependencies: [
                 .package(product: "DesignSystem"),
-                .package(product: "Auth"),
+                .package(product: "ATFAuth"),
                 .package(product: "Home"),
                 .package(product: "Capture"),
                 .package(product: "Form"),

@@ -182,19 +182,8 @@ public struct SupabaseNetworking: ATFNetworking {
     // MARK: - AI Retouch
 
     public func applyAIRetouch(dishID: UUID, effect: AIRetouchEffect) async throws -> URL {
-        // Edge function not yet deployed — returns original photo URL in the meantime
-        struct ItemRow: Decodable, Sendable { let image_url: String? }
-        let row: ItemRow = try await client
-            .from("menu_items")
-            .select("image_url")
-            .eq("id", value: dishID.uuidString)
-            .single()
-            .execute()
-            .value
-        guard let str = row.image_url, let url = URL(string: str) else {
-            throw URLError(.badServerResponse)
-        }
-        return url
+        // Edge function not yet deployed — throw so callers don't decrement credits for a no-op
+        throw URLError(.unsupportedURL)
     }
 
     // MARK: - Credits
