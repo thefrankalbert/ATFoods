@@ -193,7 +193,7 @@ private struct DishRow: View {
                     Text(item.name)
                         .font(.atfBody)
                         .foregroundStyle(Color.atfText1)
-                    ATFBadge(item.category.displayName, kind: .soft)
+                    ATFBadge(item.category, kind: .soft)
                 }
                 Spacer()
                 if isSelected {
