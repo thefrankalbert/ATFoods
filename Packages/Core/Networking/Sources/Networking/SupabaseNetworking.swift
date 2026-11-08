@@ -75,16 +75,25 @@ public struct SupabaseNetworking: ATFNetworking {
             return roleOK && userActive && tenantActive && statusOK
         }
 
-        // One COUNT per tenant (head request, no rows): exact even beyond PostgREST's 1000-row page.
-        var countMap: [UUID: Int] = [:]
-        for link in validLinks {
-            let response = try await client
-                .from("menu_items")
-                .select("id", head: true, count: .exact)
-                .eq("tenant_id", value: link.tenants.id.uuidString)
-                .is("deleted_at", value: nil)
-                .execute()
-            countMap[link.tenants.id] = response.count ?? 0
+        // One COUNT per tenant (head request, no rows), in parallel: exact beyond PostgREST's
+        // 1000-row page. Cosmetic only, so a failed count shows 0 instead of blocking login.
+        let countMap = await withTaskGroup(of: (UUID, Int).self) { group in
+            for link in validLinks {
+                let tenantID = link.tenants.id
+                group.addTask {
+                    let count = try? await client
+                        .from("menu_items")
+                        .select("id", head: true, count: .exact)
+                        .eq("tenant_id", value: tenantID.uuidString)
+                        .is("deleted_at", value: nil)
+                        .execute()
+                        .count
+                    return (tenantID, count ?? 0)
+                }
+            }
+            var map: [UUID: Int] = [:]
+            for await (id, count) in group { map[id] = count }
+            return map
         }
 
         return validLinks.map { link in
@@ -316,12 +325,22 @@ public struct SupabaseNetworking: ATFNetworking {
 
     public func deleteDrafts(_ drafts: [Draft]) async throws {
         guard !drafts.isEmpty else { return }
-        try await client
+        struct DeletedRow: Decodable, Sendable { let id: UUID }
+        // RLS-denied deletes affect 0 rows without erroring: only remove files of rows really deleted,
+        // so a draft can never point at a missing file.
+        let deleted: [DeletedRow] = try await client
             .from("dish_photo_drafts")
             .delete()
             .in("id", values: drafts.map { $0.id.uuidString })
+            .select("id")
             .execute()
-        _ = try? await client.storage.from(Self.bucket).remove(paths: drafts.map(\.storagePath))
+            .value
+        let deletedIDs = Set(deleted.map(\.id))
+        let paths = drafts.filter { deletedIDs.contains($0.id) }.map(\.storagePath)
+        if !paths.isEmpty {
+            _ = try? await client.storage.from(Self.bucket).remove(paths: paths)
+        }
+        guard deletedIDs.count == drafts.count else { throw SupabaseNetworkingError.notAllowed }
     }
 
     // MARK: - Helpers

@@ -22,7 +22,7 @@ public enum DishPhotoSource {
     public private(set) var menusLoaded: Bool = false
     public var error: String? = nil
     public let restaurant: Restaurant
-    public let photo: DishPhotoSource?
+    public var photo: DishPhotoSource?
     /// Set once the dish row exists, so a retry after a failed photo upload doesn't create a duplicate.
     private var createdItem: MenuItem? = nil
 
@@ -101,7 +101,7 @@ public enum DishPhotoSource {
         do {
             switch photo {
             case .captured(let image):
-                guard let data = image.uploadJPEG() else {
+                guard let data = await image.uploadJPEG() else {
                     self.error = "Photo invalide. Le plat est créé, reprends la photo."
                     return
                 }

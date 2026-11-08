@@ -23,6 +23,9 @@ public struct AttachDishView: View {
     @State private var isSavingDraft = false
     @State private var error: String? = nil
 
+    /// One operation at a time: attach and draft both pop the stack and must never overlap.
+    private var isBusy: Bool { isAttaching || isSavingDraft }
+
     public init(
         restaurant: Restaurant,
         networking: any ATFNetworking,
@@ -54,6 +57,7 @@ public struct AttachDishView: View {
                             .foregroundStyle(Color.atfText1)
                             .frame(width: 44, height: 44)
                     }
+                    .disabled(isBusy)
                     Spacer()
                     Text("Attacher à un plat")
                         .font(.atfHeadline)
@@ -67,13 +71,13 @@ public struct AttachDishView: View {
                 .padding(.bottom, 8)
 
                 // "+ Nouveau plat" button
-                ATFButton("+ Nouveau plat", kind: .secondary, fullWidth: true, action: { onNewDish() })
+                ATFButton("+ Nouveau plat", kind: .secondary, fullWidth: true, disabled: isBusy, action: { onNewDish() })
                     .padding(.horizontal, 20)
                     .padding(.bottom, saveDraft == nil ? 16 : 8)
 
                 if saveDraft != nil {
                     ATFButton("Garder en brouillon", kind: .ghost, fullWidth: true,
-                              loading: isSavingDraft, action: { keepAsDraft() })
+                              loading: isSavingDraft, disabled: isAttaching, action: { keepAsDraft() })
                         .padding(.horizontal, 20)
                         .padding(.bottom, 16)
                         .accessibilityIdentifier("saveDraftButton")
@@ -173,7 +177,7 @@ public struct AttachDishView: View {
     }
 
     private func attachPhoto() {
-        guard let item = selectedItem else { return }
+        guard let item = selectedItem, !isBusy else { return }
         isAttaching = true
         error = nil
         Task {
@@ -188,7 +192,7 @@ public struct AttachDishView: View {
     }
 
     private func keepAsDraft() {
-        guard let saveDraft else { return }
+        guard let saveDraft, !isBusy else { return }
         isSavingDraft = true
         error = nil
         Task {

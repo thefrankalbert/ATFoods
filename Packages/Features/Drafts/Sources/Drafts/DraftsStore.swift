@@ -40,8 +40,9 @@ import Networking
         defer { isDeleting = false }
         do {
             try await networking.deleteDrafts(targets)
-            drafts.removeAll { selectedIDs.contains($0.id) }
-            selectedIDs.removeAll()
+            let deleted = Set(targets.map(\.id))   // snapshot sent, not the live selection
+            drafts.removeAll { deleted.contains($0.id) }
+            selectedIDs.subtract(deleted)
             isMultiSelect = false
             error = nil
         } catch {

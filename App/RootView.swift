@@ -225,23 +225,24 @@ struct RootView: View {
                     networking: networking,
                     onNewDish: {
                         guard let image = store.capturedImage else { return }
-                        // Same photo + dish already created (upload failed): reopen that form, never a duplicate.
-                        // A different photo (retake) always gets a fresh form.
-                        var samePhoto = false
-                        if case .captured(let previous) = nav.formStore?.photo { samePhoto = previous === image }
-                        if !(samePhoto && nav.formStore?.isDishCreated == true) {
+                        // Dish already created in this capture session (photo upload failed): reuse that form
+                        // with the current photo (it may have been cropped / whitened since). Never a duplicate.
+                        // formStore is cleared on retake, new capture, draft saved and dish saved.
+                        if let form = nav.formStore, form.isDishCreated, case .captured = form.photo {
+                            form.photo = .captured(image)
+                        } else {
                             nav.formStore = FormStore(restaurant: store.restaurant, photo: .captured(image))
                         }
                         path.append(.dishForm)
                     },
                     attach: { item in
-                        guard let data = store.capturedImage?.uploadJPEG() else {
+                        guard let data = await store.capturedImage?.uploadJPEG() else {
                             throw AppError("Photo invalide. Reprends la photo.")
                         }
                         _ = try await networking.attachPhoto(imageData: data, toDishID: item.id, restaurantID: store.restaurant.id)
                     },
                     saveDraft: {
-                        guard let data = store.capturedImage?.uploadJPEG() else {
+                        guard let data = await store.capturedImage?.uploadJPEG() else {
                             throw AppError("Photo invalide. Reprends la photo.")
                         }
                         _ = try await networking.saveDraft(imageData: data, restaurantID: store.restaurant.id)
