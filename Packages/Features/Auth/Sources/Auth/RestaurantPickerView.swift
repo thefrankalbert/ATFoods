@@ -5,10 +5,16 @@ import Models
 public struct RestaurantPickerView: View {
     @Bindable var store: AuthStore
     let onContinue: () -> Void
+    let onRetry: () async -> Void
+    let onSignOut: () -> Void
+    @State private var isRetrying = false
 
-    public init(store: AuthStore, onContinue: @escaping () -> Void) {
+    public init(store: AuthStore, onContinue: @escaping () -> Void,
+                onRetry: @escaping () async -> Void, onSignOut: @escaping () -> Void) {
         self.store = store
         self.onContinue = onContinue
+        self.onRetry = onRetry
+        self.onSignOut = onSignOut
     }
 
     public var body: some View {
@@ -23,6 +29,10 @@ public struct RestaurantPickerView: View {
                 Text("Quel établissement ?")
                     .font(.atfTitle)
                     .foregroundStyle(Color.atfText1)
+                Button("Changer de compte", action: onSignOut)
+                    .font(.atfCaption)
+                    .foregroundStyle(Color.atfAccent)
+                    .padding(.top, 4)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, 24)
@@ -32,6 +42,28 @@ public struct RestaurantPickerView: View {
             // Restaurant list
             ScrollView {
                 VStack(spacing: 12) {
+                    if let error = store.restaurantsError {
+                        VStack(spacing: 12) {
+                            Text(error)
+                                .font(.atfBody)
+                                .foregroundStyle(Color.atfDanger)
+                                .multilineTextAlignment(.center)
+                            ATFButton("Réessayer", kind: .secondary, loading: isRetrying) {
+                                Task {
+                                    isRetrying = true
+                                    await onRetry()
+                                    isRetrying = false
+                                }
+                            }
+                        }
+                        .padding(.top, 40)
+                    } else if store.restaurants.isEmpty {
+                        Text("Aucun établissement accessible avec ce compte. Il faut être propriétaire, admin ou manager d'un restaurant À Table actif.")
+                            .font(.atfBody)
+                            .foregroundStyle(Color.atfText2)
+                            .multilineTextAlignment(.center)
+                            .padding(.top, 40)
+                    }
                     ForEach(store.restaurants) { restaurant in
                         Button {
                             store.selectedRestaurant = restaurant
@@ -146,5 +178,5 @@ private struct RestaurantRow: View {
     let store = AuthStore()
     store.restaurants = Restaurant.mocks
     store.currentUser = AppUser.mock
-    return RestaurantPickerView(store: store) {}
+    return RestaurantPickerView(store: store, onContinue: {}, onRetry: {}, onSignOut: {})
 }

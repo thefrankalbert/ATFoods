@@ -77,63 +77,38 @@ final class SmokeTest: XCTestCase {
 
     // MARK: - DishFormView validation: save disabled when empty
 
-    func testDishFormCTADisabledWhenEmpty() throws {
-        // Navigate deep: Home → Camera → (simulate) → PhotoPreview → AttachDish → NewDish → DishForm
-        // This is hard to fully automate without real camera; verify form exists
+    // MARK: - Drafts & Profile
+
+    func testDraftsListAndMultiSelect() throws {
         navigateToHome()
-        takeScreenshot("DishForm_home_base")
+        XCTAssertTrue(app.buttons["draftsButton"].waitForExistence(timeout: 4), "Drafts button missing on Home")
+        app.buttons["draftsButton"].tap()
+        XCTAssertTrue(app.staticTexts["Brouillons"].waitForExistence(timeout: 4), "Drafts screen not shown")
+        // Mock returns drafts: multi-select must expose the delete action.
+        app.buttons["Sélect."].tap()
+        app.images.firstMatch.tap()
+        XCTAssertTrue(app.buttons["Supprimer (1)"].waitForExistence(timeout: 3), "Delete action missing after selection")
+        takeScreenshot("Drafts_multiselect")
     }
 
-    // MARK: - Plan 3 screens: visual capture
-
-    func testPlan3_screensCapture() throws {
+    func testProfileHasOnlyWorkingRows() throws {
         navigateToHome()
-        takeScreenshot("P3_01_Home")
-
-        // → Drafts
-        if app.buttons["draftsButton"].waitForExistence(timeout: 4) {
-            app.buttons["draftsButton"].tap()
-            sleep(2)
-            takeScreenshot("P3_02_Drafts")
-            // Back to Home
-            if app.buttons["arrow.left"].waitForExistence(timeout: 3) {
-                app.buttons["arrow.left"].tap(); sleep(1)
-            }
+        app.buttons["profileButton"].tap()
+        XCTAssertTrue(app.buttons["Se déconnecter"].waitForExistence(timeout: 4), "Profile not shown")
+        for removed in ["Crédits IA", "Passer au Pro", "Activer Face ID", "Mode hors-ligne", "Langue", "Notifications"] {
+            XCTAssertFalse(app.staticTexts[removed].exists, "Removed row still visible: \(removed)")
         }
-
-        // → Profile
-        if app.buttons["profileButton"].waitForExistence(timeout: 4) {
-            app.buttons["profileButton"].tap()
-            sleep(2)
-            takeScreenshot("P3_03_Profile")
-
-            // → Credits
-            let creditsRow = app.staticTexts["Crédits IA"]
-            if creditsRow.waitForExistence(timeout: 3) {
-                creditsRow.tap(); sleep(2)
-                takeScreenshot("P3_04_Credits")
-                if app.buttons["arrow.left"].waitForExistence(timeout: 3) {
-                    app.buttons["arrow.left"].tap(); sleep(1)
-                }
-            }
-
-            // → Offline
-            let offlineRow = app.staticTexts["Mode hors-ligne"]
-            if offlineRow.waitForExistence(timeout: 2) {
-                offlineRow.tap(); sleep(2)
-                takeScreenshot("P3_05_Offline")
-                if app.buttons["arrow.left"].waitForExistence(timeout: 3) {
-                    app.buttons["arrow.left"].tap(); sleep(1)
-                }
-            }
-
-            // Back to Home
-            if app.buttons["arrow.left"].waitForExistence(timeout: 3) {
-                app.buttons["arrow.left"].tap(); sleep(1)
-            }
-        }
+        takeScreenshot("Profile")
     }
 
+    func testSignOutReturnsToLogin() throws {
+        navigateToHome()
+        app.buttons["profileButton"].tap()
+        let signOut = app.buttons["Se déconnecter"]
+        XCTAssertTrue(signOut.waitForExistence(timeout: 4))
+        signOut.tap()
+        XCTAssertTrue(app.buttons["Se connecter"].waitForExistence(timeout: 5), "Sign out did not return to login")
+    }
 
     // MARK: - Helpers
 
@@ -147,7 +122,12 @@ final class SmokeTest: XCTestCase {
         tapIfExists("Continuer")
         tapIfExists("Commencer")
         _ = app.buttons["Se connecter"].waitForExistence(timeout: 5)
-        // Fill password (required by mock: !password.isEmpty)
+        // Mock login requires an email containing "@" and a non-empty password.
+        let emailField = app.textFields.firstMatch
+        if emailField.waitForExistence(timeout: 3) {
+            emailField.tap()
+            emailField.typeText("chef@resto.cm")
+        }
         let secureField = app.secureTextFields.firstMatch
         if secureField.waitForExistence(timeout: 3) {
             secureField.tap()

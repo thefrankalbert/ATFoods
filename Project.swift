@@ -17,7 +17,6 @@ let project = Project(
         .local(path: "Packages/Features/Capture"),
         .local(path: "Packages/Features/Form"),
         .local(path: "Packages/Features/Drafts"),
-        .local(path: "Packages/Features/AIRetouch"),
         .local(path: "Packages/Features/Profile"),
     ],
     settings: .settings(
@@ -46,7 +45,6 @@ let project = Project(
                 .package(product: "Capture"),
                 .package(product: "Form"),
                 .package(product: "Drafts"),
-                .package(product: "AIRetouch"),
                 .package(product: "Profile"),
             ]
         ),

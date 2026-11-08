@@ -6,9 +6,13 @@ import DesignSystem
 // MARK: - AttachDishView (Screen S07)
 
 public struct AttachDishView: View {
-    @Bindable var store: CaptureStore
+    let restaurant: Restaurant
     let networking: any ATFNetworking
     let onNewDish: () -> Void
+    /// Performs the attach (fresh photo upload or draft copy). Throws to show the error.
+    let attach: (MenuItem) async throws -> Void
+    /// Only for a fresh capture: keep the photo as a draft and go on shooting.
+    let saveDraft: (() async throws -> Void)?
     let onAttached: () -> Void
     let onBack: () -> Void
 
@@ -16,18 +20,23 @@ public struct AttachDishView: View {
     @State private var menuItems: [MenuItem] = []
     @State private var selectedItem: MenuItem? = nil
     @State private var isAttaching = false
+    @State private var isSavingDraft = false
     @State private var error: String? = nil
 
     public init(
-        store: CaptureStore,
+        restaurant: Restaurant,
         networking: any ATFNetworking,
         onNewDish: @escaping () -> Void,
+        attach: @escaping (MenuItem) async throws -> Void,
+        saveDraft: (() async throws -> Void)? = nil,
         onAttached: @escaping () -> Void,
         onBack: @escaping () -> Void
     ) {
-        self.store = store
+        self.restaurant = restaurant
         self.networking = networking
         self.onNewDish = onNewDish
+        self.attach = attach
+        self.saveDraft = saveDraft
         self.onAttached = onAttached
         self.onBack = onBack
     }
@@ -60,7 +69,15 @@ public struct AttachDishView: View {
                 // "+ Nouveau plat" button
                 ATFButton("+ Nouveau plat", kind: .secondary, fullWidth: true, action: { onNewDish() })
                     .padding(.horizontal, 20)
-                    .padding(.bottom, 16)
+                    .padding(.bottom, saveDraft == nil ? 16 : 8)
+
+                if saveDraft != nil {
+                    ATFButton("Garder en brouillon", kind: .ghost, fullWidth: true,
+                              loading: isSavingDraft, action: { keepAsDraft() })
+                        .padding(.horizontal, 20)
+                        .padding(.bottom, 16)
+                        .accessibilityIdentifier("saveDraftButton")
+                }
 
                 // Divider with label
                 HStack(spacing: 12) {
@@ -126,7 +143,7 @@ public struct AttachDishView: View {
                     kind: .primary,
                     fullWidth: true,
                     loading: isAttaching,
-                    disabled: selectedItem == nil,
+                    disabled: selectedItem == nil || isSavingDraft,
                     action: { attachPhoto() }
                 )
                 .padding(.horizontal, 20)
@@ -148,8 +165,7 @@ public struct AttachDishView: View {
         isLoading = true
         error = nil
         do {
-            let items = try await networking.fetchMenuItems(restaurantID: store.restaurant.id)
-            menuItems = items
+            menuItems = try await networking.fetchMenuItems(restaurantID: restaurant.id)
         } catch {
             self.error = error.localizedDescription
         }
@@ -158,23 +174,30 @@ public struct AttachDishView: View {
 
     private func attachPhoto() {
         guard let item = selectedItem else { return }
-        guard let data = store.capturedImage?.jpegData(compressionQuality: 0.85) else { return }
         isAttaching = true
         error = nil
-        let restaurantID = store.restaurant.id
-        let dishID = item.id
         Task {
             do {
-                _ = try await networking.attachPhoto(
-                    imageData: data,
-                    toDishID: dishID,
-                    restaurantID: restaurantID
-                )
+                try await attach(item)
                 onAttached()
             } catch {
                 self.error = error.localizedDescription
             }
             isAttaching = false
+        }
+    }
+
+    private func keepAsDraft() {
+        guard let saveDraft else { return }
+        isSavingDraft = true
+        error = nil
+        Task {
+            do {
+                try await saveDraft()
+            } catch {
+                self.error = error.localizedDescription
+            }
+            isSavingDraft = false
         }
     }
 }
@@ -193,7 +216,14 @@ private struct DishRow: View {
                     Text(item.name)
                         .font(.atfBody)
                         .foregroundStyle(Color.atfText1)
-                    ATFBadge(item.category, kind: .soft)
+                    HStack(spacing: 6) {
+                        if !item.category.isEmpty { ATFBadge(item.category, kind: .soft) }
+                        if item.photoURL != nil {
+                            Text("Remplacera la photo actuelle")
+                                .font(.atfCaption)
+                                .foregroundStyle(Color.atfText3)
+                        }
+                    }
                 }
                 Spacer()
                 if isSelected {
@@ -214,9 +244,11 @@ private struct DishRow: View {
 
 #Preview("AttachDishView") {
     AttachDishView(
-        store: CaptureStore(restaurant: Restaurant.mocks[0]),
+        restaurant: Restaurant.mocks[0],
         networking: MockNetworking(),
         onNewDish: {},
+        attach: { _ in },
+        saveDraft: {},
         onAttached: {},
         onBack: {}
     )

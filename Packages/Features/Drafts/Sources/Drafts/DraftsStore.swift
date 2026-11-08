@@ -2,18 +2,13 @@ import Foundation
 import Models
 import Networking
 
-public enum DraftFilter: String, CaseIterable, Sendable {
-    case all      = "Tous"
-    case pending  = "À publier"
-    case attached = "Publiés"
-}
-
 @MainActor @Observable public final class DraftsStore {
     public var drafts: [Draft] = []
-    public var filter: DraftFilter = .all
     public var selectedIDs: Set<UUID> = []
     public var isMultiSelect: Bool = false
     public var isLoading: Bool = false
+    public var isDeleting: Bool = false
+    public var error: String?
 
     let restaurantID: UUID
 
@@ -21,19 +16,15 @@ public enum DraftFilter: String, CaseIterable, Sendable {
         self.restaurantID = restaurantID
     }
 
-    public var filteredDrafts: [Draft] {
-        switch filter {
-        case .all:      return drafts
-        case .pending:  return drafts.filter { $0.status == .pending }
-        case .attached: return drafts.filter { $0.status == .attached }
-        }
-    }
-
     public func load(networking: any ATFNetworking) async {
-        isLoading = true
+        isLoading = drafts.isEmpty
         defer { isLoading = false }
-        do { drafts = try await networking.fetchDrafts(restaurantID: restaurantID) }
-        catch {}
+        do {
+            drafts = try await networking.fetchDrafts(restaurantID: restaurantID)
+            error = nil
+        } catch {
+            self.error = "Brouillons : \(error.localizedDescription)"
+        }
     }
 
     public func toggleSelection(_ id: UUID) {
@@ -41,9 +32,20 @@ public enum DraftFilter: String, CaseIterable, Sendable {
         else { selectedIDs.insert(id) }
     }
 
-    public func deleteSelected() {
-        drafts.removeAll { selectedIDs.contains($0.id) }
-        selectedIDs.removeAll()
-        isMultiSelect = false
+    /// Deletes rows and files server-side; the list only changes once that succeeded.
+    public func deleteSelected(networking: any ATFNetworking) async {
+        let targets = drafts.filter { selectedIDs.contains($0.id) }
+        guard !targets.isEmpty else { return }
+        isDeleting = true
+        defer { isDeleting = false }
+        do {
+            try await networking.deleteDrafts(targets)
+            drafts.removeAll { selectedIDs.contains($0.id) }
+            selectedIDs.removeAll()
+            isMultiSelect = false
+            error = nil
+        } catch {
+            self.error = "Suppression : \(error.localizedDescription)"
+        }
     }
 }

@@ -2,19 +2,38 @@ import Foundation
 import Models
 import Supabase
 
+public enum SupabaseNetworkingError: LocalizedError {
+    case notAllowed
+
+    public var errorDescription: String? {
+        "Modification refusée : vérifie tes droits sur ce restaurant."
+    }
+}
+
 public struct SupabaseNetworking: ATFNetworking {
 
     private let client: SupabaseClient
+    private static let bucket = "menu-items"
 
     public init(url: URL, anonKey: String) {
-        client = SupabaseClient(supabaseURL: url, supabaseKey: anonKey)
+        client = SupabaseClient(
+            supabaseURL: url,
+            supabaseKey: anonKey,
+            options: SupabaseClientOptions(auth: .init(emitLocalSessionAsInitialSession: true))
+        )
     }
 
     // MARK: - Auth
 
     public func signIn(email: String, password: String) async throws -> AppUser {
         let session = try await client.auth.signIn(email: email, password: password)
-        return try await resolveUser(session.user)
+        return resolveUser(session.user)
+    }
+
+    public func restoreSession() async -> AppUser? {
+        // Keychain session from a previous launch; refreshed by the SDK if the token expired.
+        guard let session = try? await client.auth.session else { return nil }
+        return resolveUser(session.user)
     }
 
     public func signOut() async throws {
@@ -48,23 +67,25 @@ public struct SupabaseNetworking: ATFNetworking {
 
         let validLinks = links.filter { link in
             let roleOK = ["owner", "admin", "manager"].contains(link.role)
-            let userActive = link.is_active ?? true
+            // RLS on drafts/categories requires is_active = true exactly (NULL is rejected).
+            let userActive = link.is_active == true
             let status = link.tenants.subscription_status
             let tenantActive = link.tenants.is_active ?? true
             let statusOK = status == nil || ["trial", "active", "past_due"].contains(status)
             return roleOK && userActive && tenantActive && statusOK
         }
 
-        let tenantIDs = validLinks.map { $0.tenants.id.uuidString.lowercased() }
-        struct CountRow: Decodable, Sendable { let tenant_id: UUID }
-        let counts: [CountRow] = (try? await client
-            .from("menu_items")
-            .select("tenant_id")
-            .in("tenant_id", value: tenantIDs)
-            .execute()
-            .value) ?? []
-
-        let countMap = Dictionary(grouping: counts, by: { $0.tenant_id }).mapValues { $0.count }
+        // One COUNT per tenant (head request, no rows): exact even beyond PostgREST's 1000-row page.
+        var countMap: [UUID: Int] = [:]
+        for link in validLinks {
+            let response = try await client
+                .from("menu_items")
+                .select("id", head: true, count: .exact)
+                .eq("tenant_id", value: link.tenants.id.uuidString)
+                .is("deleted_at", value: nil)
+                .execute()
+            countMap[link.tenants.id] = response.count ?? 0
+        }
 
         return validLinks.map { link in
             Restaurant(
@@ -73,7 +94,8 @@ public struct SupabaseNetworking: ATFNetworking {
                 city: link.tenants.city ?? "",
                 role: RestaurantRole(rawValue: link.role) ?? .manager,
                 dishCount: countMap[link.tenants.id] ?? 0,
-                photoURL: link.tenants.logo_url.flatMap(URL.init)
+                photoURL: link.tenants.logo_url.flatMap(URL.init),
+                plan: AppPlan(fromDB: link.tenants.subscription_plan ?? "starter")
             )
         }
     }
@@ -89,14 +111,17 @@ public struct SupabaseNetworking: ATFNetworking {
             let image_url: String?
             let is_available: Bool?
             let is_featured: Bool?
+            let category_id: UUID?
             let categories: CategoryRow?
             struct CategoryRow: Decodable, Sendable { let name: String }
         }
 
         let rows: [ItemRow] = try await client
             .from("menu_items")
-            .select("id, name, price, description, image_url, is_available, is_featured, categories(name)")
+            .select("id, name, price, description, image_url, is_available, is_featured, category_id, categories(name)")
             .eq("tenant_id", value: restaurantID.uuidString)
+            .is("deleted_at", value: nil)
+            .order("name", ascending: true)
             .execute()
             .value
 
@@ -104,8 +129,9 @@ public struct SupabaseNetworking: ATFNetworking {
             MenuItem(
                 id: row.id,
                 name: row.name,
-                price: Int(row.price),
-                category: row.categories?.name ?? "Plat",
+                price: Int(row.price.rounded()),
+                category: row.categories?.name ?? "",
+                categoryID: row.category_id,
                 photoURL: row.image_url.flatMap(URL.init),
                 isAvailable: row.is_available ?? true,
                 isFeatured: row.is_featured ?? false,
@@ -114,24 +140,70 @@ public struct SupabaseNetworking: ATFNetworking {
         }
     }
 
-    public func fetchCategories(restaurantID: UUID) async throws -> [String] {
-        struct CatRow: Decodable, Sendable { let name: String }
+    public func fetchCategories(restaurantID: UUID) async throws -> [MenuCategory] {
+        struct CatRow: Decodable, Sendable { let id: UUID; let name: String; let menu_id: UUID? }
         let rows: [CatRow] = try await client
             .from("categories")
-            .select("name")
+            .select("id, name, menu_id")
             .eq("tenant_id", value: restaurantID.uuidString)
+            .eq("is_active", value: true)
             .order("display_order", ascending: true)
             .execute()
             .value
-        return rows.map { $0.name }
+        return rows.map { MenuCategory(id: $0.id, name: $0.name, menuID: $0.menu_id) }
     }
 
-    public func createMenuItem(_ item: MenuItem, restaurantID: UUID) async throws -> MenuItem {
-        let categoryID = try await findOrCreateCategory(
-            name: item.category,
-            tenantID: restaurantID
-        )
+    public func fetchMenus(restaurantID: UUID) async throws -> [MenuRef] {
+        struct MenuRow: Decodable, Sendable { let id: UUID; let name: String; let parent_menu_id: UUID? }
+        let rows: [MenuRow] = try await client
+            .from("menus")
+            .select("id, name, parent_menu_id")
+            .eq("tenant_id", value: restaurantID.uuidString)
+            .eq("is_active", value: true)
+            .order("display_order", ascending: true)
+            .execute()
+            .value
+        let names = Dictionary(uniqueKeysWithValues: rows.map { ($0.id, $0.name) })
+        return rows.map { row in
+            let label = row.parent_menu_id.flatMap { names[$0] }.map { "\($0) › \(row.name)" } ?? row.name
+            return MenuRef(id: row.id, name: label)
+        }
+    }
 
+    public func createCategory(name: String, menuID: UUID?, restaurantID: UUID) async throws -> MenuCategory {
+        struct OrderRow: Decodable, Sendable { let display_order: Int? }
+        let last: [OrderRow] = try await client
+            .from("categories")
+            .select("display_order")
+            .eq("tenant_id", value: restaurantID.uuidString)
+            .order("display_order", ascending: false)
+            .limit(1)
+            .execute()
+            .value
+
+        struct InsertPayload: Encodable {
+            let name: String
+            let tenant_id: String
+            let menu_id: String?
+            let display_order: Int
+        }
+        struct CreatedRow: Decodable, Sendable { let id: UUID; let name: String; let menu_id: UUID? }
+        let created: CreatedRow = try await client
+            .from("categories")
+            .insert(InsertPayload(
+                name: name,
+                tenant_id: restaurantID.uuidString,
+                menu_id: menuID?.uuidString,
+                display_order: (last.first?.display_order ?? -1) + 1   // appended at the end, like the web admin
+            ))
+            .select("id, name, menu_id")
+            .single()
+            .execute()
+            .value
+        return MenuCategory(id: created.id, name: created.name, menuID: created.menu_id)
+    }
+
+    public func createMenuItem(_ item: MenuItem, categoryID: UUID, restaurantID: UUID) async throws -> MenuItem {
         struct Payload: Encodable {
             let id: String
             let name: String
@@ -141,7 +213,6 @@ public struct SupabaseNetworking: ATFNetworking {
             let is_featured: Bool
             let category_id: String
             let tenant_id: String
-            let image_source: String
         }
 
         try await client
@@ -154,117 +225,182 @@ public struct SupabaseNetworking: ATFNetworking {
                 is_available: item.isAvailable,
                 is_featured: item.isFeatured,
                 category_id: categoryID.uuidString,
-                tenant_id: restaurantID.uuidString,
-                image_source: "at_food_ios"
+                tenant_id: restaurantID.uuidString
             ))
             .execute()
 
-        return item
+        var created = item
+        created.categoryID = categoryID
+        return created
     }
 
+    // MARK: - Photos
+
     public func attachPhoto(imageData: Data, toDishID dishID: UUID, restaurantID: UUID) async throws -> URL {
-        let path = "\(restaurantID.uuidString)/\(dishID.uuidString).jpg"
-
+        let path = Self.dishPhotoPath(dishID: dishID, restaurantID: restaurantID)
         try await client.storage
-            .from("menu-items")
-            .upload(path, data: imageData, options: FileOptions(contentType: "image/jpeg", upsert: true))
-
-        let publicURL = try client.storage.from("menu-items").getPublicURL(path: path)
-
-        struct PhotoUpdate: Encodable { let image_url: String; let image_source: String }
-        try await client
-            .from("menu_items")
-            .update(PhotoUpdate(image_url: publicURL.absoluteString, image_source: "at_food_ios"))
-            .eq("id", value: dishID.uuidString)
-            .execute()
-
-        return publicURL
+            .from(Self.bucket)
+            .upload(path, data: imageData, options: FileOptions(contentType: "image/jpeg"))
+        return try await setDishImage(dishID: dishID, newPath: path)
     }
 
     // MARK: - Drafts
 
+    public func saveDraft(imageData: Data, restaurantID: UUID) async throws -> Draft {
+        guard let userID = client.auth.currentUser?.id else { throw SupabaseNetworkingError.notAllowed }
+        let id = UUID()
+        let path = "\(restaurantID.uuidString.lowercased())/drafts/\(id.uuidString.lowercased()).jpg"
+        try await client.storage
+            .from(Self.bucket)
+            .upload(path, data: imageData, options: FileOptions(contentType: "image/jpeg"))
+        let publicURL = try client.storage.from(Self.bucket).getPublicURL(path: path)
+
+        struct Payload: Encodable {
+            let id: String
+            let tenant_id: String
+            let created_by: String
+            let storage_path: String
+            let public_url: String
+            let status: String
+        }
+        do {
+            try await client
+                .from("dish_photo_drafts")
+                .insert(Payload(
+                    id: id.uuidString,
+                    tenant_id: restaurantID.uuidString,
+                    created_by: userID.uuidString,
+                    storage_path: path,
+                    public_url: publicURL.absoluteString,
+                    status: "pending"
+                ))
+                .execute()
+        } catch {
+            _ = try? await client.storage.from(Self.bucket).remove(paths: [path])   // no orphan file
+            throw error
+        }
+        return Draft(id: id, photoURL: publicURL, storagePath: path)
+    }
+
     public func fetchDrafts(restaurantID: UUID) async throws -> [Draft] {
         struct DraftRow: Decodable, Sendable {
             let id: UUID
+            let storage_path: String
             let public_url: String?
-            let status: String
+            let created_at: Date?
         }
-
-        // dish_photo_drafts requires AT Food V1 migration — return empty if table missing
-        let rows: [DraftRow] = (try? await client
+        let rows: [DraftRow] = try await client
             .from("dish_photo_drafts")
-            .select("id, public_url, status")
+            .select("id, storage_path, public_url, created_at")
             .eq("tenant_id", value: restaurantID.uuidString)
+            .eq("status", value: "pending")
             .order("created_at", ascending: false)
             .execute()
-            .value) ?? []
+            .value
 
         return rows.compactMap { row in
-            guard let urlStr = row.public_url, let url = URL(string: urlStr) else { return nil }
-            return Draft(id: row.id, photoURL: url, status: row.status == "attached" ? .attached : .pending)
+            guard let url = row.public_url.flatMap(URL.init) else { return nil }
+            return Draft(id: row.id, photoURL: url, storagePath: row.storage_path, createdAt: row.created_at ?? Date())
         }
     }
 
-    // MARK: - AI Retouch
-
-    public func applyAIRetouch(dishID: UUID, effect: AIRetouchEffect) async throws -> URL {
-        // Edge function not yet deployed
-        throw URLError(.unsupportedURL)
+    public func attachDraft(_ draft: Draft, toDishID dishID: UUID, restaurantID: UUID) async throws -> URL {
+        // Server-side copy: no re-upload, and the dish owns its own file (draft cleanup can't break it).
+        let path = Self.dishPhotoPath(dishID: dishID, restaurantID: restaurantID)
+        try await client.storage.from(Self.bucket).copy(from: draft.storagePath, to: path)
+        let url = try await setDishImage(dishID: dishID, newPath: path)
+        // Dish is updated: the draft is consumed. A failure here only leaves a draft to delete by hand.
+        try? await deleteDrafts([draft])
+        return url
     }
 
-    // MARK: - Credits
-
-    public func fetchCredits(userID: UUID) async throws -> Int {
-        // ai_photo_credits uses tenant_id — returns 0 until AT Food V1 migration applied
-        return 0
+    public func deleteDrafts(_ drafts: [Draft]) async throws {
+        guard !drafts.isEmpty else { return }
+        try await client
+            .from("dish_photo_drafts")
+            .delete()
+            .in("id", values: drafts.map { $0.id.uuidString })
+            .execute()
+        _ = try? await client.storage.from(Self.bucket).remove(paths: drafts.map(\.storagePath))
     }
 
     // MARK: - Helpers
 
-    private func resolveUser(_ user: User) async throws -> AppUser {
-        struct LinkRow: Decodable, Sendable {
-            let tenants: TenantInfo
-            struct TenantInfo: Decodable, Sendable {
-                let subscription_plan: String?
-            }
-        }
-
-        let links: [LinkRow] = (try? await client
-            .from("admin_users")
-            .select("tenants(subscription_plan)")
-            .eq("user_id", value: user.id.uuidString)
-            .limit(1)
-            .execute()
-            .value) ?? []
-
-        let planStr = links.first?.tenants.subscription_plan ?? "starter"
-        let plan = AppPlan(fromDB: planStr)
-        let name = user.email?.components(separatedBy: "@").first ?? "Utilisateur"
-        return AppUser(id: user.id, name: name, email: user.email ?? "", plan: plan)
+    /// Storage RLS compares the first folder to tenant uuid::text (lowercase).
+    /// Unique suffix per upload: busts CDN cache and never collides on fast retries.
+    private static func dishPhotoPath(dishID: UUID, restaurantID: UUID) -> String {
+        "\(restaurantID.uuidString.lowercased())/\(dishID.uuidString.lowercased())-\(UUID().uuidString.prefix(8).lowercased()).jpg"
     }
 
-    private func findOrCreateCategory(name: String, tenantID: UUID) async throws -> UUID {
-        struct CategoryRow: Decodable, Sendable { let id: UUID }
+    /// Points the dish at an uploaded file. On failure the new file is removed; on success the
+    /// previous photo is removed if it lives in our bucket and no other dish uses it.
+    private func setDishImage(dishID: UUID, newPath: String) async throws -> URL {
+        let storage = client.storage.from(Self.bucket)
+        let publicURL = try storage.getPublicURL(path: newPath)
 
-        let existing: [CategoryRow] = try await client
-            .from("categories")
-            .select("id")
-            .eq("tenant_id", value: tenantID.uuidString)
-            .eq("name", value: name)
-            .execute()
-            .value
+        struct CurrentRow: Decodable, Sendable { let image_url: String? }
+        struct PhotoUpdate: Encodable {
+            let image_url: String
+            let image_source: String
+            let image_uploaded_at: String
+            let image_uploaded_by: String?
+        }
+        struct UpdatedRow: Decodable, Sendable { let id: UUID }
 
-        if let found = existing.first { return found.id }
+        let previous: String?
+        let updated: [UpdatedRow]
+        do {
+            let current: [CurrentRow] = try await client
+                .from("menu_items").select("image_url").eq("id", value: dishID.uuidString)
+                .execute().value
+            previous = current.first?.image_url
+            // RLS-denied updates affect 0 rows without erroring: select back to detect it.
+            updated = try await client
+                .from("menu_items")
+                .update(PhotoUpdate(
+                    image_url: publicURL.absoluteString,
+                    image_source: "at_food_ios",
+                    image_uploaded_at: ISO8601DateFormatter().string(from: Date()),
+                    image_uploaded_by: client.auth.currentUser?.id.uuidString
+                ))
+                .eq("id", value: dishID.uuidString)
+                .select("id")
+                .execute()
+                .value
+        } catch {
+            _ = try? await storage.remove(paths: [newPath])
+            throw error
+        }
+        guard !updated.isEmpty else {
+            _ = try? await storage.remove(paths: [newPath])
+            throw SupabaseNetworkingError.notAllowed
+        }
 
-        struct InsertPayload: Encodable { let name: String; let tenant_id: String }
-        let created: CategoryRow = try await client
-            .from("categories")
-            .insert(InsertPayload(name: name, tenant_id: tenantID.uuidString))
-            .select("id")
-            .single()
-            .execute()
-            .value
+        if let previous, previous != publicURL.absoluteString,
+           let oldPath = Self.storagePath(fromPublicURL: previous, newURL: publicURL.absoluteString, newPath: newPath) {
+            struct Ref: Decodable, Sendable { let id: UUID }
+            let others: [Ref] = (try? await client
+                .from("menu_items").select("id").eq("image_url", value: previous).limit(1)
+                .execute().value) ?? [Ref(id: dishID)]   // unsure → keep the file
+            if others.isEmpty {
+                _ = try? await storage.remove(paths: [oldPath])
+            }
+        }
+        return publicURL
+    }
 
-        return created.id
+    /// Old public URL → storage path, using the new URL's prefix as the bucket base.
+    /// nil for files outside our bucket (external URLs are never deleted).
+    static func storagePath(fromPublicURL url: String, newURL: String, newPath: String) -> String? {
+        guard newURL.hasSuffix(newPath) else { return nil }
+        let prefix = String(newURL.dropLast(newPath.count))   // ".../object/public/menu-items/"
+        guard url.hasPrefix(prefix), url.count > prefix.count else { return nil }
+        let path = String(url.dropFirst(prefix.count))
+        return path.removingPercentEncoding ?? path
+    }
+
+    private func resolveUser(_ user: User) -> AppUser {
+        let name = user.email?.components(separatedBy: "@").first ?? "Utilisateur"
+        return AppUser(id: user.id, name: name, email: user.email ?? "")
     }
 }

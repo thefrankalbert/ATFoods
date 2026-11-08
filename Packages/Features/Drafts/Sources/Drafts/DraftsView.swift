@@ -6,17 +6,18 @@ import Networking
 public struct DraftsView: View {
     @Bindable var store: DraftsStore
     let networking: any ATFNetworking
-    let onAIRetouch: (UUID) -> Void
+    /// Tap on a draft: pick the dish to attach it to.
+    let onSelect: (Draft) -> Void
     let onBack: () -> Void
 
     public init(
         store: DraftsStore,
         networking: any ATFNetworking,
-        onAIRetouch: @escaping (UUID) -> Void,
+        onSelect: @escaping (Draft) -> Void,
         onBack: @escaping () -> Void
     ) {
         self.store = store; self.networking = networking
-        self.onAIRetouch = onAIRetouch; self.onBack = onBack
+        self.onSelect = onSelect; self.onBack = onBack
     }
 
     private let columns = Array(repeating: GridItem(.flexible(), spacing: 4), count: 3)
@@ -24,10 +25,16 @@ public struct DraftsView: View {
     public var body: some View {
         VStack(spacing: 0) {
             topBar
-            filterRow
+            if let error = store.error {
+                Text(error)
+                    .font(.atfCaption)
+                    .foregroundStyle(Color.atfDanger)
+                    .padding(.horizontal, 16)
+                    .padding(.bottom, 8)
+            }
             if store.isLoading {
                 skeletonGrid
-            } else if store.filteredDrafts.isEmpty {
+            } else if store.drafts.isEmpty {
                 emptyState
             } else {
                 draftGrid
@@ -38,6 +45,7 @@ public struct DraftsView: View {
         }
         .background(Color.atfBg.ignoresSafeArea())
         .task { await store.load(networking: networking) }
+        .refreshable { await store.load(networking: networking) }
     }
 
     // MARK: - Top Bar
@@ -71,36 +79,19 @@ public struct DraftsView: View {
         .background(Color.atfBg)
     }
 
-    // MARK: - Filter
-
-    private var filterRow: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 8) {
-                ForEach(DraftFilter.allCases, id: \.self) { f in
-                    ATFChip(f.rawValue, selected: store.filter == f, tap: true) {
-                        store.filter = f
-                    }
-                }
-            }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 10)
-        }
-        .background(Color.atfBg)
-    }
-
     // MARK: - Grid
 
     private var draftGrid: some View {
         ScrollView {
             LazyVGrid(columns: columns, spacing: 4) {
-                ForEach(store.filteredDrafts) { draft in
+                ForEach(store.drafts) { draft in
                     DraftCard(
                         draft: draft,
                         isSelected: store.selectedIDs.contains(draft.id),
                         isMultiSelect: store.isMultiSelect,
                         onTap: {
                             if store.isMultiSelect { store.toggleSelection(draft.id) }
-                            else { onAIRetouch(draft.id) }
+                            else { onSelect(draft) }
                         },
                         onLongPress: {
                             withAnimation(.easeInOut(duration: 0.2)) { store.isMultiSelect = true }
@@ -137,7 +128,7 @@ public struct DraftsView: View {
             Text("Aucun brouillon")
                 .font(.atfHeadline)
                 .foregroundStyle(Color.atfText1)
-            Text("Prenez des photos pour les retrouver ici")
+            Text("Après une photo, touche « Garder en brouillon » pour enchaîner les plats, puis attache-les ici.")
                 .font(.atfBody)
                 .foregroundStyle(Color.atfText2)
                 .multilineTextAlignment(.center)
@@ -151,9 +142,9 @@ public struct DraftsView: View {
 
     private var actionBar: some View {
         HStack(spacing: 12) {
-            ATFButton("Attacher", kind: .secondary, fullWidth: true) {}
-            ATFButton("Supprimer", kind: .danger, fullWidth: true) {
-                withAnimation { store.deleteSelected() }
+            ATFButton("Supprimer (\(store.selectedIDs.count))", kind: .danger, fullWidth: true,
+                      loading: store.isDeleting) {
+                Task { await store.deleteSelected(networking: networking) }
             }
         }
         .padding(.horizontal, 16)
@@ -185,11 +176,6 @@ private struct DraftCard: View {
             .frame(maxWidth: .infinity, minHeight: 104, maxHeight: 104)
             .clipped()
 
-            if draft.status == .attached {
-                ATFBadge("Rattaché", kind: .attached)
-                    .padding(6)
-            }
-
             if isMultiSelect {
                 Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
                     .font(.system(size: 22, weight: .semibold))
@@ -214,5 +200,5 @@ private struct DraftCard: View {
 #Preview("DraftsView") {
     let store = DraftsStore(restaurantID: UUID())
     store.drafts = Draft.mocks
-    return DraftsView(store: store, networking: MockNetworking(), onAIRetouch: { _ in }, onBack: {})
+    return DraftsView(store: store, networking: MockNetworking(), onSelect: { _ in }, onBack: {})
 }

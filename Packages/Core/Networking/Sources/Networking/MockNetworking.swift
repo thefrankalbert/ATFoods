@@ -10,6 +10,8 @@ public final class MockNetworking: ATFNetworking {
         return AppUser.mock
     }
 
+    public func restoreSession() async -> AppUser? { nil }   // UI tests always start logged out
+
     public func signOut() async throws {
         try await Task.sleep(for: .milliseconds(200))
     }
@@ -24,22 +26,35 @@ public final class MockNetworking: ATFNetworking {
         return MenuItem.mocks
     }
 
-    public func fetchCategories(restaurantID: UUID) async throws -> [String] {
+    public func fetchCategories(restaurantID: UUID) async throws -> [MenuCategory] {
         try await Task.sleep(for: .milliseconds(200))
-        return ["Plat", "Grillades", "Spécialité", "Boisson", "Dessert", "Entrée"]
+        return MenuCategory.mocks
     }
 
-    public func createMenuItem(_ item: MenuItem, restaurantID: UUID) async throws -> MenuItem {
+    public func fetchMenus(restaurantID: UUID) async throws -> [MenuRef] {
+        [MenuRef(name: "Carte"), MenuRef(name: "Boissons")]
+    }
+
+    public func createCategory(name: String, menuID: UUID?, restaurantID: UUID) async throws -> MenuCategory {
+        try await Task.sleep(for: .milliseconds(300))
+        return MenuCategory(name: name, menuID: menuID)
+    }
+
+    public func createMenuItem(_ item: MenuItem, categoryID: UUID, restaurantID: UUID) async throws -> MenuItem {
         try await Task.sleep(for: .milliseconds(600))
-        return item
+        var created = item
+        created.categoryID = categoryID
+        return created
     }
 
     public func attachPhoto(imageData: Data, toDishID dishID: UUID, restaurantID: UUID) async throws -> URL {
         try await Task.sleep(for: .milliseconds(400))
-        guard let url = URL(string: "https://images.unsplash.com/photo-1604908176997-125f25cc6f3d?w=400") else {
-            throw ATFError.networkUnavailable
-        }
-        return url
+        return Self.mockPhotoURL
+    }
+
+    public func saveDraft(imageData: Data, restaurantID: UUID) async throws -> Draft {
+        try await Task.sleep(for: .milliseconds(300))
+        return Draft(photoURL: Self.mockPhotoURL, storagePath: "mock/draft.jpg")
     }
 
     public func fetchDrafts(restaurantID: UUID) async throws -> [Draft] {
@@ -47,28 +62,24 @@ public final class MockNetworking: ATFNetworking {
         return Draft.mocks
     }
 
-    public func applyAIRetouch(dishID: UUID, effect: AIRetouchEffect) async throws -> URL {
-        try await Task.sleep(for: .seconds(1.5))
-        guard let url = URL(string: "https://images.unsplash.com/photo-1565299507177-b0ac66763828?w=600") else {
-            throw ATFError.networkUnavailable
-        }
-        return url
+    public func attachDraft(_ draft: Draft, toDishID dishID: UUID, restaurantID: UUID) async throws -> URL {
+        try await Task.sleep(for: .milliseconds(300))
+        return draft.photoURL
     }
 
-    public func fetchCredits(userID: UUID) async throws -> Int {
+    public func deleteDrafts(_ drafts: [Draft]) async throws {
         try await Task.sleep(for: .milliseconds(200))
-        return 5
     }
+
+    private static let mockPhotoURL = URL(string: "https://images.unsplash.com/photo-1604908176997-125f25cc6f3d?w=400")!
 }
 
 public enum ATFError: Error, LocalizedError, Sendable {
     case invalidCredentials
-    case networkUnavailable
 
     public var errorDescription: String? {
         switch self {
         case .invalidCredentials: return "Identifiants invalides."
-        case .networkUnavailable: return "Pas de connexion réseau."
         }
     }
 }

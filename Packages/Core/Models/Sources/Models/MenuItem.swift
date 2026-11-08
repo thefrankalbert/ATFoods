@@ -4,7 +4,8 @@ public struct MenuItem: Identifiable, Hashable, Sendable {
     public let id: UUID
     public var name: String
     public var price: Int          // FCFA
-    public var category: String    // category name from Supabase categories table
+    public var category: String    // category name, for display
+    public var categoryID: UUID?
     public var photoURL: URL?
     public var isAvailable: Bool
     public var isFeatured: Bool
@@ -16,6 +17,7 @@ public struct MenuItem: Identifiable, Hashable, Sendable {
         name: String,
         price: Int,
         category: String = "Plat",
+        categoryID: UUID? = nil,
         photoURL: URL? = nil,
         isAvailable: Bool = true,
         isFeatured: Bool = false,
@@ -23,7 +25,7 @@ public struct MenuItem: Identifiable, Hashable, Sendable {
         createdAt: Date = Date()
     ) {
         self.id = id; self.name = name; self.price = price
-        self.category = category; self.photoURL = photoURL
+        self.category = category; self.categoryID = categoryID; self.photoURL = photoURL
         self.isAvailable = isAvailable; self.isFeatured = isFeatured
         self.description = description; self.createdAt = createdAt
     }

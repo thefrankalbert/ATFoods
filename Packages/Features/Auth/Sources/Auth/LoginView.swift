@@ -5,6 +5,7 @@ import Networking
 public struct LoginView: View {
     @Bindable var store: AuthStore
     let networking: any ATFNetworking
+    @Environment(\.openURL) private var openURL
     let onSuccess: () -> Void
 
     public init(store: AuthStore, networking: any ATFNetworking, onSuccess: @escaping () -> Void) {
@@ -50,7 +51,8 @@ public struct LoginView: View {
 
                     HStack {
                         Spacer()
-                        Button("Mot de passe oublié ?") {}
+                        // Web flow already handles the reset email + new password page.
+                        Button("Mot de passe oublié ?") { openURL(URL(string: "https://attabl.com/forgot-password")!) }
                             .font(.atfSubhead)
                             .foregroundStyle(Color.atfAccent)
                     }
@@ -70,7 +72,7 @@ public struct LoginView: View {
                     Text("Pas encore À Table ?")
                         .font(.atfSubhead)
                         .foregroundStyle(Color.atfText3)
-                    Button("Découvrir") {}
+                    Button("Découvrir") { openURL(URL(string: "https://attabl.com")!) }
                         .font(.atfSubhead.weight(.semibold))
                         .foregroundStyle(Color.atfAccent)
                 }

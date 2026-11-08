@@ -14,8 +14,8 @@ public struct HomeView: View {
         store: HomeStore,
         networking: any ATFNetworking,
         onCamera: @escaping () -> Void,
-        onDrafts: @escaping () -> Void = {},
-        onProfile: @escaping () -> Void = {}
+        onDrafts: @escaping () -> Void,
+        onProfile: @escaping () -> Void
     ) {
         self.store = store
         self.networking = networking
@@ -36,7 +36,8 @@ public struct HomeView: View {
                 mainContent
             }
         }
-        .task { await store.load(networking: networking) }
+        .task { await store.load(networking: networking) }   // runs on every return to Home
+        .refreshable { await store.load(networking: networking) }
     }
 
     // MARK: - Top Bar
@@ -86,16 +87,16 @@ public struct HomeView: View {
     private var categoryFilter: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 8) {
-                categoryChip(label: "Tous", isSelected: store.selectedCategory == nil) {
-                    store.selectedCategory = nil
+                categoryChip(label: "Tous", isSelected: store.selectedCategoryID == nil) {
+                    store.selectedCategoryID = nil
                 }
 
-                ForEach(store.categories, id: \.self) { category in
+                ForEach(store.categories) { category in
                     categoryChip(
-                        label: category,
-                        isSelected: store.selectedCategory == category
+                        label: category.name,
+                        isSelected: store.selectedCategoryID == category.id
                     ) {
-                        store.selectedCategory = category
+                        store.selectedCategoryID = category.id
                     }
                 }
             }
@@ -126,8 +127,15 @@ public struct HomeView: View {
     private var mainContent: some View {
         if store.isLoading {
             skeletonGrid
+        } else if let error = store.error, store.menuItems.isEmpty {
+            errorState(error)
         } else if store.menuItems.isEmpty {
             emptyState
+        } else if store.filteredItems.isEmpty {
+            Text("Aucun plat dans cette catégorie")
+                .font(.atfBody)
+                .foregroundStyle(Color.white.opacity(0.6))
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else {
             foodGrid
         }
@@ -170,6 +178,28 @@ public struct HomeView: View {
         }
     }
 
+    private func errorState(_ message: String) -> some View {
+        VStack(spacing: 16) {
+            Spacer()
+            Image(systemName: "wifi.exclamationmark")
+                .font(.system(size: 44))
+                .foregroundStyle(Color.white.opacity(0.5))
+            Text("Impossible de charger le menu")
+                .font(.atfHeadline)
+                .foregroundStyle(.white)
+            Text(message)
+                .font(.atfCaption)
+                .foregroundStyle(Color.white.opacity(0.6))
+                .multilineTextAlignment(.center)
+            ATFButton("Réessayer", kind: .primary) {
+                Task { await store.load(networking: networking) }
+            }
+            Spacer()
+        }
+        .padding(.horizontal, 32)
+        .frame(maxWidth: .infinity)
+    }
+
     private var emptyState: some View {
         VStack(spacing: 16) {
             Spacer()
@@ -179,7 +209,7 @@ public struct HomeView: View {
             Text("Aucun plat pour l'instant")
                 .font(.atfHeadline)
                 .foregroundStyle(.white)
-            Text("Ajoutez votre premier plat")
+            Text("Touche l'appareil photo pour ajouter ton premier plat")
                 .font(.atfBody)
                 .foregroundStyle(Color.white.opacity(0.6))
             Spacer()
@@ -193,5 +223,5 @@ public struct HomeView: View {
 #Preview("HomeView") {
     let store = HomeStore(restaurant: Restaurant.mocks[0])
     store.menuItems = MenuItem.mocks
-    return HomeView(store: store, networking: MockNetworking(), onCamera: {})
+    return HomeView(store: store, networking: MockNetworking(), onCamera: {}, onDrafts: {}, onProfile: {})
 }

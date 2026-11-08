@@ -5,15 +5,15 @@ import Networking
 @MainActor @Observable public final class HomeStore {
     public var restaurant: Restaurant
     public var menuItems: [MenuItem] = []
-    public var categories: [String] = []
+    public var categories: [MenuCategory] = []
     public var isLoading = false
     public var error: String?
-    public var selectedCategory: String? = nil
+    public var selectedCategoryID: UUID? = nil
 
     public init(restaurant: Restaurant) { self.restaurant = restaurant }
 
     public func load(networking: any ATFNetworking) async {
-        isLoading = true
+        isLoading = menuItems.isEmpty   // skeleton only on first load; later refreshes keep the grid
         error = nil
         do {
             async let items = networking.fetchMenuItems(restaurantID: restaurant.id)
@@ -27,7 +27,7 @@ import Networking
     }
 
     public var filteredItems: [MenuItem] {
-        guard let cat = selectedCategory else { return menuItems }
-        return menuItems.filter { $0.category == cat }
+        guard let id = selectedCategoryID else { return menuItems }
+        return menuItems.filter { $0.categoryID == id }
     }
 }

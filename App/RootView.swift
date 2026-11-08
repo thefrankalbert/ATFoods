@@ -8,7 +8,6 @@ import Home
 import Capture
 import Form
 import Drafts
-import AIRetouch
 import Profile
 
 // MARK: — Navigation state
@@ -20,9 +19,7 @@ import Profile
     var captureStore: CaptureStore?
     var formStore: FormStore?
     var draftsStore: DraftsStore?
-    var aiRetouchStore: AIRetouchStore?
     var profileStore: ProfileStore?
-    var showUpgradeSheet: Bool = false
 }
 
 // MARK: — Route
@@ -33,22 +30,32 @@ public enum ATFRoute: Hashable {
     case camera
     case photoPreview
     case attachDish
+    case attachDraft(Draft)
     case dishForm
     case drafts
-    case aiRetouch(dishID: UUID)
-    case backgrounds(dishID: UUID)
-    case credits
     case profile
-    case offline
+}
+
+private struct AppError: LocalizedError {
+    let errorDescription: String?
+    init(_ message: String) { errorDescription = message }
+}
+
+private enum StorageKey {
+    static let hasSeenOnboarding = "hasSeenOnboarding"
+    static let lastRestaurantID = "lastRestaurantID"
 }
 
 // MARK: — Root
 
 @MainActor
 struct RootView: View {
-    @State private var hasSeenOnboarding = false
+    @AppStorage(StorageKey.hasSeenOnboarding) private var hasSeenOnboarding = false
+    @AppStorage(StorageKey.lastRestaurantID) private var lastRestaurantID = ""
+    @State private var isRestoringSession = true
     @State private var path: [ATFRoute] = []
     @State private var toast: ATFToastData?
+    @State private var toastTask: Task<Void, Never>?
 
     private let networking: any ATFNetworking = Env.isUITesting
         ? MockNetworking()
@@ -58,14 +65,24 @@ struct RootView: View {
     // AppNavigator is a class — mutations from captured closures always reach the same instance
     @State private var nav = AppNavigator()
 
+    init() {
+        // UI tests always start from a fresh install state.
+        if Env.isUITesting {
+            UserDefaults.standard.removeObject(forKey: StorageKey.hasSeenOnboarding)
+            UserDefaults.standard.removeObject(forKey: StorageKey.lastRestaurantID)
+        }
+    }
+
     var body: some View {
         ZStack(alignment: .top) {
             if !hasSeenOnboarding {
                 OnboardingView { hasSeenOnboarding = true }
+            } else if isRestoringSession {
+                splash
             } else {
                 NavigationStack(path: $path) {
                     LoginView(store: authStore, networking: networking) {
-                        path.append(.restaurantPicker)
+                        openRestaurant()
                     }
                     .navigationBarHidden(true)
                     .navigationDestination(for: ATFRoute.self) { route in
@@ -83,9 +100,57 @@ struct RootView: View {
             }
         }
         .animation(.spring(response: 0.35, dampingFraction: 0.8), value: toast != nil)
-        .sheet(isPresented: $nav.showUpgradeSheet) {
-            UpgradeSheet { nav.showUpgradeSheet = false }
+        .task { await restoreSession() }
+    }
+
+    private var splash: some View {
+        VStack(spacing: 20) {
+            ATFWordmark(size: 28)
+            ProgressView().tint(Color.atfAccent)
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Color.atfBg.ignoresSafeArea())
+    }
+
+    // MARK: — Session
+
+    /// Reopens the app where the user left it: same account, same restaurant.
+    private func restoreSession() async {
+        defer { isRestoringSession = false }
+        guard let user = await networking.restoreSession() else { return }
+        authStore.currentUser = user
+        await authStore.loadRestaurants(networking: networking)   // failure → picker shows error + retry
+        authStore.selectedRestaurant = authStore.restaurants.first { $0.id.uuidString == lastRestaurantID }
+        openRestaurant()
+    }
+
+    /// After login or restore: straight to Home if a restaurant is known (or the only one), else the picker.
+    private func openRestaurant() {
+        if authStore.selectedRestaurant == nil, authStore.restaurants.count == 1 {
+            authStore.selectedRestaurant = authStore.restaurants.first
+        }
+        if let restaurant = authStore.selectedRestaurant {
+            lastRestaurantID = restaurant.id.uuidString
+            nav.homeStore = HomeStore(restaurant: restaurant)
+            path = [.home]
+        } else {
+            path = [.restaurantPicker]
+        }
+    }
+
+    /// Clears local state; the network sign-out is done by the caller (ProfileStore shows its spinner).
+    private func clearSession() {
+        authStore.currentUser = nil
+        authStore.selectedRestaurant = nil
+        authStore.restaurants = []
+        authStore.password = ""
+        lastRestaurantID = ""
+        nav.homeStore = nil
+        nav.captureStore = nil
+        nav.formStore = nil
+        nav.draftsStore = nil
+        nav.profileStore = nil
+        path = []
     }
 
     // MARK: — Route destinations
@@ -94,13 +159,17 @@ struct RootView: View {
     private func routeView(_ route: ATFRoute) -> some View {
         switch route {
         case .restaurantPicker:
-            RestaurantPickerView(store: authStore) {
-                if let restaurant = authStore.selectedRestaurant {
-                    // nav is a class — mutation reaches the real instance from any closure context
-                    nav.homeStore = HomeStore(restaurant: restaurant)
-                    path = [.home]
+            RestaurantPickerView(
+                store: authStore,
+                onContinue: { openRestaurant() },
+                onRetry: { await authStore.loadRestaurants(networking: networking) },
+                onSignOut: {
+                    Task {
+                        try? await networking.signOut()
+                        clearSession()
+                    }
                 }
-            }
+            )
             .navigationBarHidden(true)
 
         case .home:
@@ -110,6 +179,7 @@ struct RootView: View {
                     networking: networking,
                     onCamera: {
                         nav.captureStore = CaptureStore(restaurant: store.restaurant)
+                        nav.formStore = nil
                         path.append(.camera)
                     },
                     onDrafts: {
@@ -117,9 +187,8 @@ struct RootView: View {
                         path.append(.drafts)
                     },
                     onProfile: {
-                        if let user = authStore.currentUser,
-                           let restaurant = authStore.selectedRestaurant {
-                            nav.profileStore = ProfileStore(user: user, restaurant: restaurant)
+                        if let user = authStore.currentUser {
+                            nav.profileStore = ProfileStore(user: user, restaurant: store.restaurant)
                             path.append(.profile)
                         }
                     }
@@ -140,6 +209,8 @@ struct RootView: View {
         case .photoPreview:
             if let store = nav.captureStore {
                 PhotoPreviewView(store: store, onRetake: {
+                    store.reset()   // rejected photo must not linger as the camera thumbnail
+                    nav.formStore = nil
                     path.removeLast()
                 }, onUse: {
                     path.append(.attachDish)
@@ -150,18 +221,63 @@ struct RootView: View {
         case .attachDish:
             if let store = nav.captureStore {
                 AttachDishView(
-                    store: store,
+                    restaurant: store.restaurant,
                     networking: networking,
                     onNewDish: {
-                        nav.formStore = FormStore(
-                            restaurant: store.restaurant,
-                            capturedImage: store.capturedImage
-                        )
+                        guard let image = store.capturedImage else { return }
+                        // Same photo + dish already created (upload failed): reopen that form, never a duplicate.
+                        // A different photo (retake) always gets a fresh form.
+                        var samePhoto = false
+                        if case .captured(let previous) = nav.formStore?.photo { samePhoto = previous === image }
+                        if !(samePhoto && nav.formStore?.isDishCreated == true) {
+                            nav.formStore = FormStore(restaurant: store.restaurant, photo: .captured(image))
+                        }
                         path.append(.dishForm)
+                    },
+                    attach: { item in
+                        guard let data = store.capturedImage?.uploadJPEG() else {
+                            throw AppError("Photo invalide. Reprends la photo.")
+                        }
+                        _ = try await networking.attachPhoto(imageData: data, toDishID: item.id, restaurantID: store.restaurant.id)
+                    },
+                    saveDraft: {
+                        guard let data = store.capturedImage?.uploadJPEG() else {
+                            throw AppError("Photo invalide. Reprends la photo.")
+                        }
+                        _ = try await networking.saveDraft(imageData: data, restaurantID: store.restaurant.id)
+                        showToast("Brouillon enregistré. Photo suivante !")
+                        store.reset()
+                        nav.formStore = nil
+                        popTo(.camera)
                     },
                     onAttached: {
                         showToast("Photo attachée !")
-                        popToHome()
+                        popTo(.home)
+                    },
+                    onBack: { path.removeLast() }
+                )
+                .navigationBarHidden(true)
+            }
+
+        case .attachDraft(let draft):
+            if let restaurant = nav.homeStore?.restaurant {
+                AttachDishView(
+                    restaurant: restaurant,
+                    networking: networking,
+                    onNewDish: {
+                        var sameDraft = false
+                        if case .draft(let previous) = nav.formStore?.photo { sameDraft = previous.id == draft.id }
+                        if !(sameDraft && nav.formStore?.isDishCreated == true) {
+                            nav.formStore = FormStore(restaurant: restaurant, photo: .draft(draft))
+                        }
+                        path.append(.dishForm)
+                    },
+                    attach: { item in
+                        _ = try await networking.attachDraft(draft, toDishID: item.id, restaurantID: restaurant.id)
+                    },
+                    onAttached: {
+                        showToast("Photo attachée !")
+                        popTo(.drafts)
                     },
                     onBack: { path.removeLast() }
                 )
@@ -175,7 +291,8 @@ struct RootView: View {
                     networking: networking,
                     onSaved: {
                         showToast("Plat enregistré !")
-                        popToHome()
+                        nav.formStore = nil
+                        if case .draft = store.photo { popTo(.drafts) } else { popTo(.home) }
                     },
                     onBack: { path.removeLast() }
                 )
@@ -187,48 +304,10 @@ struct RootView: View {
                 DraftsView(
                     store: store,
                     networking: networking,
-                    onAIRetouch: { dishID in
-                        let draft = store.drafts.first { $0.id == dishID }
-                        nav.aiRetouchStore = AIRetouchStore(
-                            dishID: dishID,
-                            originalURL: draft?.photoURL,
-                            creditsBalance: nav.profileStore?.creditsBalance ?? 5
-                        )
-                        path.append(.aiRetouch(dishID: dishID))
+                    onSelect: { draft in
+                        nav.formStore = nil
+                        path.append(.attachDraft(draft))
                     },
-                    onBack: { path.removeLast() }
-                )
-                .navigationBarHidden(true)
-            }
-
-        case .aiRetouch(let dishID):
-            if let store = nav.aiRetouchStore {
-                AIRetouchView(
-                    store: store,
-                    networking: networking,
-                    onSelectBackground: { path.append(.backgrounds(dishID: dishID)) },
-                    onBack: { path.removeLast() },
-                    onUpgrade: { nav.showUpgradeSheet = true }
-                )
-                .navigationBarHidden(true)
-            }
-
-        case .backgrounds(_):
-            if let store = nav.aiRetouchStore {
-                BackgroundsView(
-                    store: store,
-                    networking: networking,
-                    onApplied: { path.removeLast() },
-                    onBack: { path.removeLast() }
-                )
-                .navigationBarHidden(true)
-            }
-
-        case .credits:
-            if let store = nav.profileStore {
-                CreditsView(
-                    store: store,
-                    onUpgrade: { nav.showUpgradeSheet = true },
                     onBack: { path.removeLast() }
                 )
                 .navigationBarHidden(true)
@@ -239,33 +318,14 @@ struct RootView: View {
                 ProfileView(
                     store: store,
                     networking: networking,
-                    onCredits: { path.append(.credits) },
-                    onUpgrade: { nav.showUpgradeSheet = true },
-                    onOffline: { path.append(.offline) },
-                    onSignOut: {
-                        Task {
-                            await store.signOut(networking: networking)
-                            authStore.currentUser = nil
-                            authStore.selectedRestaurant = nil
-                            authStore.restaurants = []
-                            nav.homeStore = nil
-                            nav.draftsStore = nil
-                            nav.profileStore = nil
-                            path = []
-                        }
-                    },
+                    onSwitchRestaurant: authStore.restaurants.count > 1 ? {
+                        path = [.restaurantPicker]
+                    } : nil,
+                    onSignOut: { clearSession() },
                     onBack: { path.removeLast() }
                 )
                 .navigationBarHidden(true)
             }
-
-        case .offline:
-            OfflineView(
-                pendingCount: 0,
-                onRetry: { path.removeLast() },
-                onBack: { path.removeLast() }
-            )
-            .navigationBarHidden(true)
         }
     }
 
@@ -273,14 +333,18 @@ struct RootView: View {
 
     private func showToast(_ message: String) {
         toast = ATFToastData(message)
-        Task {
+        toastTask?.cancel()   // a newer toast restarts the timer instead of being cleared early
+        toastTask = Task {
             try? await Task.sleep(for: .seconds(3))
-            toast = nil
+            if !Task.isCancelled { toast = nil }
         }
     }
 
-    private func popToHome() {
-        if let idx = path.firstIndex(of: .home) {
+    /// Pops back to the last occurrence of `route` (Home if absent).
+    private func popTo(_ route: ATFRoute) {
+        if let idx = path.lastIndex(of: route) {
+            path = Array(path[...idx])
+        } else if let idx = path.firstIndex(of: .home) {
             path = Array(path[...idx])
         } else {
             path = [.home]

@@ -7,24 +7,21 @@ public struct ProfileView: View {
     @Bindable var store: ProfileStore
     let networking: any ATFNetworking
     @Environment(\.openURL) private var openURL
-    let onCredits: () -> Void
-    let onUpgrade: () -> Void
-    let onOffline: () -> Void
+    /// nil when the user has a single restaurant (row hidden).
+    let onSwitchRestaurant: (() -> Void)?
     let onSignOut: () -> Void
     let onBack: () -> Void
 
     public init(
         store: ProfileStore,
         networking: any ATFNetworking,
-        onCredits: @escaping () -> Void,
-        onUpgrade: @escaping () -> Void,
-        onOffline: @escaping () -> Void,
+        onSwitchRestaurant: (() -> Void)? = nil,
         onSignOut: @escaping () -> Void,
         onBack: @escaping () -> Void
     ) {
+        self.onSwitchRestaurant = onSwitchRestaurant
         self.store = store; self.networking = networking
-        self.onCredits = onCredits; self.onUpgrade = onUpgrade
-        self.onOffline = onOffline; self.onSignOut = onSignOut; self.onBack = onBack
+        self.onSignOut = onSignOut; self.onBack = onBack
     }
 
     public var body: some View {
@@ -32,8 +29,6 @@ public struct ProfileView: View {
             VStack(spacing: 0) {
                 topBar
                 avatarSection
-                planCard
-                creditsCard
                 restaurantCard
                 settingsList
                 signOutButton
@@ -42,7 +37,6 @@ public struct ProfileView: View {
             }
         }
         .background(Color.atfBg.ignoresSafeArea())
-        .task { await store.loadCredits(networking: networking) }
     }
 
     // MARK: - Top Bar
@@ -88,83 +82,11 @@ public struct ProfileView: View {
                 .foregroundStyle(Color.atfText2)
 
             ATFBadge(
-                store.user.plan == .pro ? "Pro" : "Gratuit",
-                kind: store.user.plan == .pro ? .pro : .soft
+                store.restaurant.plan.displayName,
+                kind: store.restaurant.plan == .starter ? .soft : .pro
             )
         }
         .padding(.vertical, 28)
-    }
-
-    // MARK: - Plan Card
-
-    private var planCard: some View {
-        Group {
-            if store.user.plan != .pro {
-                Button(action: onUpgrade) {
-                    HStack(spacing: 14) {
-                        Image(systemName: "sparkles")
-                            .font(.system(size: 20))
-                            .foregroundStyle(Color.atfAccent)
-                        VStack(alignment: .leading, spacing: 3) {
-                            Text("Passer au Pro")
-                                .font(.atfBodyStr)
-                                .foregroundStyle(Color.atfText1)
-                            Text("IA illimitée, fonds personnalisés…")
-                                .font(.atfCaption)
-                                .foregroundStyle(Color.atfText2)
-                        }
-                        Spacer()
-                        Image(systemName: "chevron.right")
-                            .font(.system(size: 14, weight: .semibold))
-                            .foregroundStyle(Color.atfText3)
-                    }
-                    .padding(16)
-                    .background(Color.atfSurface)
-                    .clipShape(RoundedRectangle(cornerRadius: 14))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 14)
-                            .strokeBorder(Color.atfAccent.opacity(0.5), lineWidth: 1.5)
-                    )
-                }
-                .buttonStyle(.plain)
-                .padding(.horizontal, 16)
-                .padding(.bottom, 8)
-            }
-        }
-    }
-
-    // MARK: - Credits Card
-
-    private var creditsCard: some View {
-        Button(action: onCredits) {
-            HStack(spacing: 14) {
-                Image(systemName: "bolt.fill")
-                    .font(.system(size: 20))
-                    .foregroundStyle(Color.atfAccent)
-                VStack(alignment: .leading, spacing: 3) {
-                    Text("Crédits IA")
-                        .font(.atfBodyStr)
-                        .foregroundStyle(Color.atfText1)
-                    Text("\(store.creditsBalance) / \(store.creditsTotal) disponibles")
-                        .font(.atfCaption)
-                        .foregroundStyle(Color.atfText2)
-                }
-                Spacer()
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundStyle(Color.atfText3)
-            }
-            .padding(16)
-            .background(Color.atfSurface)
-            .clipShape(RoundedRectangle(cornerRadius: 14))
-            .overlay(
-                RoundedRectangle(cornerRadius: 14)
-                    .strokeBorder(Color.atfBorder, lineWidth: 1)
-            )
-        }
-        .buttonStyle(.plain)
-        .padding(.horizontal, 16)
-        .padding(.bottom, 8)
     }
 
     // MARK: - Restaurant Card
@@ -201,18 +123,11 @@ public struct ProfileView: View {
     private var settingsList: some View {
         VStack(spacing: 0) {
             // Compte
+            if let onSwitchRestaurant {
+                settingsRow(icon: "arrow.left.arrow.right", label: "Changer de restaurant", action: onSwitchRestaurant)
+                Divider().padding(.leading, 52)
+            }
             settingsRow(icon: "safari", label: "Ouvrir le dashboard web", action: openDashboard)
-            Divider().padding(.leading, 52)
-            settingsRow(icon: "faceid", label: "Activer Face ID", action: {})
-
-            Divider().padding(.leading, 16).padding(.vertical, 8)
-
-            // Préférences
-            settingsRow(icon: "bell", label: "Notifications", action: openNotificationSettings)
-            Divider().padding(.leading, 52)
-            settingsRow(icon: "globe", label: "Langue", action: {})
-            Divider().padding(.leading, 52)
-            settingsRow(icon: "wifi.slash", label: "Mode hors-ligne", action: onOffline)
 
             Divider().padding(.leading, 16).padding(.vertical, 8)
 
@@ -262,10 +177,6 @@ public struct ProfileView: View {
         openURL(URL(string: "https://attabl.com")!)
     }
 
-    private func openNotificationSettings() {
-        openURL(URL(string: "app-settings:")!)
-    }
-
     private func reportBug() {
         openURL(URL(string: "mailto:support@attabl.com?subject=Bug%20At%20Food")!)
     }
@@ -275,7 +186,7 @@ public struct ProfileView: View {
     }
 
     private func openTerms() {
-        openURL(URL(string: "https://attabl.com/terms")!)
+        openURL(URL(string: "https://attabl.com/legal")!)
     }
 
     private func settingsRow(icon: String, label: String, action: @escaping () -> Void) -> some View {
@@ -322,5 +233,5 @@ public struct ProfileView: View {
 #Preview("ProfileView") {
     let store = ProfileStore(user: AppUser.mock, restaurant: Restaurant.mocks[0])
     return ProfileView(store: store, networking: MockNetworking(),
-                       onCredits: {}, onUpgrade: {}, onOffline: {}, onSignOut: {}, onBack: {})
+                       onSignOut: {}, onBack: {})
 }

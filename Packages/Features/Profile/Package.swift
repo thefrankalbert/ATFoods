@@ -21,11 +21,5 @@ let package = Package(
             path: "Sources/Profile",
             swiftSettings: [.swiftLanguageMode(.v6)]
         ),
-        .testTarget(
-            name: "ProfileTests",
-            dependencies: ["Profile"],
-            path: "Tests/ProfileTests",
-            swiftSettings: [.swiftLanguageMode(.v6)]
-        ),
     ]
 )

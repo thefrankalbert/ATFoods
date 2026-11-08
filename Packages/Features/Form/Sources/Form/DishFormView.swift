@@ -92,46 +92,35 @@ public struct DishFormView: View {
 
     private var photoSection: some View {
         Group {
-            if let image = store.capturedImage {
+            switch store.photo {
+            case .captured(let image):
                 Image(uiImage: image)
                     .resizable()
                     .scaledToFill()
                     .frame(width: 120, height: 120)
                     .clipped()
                     .clipShape(RoundedRectangle(cornerRadius: 12))
-            } else if let url = store.photoURL {
-                AsyncImage(url: url) { phase in
-                    switch phase {
-                    case .success(let image):
-                        image
-                            .resizable()
-                            .scaledToFill()
-                            .frame(width: 120, height: 120)
-                            .clipped()
-                            .clipShape(RoundedRectangle(cornerRadius: 12))
-                    case .failure:
-                        photoPlaceholder
-                    default:
+            case .draft(let draft):
+                AsyncImage(url: draft.photoURL) { phase in
+                    if let image = phase.image {
+                        image.resizable().scaledToFill()
+                    } else {
                         Color.atfSurface2
-                            .frame(width: 120, height: 120)
-                            .clipShape(RoundedRectangle(cornerRadius: 12))
                     }
                 }
-            } else {
-                photoPlaceholder
+                .frame(width: 120, height: 120)
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+            case nil:
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(Color.atfSurface2)
+                    .frame(width: 120, height: 120)
+                    .overlay(
+                        Image(systemName: "photo")
+                            .font(.system(size: 28, weight: .medium))
+                            .foregroundStyle(Color.atfText3)
+                    )
             }
         }
-    }
-
-    private var photoPlaceholder: some View {
-        RoundedRectangle(cornerRadius: 12)
-            .fill(Color.atfSurface2)
-            .frame(width: 120, height: 120)
-            .overlay(
-                Image(systemName: "plus")
-                    .font(.system(size: 28, weight: .medium))
-                    .foregroundStyle(Color.atfText3)
-            )
     }
 
     // MARK: - Fields
@@ -140,8 +129,10 @@ public struct DishFormView: View {
         VStack(spacing: 16) {
             ATFTextField("Nom du plat", text: $store.name, placeholder: "Ex: Thieboudienne")
             ATFTextField("Prix", text: $store.priceText, placeholder: "3 800", suffix: "FCFA")
+                .keyboardType(.numberPad)
         }
         .padding(.horizontal, 20)
+        .disabled(store.isDishCreated)
     }
 
     // MARK: - Category Picker
@@ -155,13 +146,16 @@ public struct DishFormView: View {
 
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 8) {
-                    ForEach(store.categories, id: \.self) { cat in
+                    if store.isLoadingCategories {
+                        ProgressView().tint(Color.atfAccent)
+                    }
+                    ForEach(store.categories) { cat in
                         categoryChip(cat)
                     }
                     Button {
                         showCategorySheet = true
                     } label: {
-                        Image(systemName: "plus")
+                        Label(store.categories.isEmpty ? "Créer une catégorie" : "Nouvelle", systemImage: "plus")
                             .font(.atfCaption)
                             .foregroundStyle(Color.atfAccent)
                             .padding(.horizontal, 14)
@@ -169,30 +163,25 @@ public struct DishFormView: View {
                             .background(Color.atfSurface2)
                             .clipShape(Capsule())
                     }
+                    .accessibilityIdentifier("newCategoryButton")
                 }
                 .padding(.horizontal, 20)
             }
         }
+        .disabled(store.isDishCreated)
         .sheet(isPresented: $showCategorySheet) {
-            NewCategorySheet(
-                onCreated: { newName in
-                    if !store.categories.contains(newName) {
-                        store.categories.append(newName)
-                    }
-                    store.category = newName
-                    showCategorySheet = false
-                },
-                onDismiss: { showCategorySheet = false }
-            )
+            NewCategorySheet(store: store, networking: networking) {
+                showCategorySheet = false
+            }
         }
     }
 
-    private func categoryChip(_ cat: String) -> some View {
-        let isSelected = store.category == cat
+    private func categoryChip(_ cat: MenuCategory) -> some View {
+        let isSelected = store.selectedCategoryID == cat.id
         return Button {
-            store.category = cat
+            store.selectedCategoryID = cat.id
         } label: {
-            Text(cat)
+            Text(store.label(for: cat))
                 .font(.atfCaption)
                 .foregroundStyle(isSelected ? Color.white : Color.atfText2)
                 .padding(.horizontal, 14)
@@ -213,13 +202,14 @@ public struct DishFormView: View {
             ATFToggle(isOn: $store.isAvailable)
         }
         .padding(.horizontal, 20)
+        .disabled(store.isDishCreated)
     }
 
     // MARK: - Save Button
 
     private var saveButton: some View {
         ATFButton(
-            "Enregistrer",
+            store.isDishCreated ? "Réessayer l'envoi de la photo" : "Enregistrer",
             kind: .primary,
             fullWidth: true,
             loading: store.isLoading,
