@@ -8,6 +8,7 @@ private final class FailingDelete: ATFNetworking, @unchecked Sendable {
     func signIn(email: String, password: String) async throws -> AppUser { AppUser.mock }
     func restoreSession() async -> AppUser? { nil }
     func signOut() async throws {}
+    func deleteAccount() async throws -> AccountDeletionResult { .deleted }
     func fetchRestaurants(userID: UUID) async throws -> [Restaurant] { [] }
     func fetchMenuItems(restaurantID: UUID) async throws -> [MenuItem] { [] }
     func fetchCategories(restaurantID: UUID) async throws -> [MenuCategory] { [] }

@@ -26,6 +26,10 @@ struct ATFoodApp: App {
             options.sendDefaultPii = false          // no emails / IPs: matches the privacy manifest
             options.attachScreenshot = false        // screens can show menus and prices
             options.tracesSampleRate = 0.1
+            options.initialScope = { scope in
+                scope.setTag(value: "atfood-ios", key: "app")   // shared project with the web SaaS
+                return scope
+            }
             #if DEBUG
             options.environment = "debug"
             #else

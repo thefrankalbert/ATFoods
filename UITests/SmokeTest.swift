@@ -112,6 +112,20 @@ final class SmokeTest: XCTestCase {
         XCTAssertTrue(app.buttons["Se connecter"].waitForExistence(timeout: 5), "Sign out did not return to login")
     }
 
+    func testAccountDeletionExplainsSoleOwnerRefusal() throws {
+        navigateToHome()
+        app.buttons["profileButton"].tap()
+        let row = app.staticTexts["Supprimer mon compte"]
+        XCTAssertTrue(row.waitForExistence(timeout: 4))
+        row.tap()
+        let confirm = app.buttons["Supprimer mon compte"].firstMatch
+        XCTAssertTrue(confirm.waitForExistence(timeout: 3), "Deletion confirmation missing")
+        app.sheets.buttons["Supprimer mon compte"].exists ? app.sheets.buttons["Supprimer mon compte"].tap() : confirm.tap()
+        // Mock answers "sole owner of Chez Flora": the app must explain, not fail silently.
+        XCTAssertTrue(app.alerts["Compte non supprimé"].waitForExistence(timeout: 5), "Refusal not explained")
+        XCTAssertTrue(app.alerts.buttons["Contacter le support"].exists)
+    }
+
     func testDishCardEditsPrice() throws {
         navigateToHome()
         let dish = app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Mafé bœuf'")).firstMatch

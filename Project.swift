@@ -28,10 +28,11 @@ let project = Project(
             "MARKETING_VERSION": "1.0.0",
             "CURRENT_PROJECT_VERSION": "1",
             "CODE_SIGN_STYLE": "Automatic",
-            // Set your Apple Developer Team ID here (Xcode > Settings > Accounts) before archiving.
-            "DEVELOPMENT_TEAM": "",
-            // Crash reporting: paste the Sentry DSN of the iOS project. Empty = reporting off.
-            "SENTRY_DSN": "",
+            // XK5L7S88SQ = Frank Albert (Personal Team): installs on a device. App Store upload needs the
+            // paid Apple Developer Program team ID instead.
+            "DEVELOPMENT_TEAM": "XK5L7S88SQ",
+            // Crash reporting (public client key). Shares the attabl-saas Sentry project, events tagged app=atfood-ios.
+            "SENTRY_DSN": "https://ec86ac417a8630c42b32897e0e57379f@o4510850246508544.ingest.de.sentry.io/4510851561816144",
         ]
     ),
     targets: [

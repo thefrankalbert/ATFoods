@@ -39,11 +39,22 @@ public struct ProfileView: View {
             }
         }
         .background(Color.atfBg.ignoresSafeArea())
-        .confirmationDialog("Supprimer votre compte ?", isPresented: $confirmDeletion, titleVisibility: .visible) {
-            Button("Envoyer la demande", role: .destructive, action: requestAccountDeletion)
+        .confirmationDialog("Supprimer définitivement votre compte ?", isPresented: $confirmDeletion, titleVisibility: .visible) {
+            Button("Supprimer mon compte", role: .destructive) {
+                Task {
+                    await store.deleteAccount(networking: networking)
+                    if store.deletionOutcome == .deleted { onSignOut() }
+                }
+            }
             Button("Annuler", role: .cancel) {}
         } message: {
-            Text("Votre demande est envoyée au support À Table, qui supprime votre compte et vos données personnelles sous 30 jours. Les plats de votre restaurant restent en ligne.")
+            Text("Votre accès à tous vos restaurants et vos données personnelles sont supprimés. Les plats et photos de vos restaurants restent en ligne. Cette action est irréversible.")
+        }
+        .alert(deletionAlertTitle, isPresented: deletionAlertShown) {
+            Button("Contacter le support") { requestAccountDeletion() }
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(deletionAlertMessage)
         }
         .alert("Écrivez-nous", isPresented: $mailFallback) {
             Button("Copier l'adresse") { UIPasteboard.general.string = AttablWeb.supportEmail }
@@ -163,8 +174,10 @@ public struct ProfileView: View {
 
             Divider().padding(.leading, 16).padding(.vertical, 8)
 
-            settingsRow(icon: "person.crop.circle.badge.xmark", label: "Supprimer mon compte",
+            settingsRow(icon: "person.crop.circle.badge.xmark",
+                        label: store.isDeleting ? "Suppression en cours…" : "Supprimer mon compte",
                         action: { confirmDeletion = true })
+                .disabled(store.isDeleting)
         }
         .background(Color.atfSurface)
         .clipShape(RoundedRectangle(cornerRadius: 14))
@@ -201,6 +214,27 @@ public struct ProfileView: View {
 
     private func reportBug() {
         sendMail(subject: "Bug Atfood", body: "\n\n—\nAtfood \(appVersion) · \(store.restaurant.name)")
+    }
+
+    private var deletionAlertShown: Binding<Bool> {
+        Binding(
+            get: { store.deletionError != nil || store.deletionOutcome.map { $0 != .deleted } == true },
+            set: { if !$0 { store.deletionError = nil; store.deletionOutcome = nil } }
+        )
+    }
+
+    private var deletionAlertTitle: String {
+        store.deletionError != nil ? "Suppression impossible" : "Compte non supprimé"
+    }
+
+    private var deletionAlertMessage: String {
+        if let error = store.deletionError { return error }
+        switch store.deletionOutcome {
+        case .soleOwner(let restaurant):
+            return "Vous êtes le seul propriétaire de « \(restaurant) ». Nommez un autre propriétaire depuis le tableau de bord web, ou contactez le support pour fermer le restaurant, puis réessayez."
+        default:
+            return "Ce compte est géré par l'équipe À Table. Contactez le support pour le supprimer."
+        }
     }
 
     private func requestAccountDeletion() {

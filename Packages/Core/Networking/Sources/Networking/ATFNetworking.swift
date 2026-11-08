@@ -7,6 +7,8 @@ public protocol ATFNetworking: Sendable {
     /// Session saved in the keychain by a previous launch, refreshed if needed. nil = must log in.
     func restoreSession() async -> AppUser?
     func signOut() async throws
+    /// Deletes the signed-in account (server-side checks). Signs out locally on success.
+    func deleteAccount() async throws -> AccountDeletionResult
 
     // Menu
     func fetchRestaurants(userID: UUID) async throws -> [Restaurant]
@@ -27,4 +29,12 @@ public protocol ATFNetworking: Sendable {
     /// Sets the draft photo on the dish, then removes the draft.
     func attachDraft(_ draft: Draft, toDishID dishID: UUID, restaurantID: UUID) async throws -> URL
     func deleteDrafts(_ drafts: [Draft]) async throws
+}
+
+public enum AccountDeletionResult: Equatable, Sendable {
+    case deleted
+    /// Sole owner of this restaurant: it must be handed over or closed first.
+    case soleOwner(restaurant: String)
+    /// Platform operator or restaurant-group owner: handled by support.
+    case needsSupport
 }

@@ -14,6 +14,11 @@ public final class MockNetworking: ATFNetworking {
 
     public func restoreSession() async -> AppUser? { nil }   // UI tests always start logged out
 
+    public func deleteAccount() async throws -> AccountDeletionResult {
+        try await Task.sleep(for: .milliseconds(300))
+        return .soleOwner(restaurant: "Chez Flora")
+    }
+
     public func signOut() async throws {
         try await Task.sleep(for: .milliseconds(200))
     }

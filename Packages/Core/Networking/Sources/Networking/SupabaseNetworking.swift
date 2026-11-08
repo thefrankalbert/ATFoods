@@ -56,6 +56,32 @@ public struct SupabaseNetworking: ATFNetworking {
         try await client.auth.signOut()
     }
 
+    public func deleteAccount() async throws -> AccountDeletionResult {
+        guard let userID = client.auth.currentUser?.id else { throw SupabaseNetworkingError.notAllowed }
+        // Remove this user's drafts through the API first so their photo files go too
+        // (the database function only deletes rows).
+        struct DraftRow: Decodable, Sendable { let id: UUID; let storage_path: String; let public_url: String? }
+        let rows: [DraftRow] = try await client
+            .from("dish_photo_drafts").select("id, storage_path, public_url")
+            .eq("created_by", value: userID.uuidString)
+            .execute().value
+        let drafts = rows.compactMap { row in
+            row.public_url.flatMap(URL.init).map { Draft(id: row.id, photoURL: $0, storagePath: row.storage_path) }
+        }
+        try? await deleteDrafts(drafts)
+
+        let status: String = try await client.rpc("delete_my_account").execute().value
+        switch status {
+        case "deleted":
+            try? await client.auth.signOut()   // session already invalid server-side; clear the keychain
+            return .deleted
+        case let s where s.hasPrefix("sole_owner:"):
+            return .soleOwner(restaurant: String(s.dropFirst("sole_owner:".count)))
+        default:
+            return .needsSupport
+        }
+    }
+
     // MARK: - Restaurants (= Tenants in À Table SaaS)
 
     public func fetchRestaurants(userID: UUID) async throws -> [Restaurant] {
