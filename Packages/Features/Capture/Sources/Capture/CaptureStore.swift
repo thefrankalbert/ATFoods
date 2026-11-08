@@ -9,9 +9,12 @@ import Networking
     public var error: String? = nil
     // selectedRestaurant passed in so CaptureView knows which restaurant to attach to
     public let restaurant: Restaurant
+    /// Set when the camera was opened from a dish card: the photo goes straight to this dish.
+    public let targetDish: MenuItem?
 
-    public init(restaurant: Restaurant) {
+    public init(restaurant: Restaurant, targetDish: MenuItem? = nil) {
         self.restaurant = restaurant
+        self.targetDish = targetDish
     }
 
     // Called by CameraView after capture

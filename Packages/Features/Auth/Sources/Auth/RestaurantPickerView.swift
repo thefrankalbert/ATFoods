@@ -7,36 +7,49 @@ public struct RestaurantPickerView: View {
     let onContinue: () -> Void
     let onRetry: () async -> Void
     let onSignOut: () -> Void
+    /// Set when opened from the profile ("Changer de restaurant"): lets the user go back unchanged.
+    let onCancel: (() -> Void)?
     @State private var isRetrying = false
+    @State private var confirmSignOut = false
 
     public init(store: AuthStore, onContinue: @escaping () -> Void,
-                onRetry: @escaping () async -> Void, onSignOut: @escaping () -> Void) {
+                onRetry: @escaping () async -> Void, onSignOut: @escaping () -> Void,
+                onCancel: (() -> Void)? = nil) {
         self.store = store
         self.onContinue = onContinue
         self.onRetry = onRetry
         self.onSignOut = onSignOut
+        self.onCancel = onCancel
     }
 
     public var body: some View {
         VStack(spacing: 0) {
             // Header
             VStack(alignment: .leading, spacing: 4) {
+                if let onCancel {
+                    Button(action: onCancel) {
+                        Label("Annuler", systemImage: "chevron.left")
+                            .font(.atfSubhead)
+                            .foregroundStyle(Color.atfAccent)
+                    }
+                    .padding(.bottom, 8)
+                }
                 if let user = store.currentUser {
-                    Text("Bonjour, \(user.name) 👋")
+                    Text(user.name.isEmpty ? "Bonjour 👋" : "Bonjour, \(user.name) 👋")
                         .font(.atfSubhead)
                         .foregroundStyle(Color.atfText2)
                 }
                 Text("Quel établissement ?")
                     .font(.atfTitle)
                     .foregroundStyle(Color.atfText1)
-                Button("Changer de compte", action: onSignOut)
+                Button("Changer de compte") { confirmSignOut = true }
                     .font(.atfCaption)
                     .foregroundStyle(Color.atfAccent)
                     .padding(.top, 4)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, 24)
-            .padding(.top, 52)
+            .padding(.top, 16)
             .padding(.bottom, 24)
 
             // Restaurant list
@@ -87,16 +100,21 @@ public struct RestaurantPickerView: View {
             VStack(spacing: 0) {
                 Divider()
                     .background(Color.atfBorder)
-                ATFButton("Continuer", kind: .primary, fullWidth: true) {
+                // `disabled:` (not the .disabled modifier) so the button also looks inactive.
+                ATFButton("Continuer", kind: .primary, fullWidth: true,
+                          disabled: store.selectedRestaurant == nil) {
                     onContinue()
                 }
-                .disabled(store.selectedRestaurant == nil)
                 .padding(.horizontal, 24)
                 .padding(.vertical, 20)
             }
             .background(Color.atfSurface)
         }
         .background(Color.atfSurface.ignoresSafeArea())
+        .confirmationDialog("Se déconnecter de ce compte ?", isPresented: $confirmSignOut, titleVisibility: .visible) {
+            Button("Se déconnecter", role: .destructive, action: onSignOut)
+            Button("Annuler", role: .cancel) {}
+        }
     }
 }
 
@@ -119,32 +137,22 @@ private struct RestaurantRow: View {
                 contentMode: .fill
             )
 
-            // Info
+            // Info: badge on the second line so name and city keep the full width.
             VStack(alignment: .leading, spacing: 4) {
                 Text(restaurant.name)
                     .font(.atfBodyStr)
                     .foregroundStyle(Color.atfText1)
+                    .lineLimit(2)
+
+                Text([restaurant.city, restaurant.dishCount <= 1 ? "\(restaurant.dishCount) plat" : "\(restaurant.dishCount) plats"]
+                        .filter { !$0.isEmpty }.joined(separator: " · "))
+                    .font(.atfCaption)
+                    .foregroundStyle(Color.atfText2)
                     .lineLimit(1)
 
-                HStack(spacing: 6) {
-                    Text(restaurant.city)
-                        .font(.atfCaption)
-                        .foregroundStyle(Color.atfText2)
-
-                    Text("·")
-                        .font(.atfCaption)
-                        .foregroundStyle(Color.atfText3)
-
-                    Text("\(restaurant.dishCount) plats")
-                        .font(.atfCaption)
-                        .foregroundStyle(Color.atfText2)
-                }
+                ATFBadge(restaurant.role.displayName, kind: .soft)
             }
-
-            Spacer()
-
-            // Role badge
-            ATFBadge(restaurant.role.displayName, kind: .soft)
+            .frame(maxWidth: .infinity, alignment: .leading)
 
             // Selected checkmark
             if isSelected {

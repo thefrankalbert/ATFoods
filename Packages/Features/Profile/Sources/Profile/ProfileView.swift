@@ -7,6 +7,8 @@ public struct ProfileView: View {
     @Bindable var store: ProfileStore
     let networking: any ATFNetworking
     @Environment(\.openURL) private var openURL
+    @State private var confirmDeletion = false
+    @State private var mailFallback = false
     /// nil when the user has a single restaurant (row hidden).
     let onSwitchRestaurant: (() -> Void)?
     let onSignOut: () -> Void
@@ -37,6 +39,18 @@ public struct ProfileView: View {
             }
         }
         .background(Color.atfBg.ignoresSafeArea())
+        .confirmationDialog("Supprimer votre compte ?", isPresented: $confirmDeletion, titleVisibility: .visible) {
+            Button("Envoyer la demande", role: .destructive, action: requestAccountDeletion)
+            Button("Annuler", role: .cancel) {}
+        } message: {
+            Text("Votre demande est envoyée au support À Table, qui supprime votre compte et vos données personnelles sous 30 jours. Les plats de votre restaurant restent en ligne.")
+        }
+        .alert("Écrivez-nous", isPresented: $mailFallback) {
+            Button("Copier l'adresse") { UIPasteboard.general.string = AttablWeb.supportEmail }
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text("Aucune app de messagerie n'est configurée. Écrivez à \(AttablWeb.supportEmail).")
+        }
     }
 
     // MARK: - Top Bar
@@ -47,11 +61,13 @@ public struct ProfileView: View {
                 Image(systemName: "arrow.left")
                     .font(.system(size: 18, weight: .semibold))
                     .foregroundStyle(Color.atfText1)
+                    .frame(width: 44, height: 44)
             }
+            .accessibilityLabel("Retour")
             Spacer()
         }
-        .padding(.horizontal, 16)
-        .padding(.top, 52)
+        .padding(.horizontal, 8)
+        .padding(.top, 4)
         .padding(.bottom, 8)
     }
 
@@ -68,15 +84,18 @@ public struct ProfileView: View {
                 .clipShape(Circle())
                 .frame(width: 80, height: 80)
 
-                Text(store.user.name.prefix(1).uppercased())
+                Text((store.user.name.isEmpty ? store.user.email : store.user.name).prefix(1).uppercased())
                     .font(.system(size: 32, weight: .semibold))
                     .foregroundStyle(.white)
             }
+            .accessibilityHidden(true)
 
+            if !store.user.name.isEmpty {
             Text(store.user.name)
                 .font(.atfHeadline)
                 .foregroundStyle(Color.atfText1)
 
+            }
             Text(store.user.email)
                 .font(.atfCaption)
                 .foregroundStyle(Color.atfText2)
@@ -127,18 +146,25 @@ public struct ProfileView: View {
                 settingsRow(icon: "arrow.left.arrow.right", label: "Changer de restaurant", action: onSwitchRestaurant)
                 Divider().padding(.leading, 52)
             }
-            settingsRow(icon: "safari", label: "Ouvrir le dashboard web", action: openDashboard)
+            settingsRow(icon: "safari", label: "Tableau de bord web", action: { openURL(AttablWeb.dashboard) })
 
             Divider().padding(.leading, 16).padding(.vertical, 8)
 
             // À propos
             settingsRow(icon: "ant", label: "Signaler un bug", action: reportBug)
             Divider().padding(.leading, 52)
-            settingsRow(icon: "info.circle", label: "Aide & Support", action: openSupport)
+            settingsRow(icon: "info.circle", label: "Aide & support", action: { openURL(AttablWeb.support) })
             Divider().padding(.leading, 52)
-            settingsRow(icon: "doc.text", label: "Conditions d'utilisation", action: openTerms)
+            settingsRow(icon: "doc.text", label: "Conditions d'utilisation", action: { openURL(AttablWeb.legal) })
+            Divider().padding(.leading, 52)
+            settingsRow(icon: "hand.raised", label: "Politique de confidentialité", action: { openURL(AttablWeb.privacy) })
             Divider().padding(.leading, 52)
             settingsRowInfo(icon: "number", label: "Version", value: appVersion)
+
+            Divider().padding(.leading, 16).padding(.vertical, 8)
+
+            settingsRow(icon: "person.crop.circle.badge.xmark", label: "Supprimer mon compte",
+                        action: { confirmDeletion = true })
         }
         .background(Color.atfSurface)
         .clipShape(RoundedRectangle(cornerRadius: 14))
@@ -173,20 +199,20 @@ public struct ProfileView: View {
         return "v\(v) (\(b))"
     }
 
-    private func openDashboard() {
-        openURL(URL(string: "https://attabl.com")!)
-    }
-
     private func reportBug() {
-        openURL(URL(string: "mailto:support@attabl.com?subject=Bug%20At%20Food")!)
+        sendMail(subject: "Bug Atfood", body: "\n\n—\nAtfood \(appVersion) · \(store.restaurant.name)")
     }
 
-    private func openSupport() {
-        openURL(URL(string: "https://attabl.com/support")!)
+    private func requestAccountDeletion() {
+        sendMail(subject: "Suppression de compte Atfood",
+                 body: "Bonjour,\n\nJe demande la suppression de mon compte \(store.user.email) et de mes données personnelles.\n\nMerci.")
     }
 
-    private func openTerms() {
-        openURL(URL(string: "https://attabl.com/legal")!)
+    /// Opens Mail; without a mail app, shows the address (openURL would otherwise fail silently).
+    private func sendMail(subject: String, body: String) {
+        openURL(AttablWeb.mail(subject: subject, body: body)) { accepted in
+            if !accepted { mailFallback = true }
+        }
     }
 
     private func settingsRow(icon: String, label: String, action: @escaping () -> Void) -> some View {

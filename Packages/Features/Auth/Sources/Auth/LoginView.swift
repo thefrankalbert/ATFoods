@@ -41,47 +41,60 @@ public struct LoginView: View {
 
                 VStack(spacing: 16) {
                     ATFTextField("Adresse e-mail", text: $store.email,
-                                 placeholder: "mariam@chezflora.cm",
+                                 placeholder: "vous@restaurant.com",
                                  rightIcon: .user)
+                        .keyboardType(.emailAddress)
+                        .textContentType(.username)
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled()
 
                     ATFTextField("Mot de passe", text: $store.password,
                                  placeholder: "••••••••",
-                                 error: store.error,
                                  secure: true)
+                        .textContentType(.password)
+                        .submitLabel(.go)
+                        .onSubmit(signIn)
+
+                    if let error = store.error {
+                        Label(error, systemImage: "exclamationmark.triangle.fill")
+                            .font(.atfCaption)
+                            .foregroundStyle(Color.atfDanger)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
 
                     HStack {
                         Spacer()
-                        // Web flow already handles the reset email + new password page.
-                        Button("Mot de passe oublié ?") { openURL(URL(string: "https://attabl.com/forgot-password")!) }
+                        // The web flow handles the reset email and the new-password page.
+                        Button("Mot de passe oublié ?") { openURL(AttablWeb.forgotPassword) }
                             .font(.atfSubhead)
                             .foregroundStyle(Color.atfAccent)
                     }
 
                     ATFButton("Se connecter", kind: .primary, fullWidth: true,
-                              loading: store.isLoading) {
-                        Task {
-                            await store.signIn(networking: networking)
-                            if store.currentUser != nil { onSuccess() }
-                        }
-                    }
+                              loading: store.isLoading, disabled: !store.canSubmit, action: signIn)
                 }
 
                 Spacer().frame(height: 32)
 
-                HStack(spacing: 4) {
-                    Text("Pas encore À Table ?")
-                        .font(.atfSubhead)
-                        .foregroundStyle(Color.atfText3)
-                    Button("Découvrir") { openURL(URL(string: "https://attabl.com")!) }
-                        .font(.atfSubhead.weight(.semibold))
-                        .foregroundStyle(Color.atfAccent)
-                }
+                Text("Votre compte se crée depuis le tableau de bord À Table de votre restaurant.")
+                    .font(.atfCaption)
+                    .foregroundStyle(Color.atfText3)
+                    .multilineTextAlignment(.center)
 
                 Spacer().frame(height: 32)
             }
             .padding(.horizontal, 24)
         }
+        .scrollDismissesKeyboard(.interactively)
         .background(Color.atfBg.ignoresSafeArea())
+    }
+
+    private func signIn() {
+        guard store.canSubmit, !store.isLoading else { return }
+        Task {
+            await store.signIn(networking: networking)
+            if store.currentUser != nil { onSuccess() }
+        }
     }
 }
 

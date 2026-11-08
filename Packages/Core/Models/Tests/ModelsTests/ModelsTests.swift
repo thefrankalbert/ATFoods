@@ -1,11 +1,32 @@
 import Testing
+import Foundation
 @testable import Models
 
-@Test func priceFormattingUsesThousandsSeparator() {
-    #expect(MenuItem(name: "a", price: 800).priceFormatted == "800 FCFA")
-    #expect(MenuItem(name: "a", price: 3000).priceFormatted == "3 000 FCFA")
-    #expect(MenuItem(name: "a", price: 3850).priceFormatted == "3 850 FCFA")
-    #expect(MenuItem(name: "a", price: 12050).priceFormatted == "12 050 FCFA")
+@Test func pricesFollowTheRestaurantCurrency() {
+    #expect(Money.format(3800, currency: "XAF") == "3\u{202F}800\u{00A0}FCFA")
+    #expect(Money.format(1_000_000, currency: "XAF") == "1\u{202F}000\u{202F}000\u{00A0}FCFA")
+    #expect(Money.format(Decimal(string: "12.5")!, currency: "EUR") == "12,50\u{00A0}€")
+    #expect(Money.format(15, currency: "EUR") == "15\u{00A0}€")
+}
+
+@Test func priceInputIsParsedPerCurrency() {
+    #expect(Money.parse("3 800", currency: "XAF") == 3800)
+    #expect(Money.parse("12,50", currency: "EUR") == Decimal(string: "12.5"))
+    #expect(Money.parse("12.5", currency: "EUR") == Decimal(string: "12.5"))
+    #expect(Money.parse("12,50", currency: "XAF") == nil)   // FCFA has no cents
+    #expect(Money.parse("0", currency: "XAF") == nil)
+    #expect(Money.parse("", currency: "XAF") == nil)
+    #expect(Money.parse("12,5,0", currency: "EUR") == nil)
+    #expect(Money.parse("abc", currency: "EUR") == nil)
+}
+
+@Test func priceFieldIsPrefilledCleanly() {
+    // iOS 17 decodes JSON numbers via Double: 12.15 can arrive as 12.1499999999999999.
+    let lossy = Decimal(string: "12.1499999999999999")!
+    #expect(Money.inputText(lossy, currency: "EUR") == "12,15")
+    #expect(Money.parse(Money.inputText(lossy, currency: "EUR"), currency: "EUR") == Decimal(string: "12.15"))
+    #expect(Money.inputText(3800, currency: "XAF") == "3800")
+    #expect(Money.inputText(Decimal(string: "3800.4")!, currency: "XAF") == "3800")
 }
 
 @Test func legacyPlanNamesMapToCurrentPlans() {

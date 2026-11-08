@@ -122,6 +122,10 @@ public struct CameraView: View {
     @State private var guidance = GuidanceEngine()
     @State private var flashEnabled = false
     @State private var isCameraAvailable = false
+    @State private var permissionDenied = false
+    @State private var didSetUp = false
+    @Environment(\.openURL) private var openURL
+    @Environment(\.scenePhase) private var scenePhase
 
     public init(
         store: CaptureStore,
@@ -142,10 +146,29 @@ public struct CameraView: View {
                     .ignoresSafeArea()
                 GuidanceOverlay(engine: guidance)
                     .ignoresSafeArea()
-            } else {
-                Text("Caméra non disponible")
+            } else if permissionDenied {
+                VStack(spacing: 16) {
+                    Image(systemName: "camera.fill")
+                        .font(.system(size: 40))
+                        .foregroundStyle(.white.opacity(0.6))
+                    Text("Accès à l'appareil photo refusé")
+                        .font(.atfHeadline)
+                        .foregroundStyle(.white)
+                    Text("Autorisez la caméra dans les Réglages pour photographier vos plats.")
+                        .font(.atfBody)
+                        .foregroundStyle(.white.opacity(0.75))
+                        .multilineTextAlignment(.center)
+                    ATFButton("Ouvrir les Réglages", kind: .primary) {
+                        if let url = URL(string: UIApplication.openSettingsURLString) { openURL(url) }
+                    }
+                }
+                .padding(.horizontal, 32)
+            } else if didSetUp {
+                Text("Caméra non disponible sur cet appareil")
                     .foregroundColor(.white)
-                    .font(.headline)
+                    .font(.atfHeadline)
+            } else {
+                ProgressView().tint(.white)
             }
 
             // Overlay controls
@@ -171,7 +194,16 @@ public struct CameraView: View {
                 .padding(.horizontal, 16)
                 .padding(.top, 12)
 
-                if isCameraAvailable {
+                if let error = store.error {
+                    Label(error, systemImage: "exclamationmark.triangle.fill")
+                        .font(.atfCaption)
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 10)
+                        .background(Color.atfDanger, in: Capsule())
+                        .padding(.horizontal, 20)
+                        .onTapGesture { store.error = nil }
+                } else if isCameraAvailable {
                     GuidanceBanner(engine: guidance)
                         .padding(.horizontal, 20)
                 }
@@ -184,17 +216,6 @@ public struct CameraView: View {
 
                 // Bottom bar
                 HStack {
-                    // Last captured thumbnail
-                    if let lastPhoto = store.capturedImage {
-                        Image(uiImage: lastPhoto)
-                            .resizable()
-                            .scaledToFill()
-                            .frame(width: 40, height: 40)
-                            .clipShape(RoundedRectangle(cornerRadius: 6))
-                    } else {
-                        Spacer().frame(width: 40, height: 40)
-                    }
-
                     Spacer()
 
                     // Shutter button — ring turns green when guidance is satisfied (never blocks).
@@ -208,14 +229,12 @@ public struct CameraView: View {
                                     .frame(width: 82, height: 82)
                             )
                     }
-                    .disabled(store.isCapturing)
+                    .disabled(store.isCapturing || !isCameraAvailable)
+                    .opacity(isCameraAvailable ? 1 : 0.3)
                     .accessibilityLabel("Prendre la photo")
                     .accessibilityIdentifier("shutterButton")
 
                     Spacer()
-
-                    // Placeholder to balance layout
-                    Spacer().frame(width: 40, height: 40)
                 }
                 .padding(.horizontal, 32)
                 .padding(.bottom, 40)
@@ -225,6 +244,13 @@ public struct CameraView: View {
         .sensoryFeedback(.success, trigger: guidance.isReady) { _, ready in ready }
         .task {
             await setupSession()
+        }
+        // Back from Settings with the camera now allowed: start without reopening the screen.
+        .onChange(of: scenePhase) { _, phase in
+            guard phase == .active, permissionDenied,
+                  AVCaptureDevice.authorizationStatus(for: .video) == .authorized else { return }
+            permissionDenied = false
+            Task { await setupSession() }
         }
         .onDisappear {
             guidance.stop()
@@ -237,16 +263,18 @@ public struct CameraView: View {
     private func setupSession() async {
         let status = AVCaptureDevice.authorizationStatus(for: .video)
 
+        defer { didSetUp = true }
         switch status {
         case .authorized:
             await configureAndStart()
         case .notDetermined:
-            let granted = await AVCaptureDevice.requestAccess(for: .video)
-            if granted {
+            if await AVCaptureDevice.requestAccess(for: .video) {
                 await configureAndStart()
+            } else {
+                permissionDenied = true
             }
-        default:
-            break
+        default:   // denied or restricted (parental controls / MDM)
+            permissionDenied = true
         }
     }
 
@@ -267,7 +295,7 @@ public struct CameraView: View {
                 engine.start(device: h.device)
             }
         } catch {
-            store.error = error.localizedDescription
+            store.error = "La caméra n'a pas pu démarrer. Fermez puis rouvrez l'appareil photo."
         }
     }
 
@@ -277,6 +305,7 @@ public struct CameraView: View {
         // Capturing on an inactive connection raises an NSException (e.g. tap right after a retake).
         guard isCameraAvailable,
               holder.photoOutput.connection(with: .video)?.isActive == true else { return }
+        store.error = nil
         store.isCapturing = true
 
         coordinator.onCapture = { [store] image in
@@ -285,7 +314,7 @@ public struct CameraView: View {
         }
         coordinator.onError = { [store] in
             store.isCapturing = false
-            store.error = "La photo n'a pas pu être prise. Réessaie."
+            store.error = "La photo n'a pas pu être prise. Réessayez."
         }
 
         let settings = AVCapturePhotoSettings()

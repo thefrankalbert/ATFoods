@@ -1,6 +1,8 @@
 import Foundation
 import Models
 
+#if DEBUG
+
 public final class MockNetworking: ATFNetworking {
     public init() {}
 
@@ -47,6 +49,11 @@ public final class MockNetworking: ATFNetworking {
         return created
     }
 
+    public func updateMenuItem(_ item: MenuItem, restaurantID: UUID) async throws -> MenuItem {
+        try await Task.sleep(for: .milliseconds(300))
+        return item
+    }
+
     public func attachPhoto(imageData: Data, toDishID dishID: UUID, restaurantID: UUID) async throws -> URL {
         try await Task.sleep(for: .milliseconds(400))
         return Self.mockPhotoURL
@@ -74,12 +81,13 @@ public final class MockNetworking: ATFNetworking {
     private static let mockPhotoURL = URL(string: "https://images.unsplash.com/photo-1604908176997-125f25cc6f3d?w=400")!
 }
 
-public enum ATFError: Error, LocalizedError, Sendable {
+public enum ATFError: UserFacingError, Sendable {
     case invalidCredentials
 
     public var errorDescription: String? {
         switch self {
-        case .invalidCredentials: return "Identifiants invalides."
+        case .invalidCredentials: return "Email ou mot de passe incorrect."
         }
     }
 }
+#endif

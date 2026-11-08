@@ -2,11 +2,15 @@ import Foundation
 import Models
 import Supabase
 
-public enum SupabaseNetworkingError: LocalizedError {
+public enum SupabaseNetworkingError: UserFacingError {
     case notAllowed
+    case notFound
 
     public var errorDescription: String? {
-        "Modification refusée : vérifie tes droits sur ce restaurant."
+        switch self {
+        case .notAllowed: "Modification refusée : vos droits sur ce restaurant ne le permettent pas."
+        case .notFound: "Ce plat n'existe plus. Actualisez le menu."
+        }
     }
 }
 
@@ -16,10 +20,16 @@ public struct SupabaseNetworking: ATFNetworking {
     private static let bucket = "menu-items"
 
     public init(url: URL, anonKey: String) {
+        // 20 s without data = failure: a dead network shows an error instead of a minute-long spinner.
+        let config = URLSessionConfiguration.default
+        config.timeoutIntervalForRequest = 20
         client = SupabaseClient(
             supabaseURL: url,
             supabaseKey: anonKey,
-            options: SupabaseClientOptions(auth: .init(emitLocalSessionAsInitialSession: true))
+            options: SupabaseClientOptions(
+                auth: .init(emitLocalSessionAsInitialSession: true),
+                global: .init(session: URLSession(configuration: config))
+            )
         )
     }
 
@@ -27,13 +37,19 @@ public struct SupabaseNetworking: ATFNetworking {
 
     public func signIn(email: String, password: String) async throws -> AppUser {
         let session = try await client.auth.signIn(email: email, password: password)
-        return resolveUser(session.user)
+        return await resolveUser(session.user)
     }
 
     public func restoreSession() async -> AppUser? {
-        // Keychain session from a previous launch; refreshed by the SDK if the token expired.
-        guard let session = try? await client.auth.session else { return nil }
-        return resolveUser(session.user)
+        // Keychain session from a previous launch, refreshed by the SDK if the token expired.
+        do {
+            return await resolveUser(try await client.auth.session.user)
+        } catch where UserMessage.isOffline(error) {
+            // Offline: keep the user signed in with the stored session; screens show retry states.
+            return client.auth.currentSession.map { localUser($0.user) }
+        } catch {
+            return nil   // no session, or refresh token revoked: real sign-out
+        }
     }
 
     public func signOut() async throws {
@@ -55,12 +71,14 @@ public struct SupabaseNetworking: ATFNetworking {
                 let subscription_plan: String?
                 let subscription_status: String?
                 let is_active: Bool?
+                let currency: String?
+                let at_food_enabled: Bool?
             }
         }
 
         let links: [LinkRow] = try await client
             .from("admin_users")
-            .select("role, is_active, tenants(id, name, city, logo_url, subscription_plan, subscription_status, is_active)")
+            .select("role, is_active, tenants(id, name, city, logo_url, subscription_plan, subscription_status, is_active, currency, at_food_enabled)")
             .eq("user_id", value: userID.uuidString)
             .execute()
             .value
@@ -72,39 +90,48 @@ public struct SupabaseNetworking: ATFNetworking {
             let status = link.tenants.subscription_status
             let tenantActive = link.tenants.is_active ?? true
             let statusOK = status == nil || ["trial", "active", "past_due"].contains(status)
-            return roleOK && userActive && tenantActive && statusOK
+            let atFoodOK = link.tenants.at_food_enabled ?? true   // tenants.at_food_enabled (default true)
+            return roleOK && userActive && tenantActive && statusOK && atFoodOK
         }
 
-        // One COUNT per tenant (head request, no rows), in parallel: exact beyond PostgREST's
-        // 1000-row page. Cosmetic only, so a failed count shows 0 instead of blocking login.
-        let countMap = await withTaskGroup(of: (UUID, Int).self) { group in
+        // Per tenant, in parallel: can this user edit the menu (same rule as the database policies)?
+        // and how many live dishes (head COUNT, exact beyond PostgREST's 1000-row page).
+        struct PermissionParams: Encodable, Sendable { let p_tenant: String; let p_perm: String }
+        let details = await withTaskGroup(of: (UUID, Bool, Int).self) { group in
             for link in validLinks {
                 let tenantID = link.tenants.id
                 group.addTask {
-                    let count = try? await client
+                    async let canEdit: Bool? = try? await client
+                        .rpc("has_tenant_write_permission",
+                             params: PermissionParams(p_tenant: tenantID.uuidString, p_perm: "menu.edit"))
+                        .execute()
+                        .value
+                    async let count = try? await client
                         .from("menu_items")
                         .select("id", head: true, count: .exact)
                         .eq("tenant_id", value: tenantID.uuidString)
                         .is("deleted_at", value: nil)
                         .execute()
                         .count
-                    return (tenantID, count ?? 0)
+                    // Unknown permission (network blip) → keep the restaurant; writes still enforce RLS.
+                    return (tenantID, await canEdit ?? true, await count ?? 0)
                 }
             }
-            var map: [UUID: Int] = [:]
-            for await (id, count) in group { map[id] = count }
+            var map: [UUID: (canEdit: Bool, count: Int)] = [:]
+            for await (id, canEdit, count) in group { map[id] = (canEdit, count) }
             return map
         }
 
-        return validLinks.map { link in
+        return validLinks.filter { details[$0.tenants.id]?.canEdit ?? true }.map { link in
             Restaurant(
                 id: link.tenants.id,
                 name: link.tenants.name,
                 city: link.tenants.city ?? "",
                 role: RestaurantRole(rawValue: link.role) ?? .manager,
-                dishCount: countMap[link.tenants.id] ?? 0,
+                dishCount: details[link.tenants.id]?.count ?? 0,
                 photoURL: link.tenants.logo_url.flatMap(URL.init),
-                plan: AppPlan(fromDB: link.tenants.subscription_plan ?? "starter")
+                plan: AppPlan(fromDB: link.tenants.subscription_plan ?? "starter"),
+                currency: link.tenants.currency ?? "XAF"
             )
         }
     }
@@ -115,7 +142,7 @@ public struct SupabaseNetworking: ATFNetworking {
         struct ItemRow: Decodable, Sendable {
             let id: UUID
             let name: String
-            let price: Double
+            let price: Decimal
             let description: String?
             let image_url: String?
             let is_available: Bool?
@@ -138,7 +165,7 @@ public struct SupabaseNetworking: ATFNetworking {
             MenuItem(
                 id: row.id,
                 name: row.name,
-                price: Int(row.price.rounded()),
+                price: row.price,
                 category: row.categories?.name ?? "",
                 categoryID: row.category_id,
                 photoURL: row.image_url.flatMap(URL.init),
@@ -216,7 +243,7 @@ public struct SupabaseNetworking: ATFNetworking {
         struct Payload: Encodable {
             let id: String
             let name: String
-            let price: Int
+            let price: Decimal
             let description: String
             let is_available: Bool
             let is_featured: Bool
@@ -241,6 +268,30 @@ public struct SupabaseNetworking: ATFNetworking {
         var created = item
         created.categoryID = categoryID
         return created
+    }
+
+    public func updateMenuItem(_ item: MenuItem, restaurantID: UUID) async throws -> MenuItem {
+        guard let categoryID = item.categoryID else { throw SupabaseNetworkingError.notFound }
+        struct Payload: Encodable {
+            let name: String
+            let price: Decimal
+            let is_available: Bool
+            let category_id: String
+        }
+        struct UpdatedRow: Decodable, Sendable { let id: UUID }
+        let updated: [UpdatedRow] = try await client
+            .from("menu_items")
+            .update(Payload(name: item.name, price: item.price, is_available: item.isAvailable,
+                            category_id: categoryID.uuidString))
+            .eq("id", value: item.id.uuidString)
+            .eq("tenant_id", value: restaurantID.uuidString)
+            .is("deleted_at", value: nil)
+            .select("id")
+            .execute()
+            .value
+        // 0 rows: dish deleted on the web meanwhile, or rights revoked.
+        guard !updated.isEmpty else { throw SupabaseNetworkingError.notAllowed }
+        return item
     }
 
     // MARK: - Photos
@@ -357,9 +408,10 @@ public struct SupabaseNetworking: ATFNetworking {
         let storage = client.storage.from(Self.bucket)
         let publicURL = try storage.getPublicURL(path: newPath)
 
-        struct CurrentRow: Decodable, Sendable { let image_url: String? }
+        struct CurrentRow: Decodable, Sendable { let image_url: String?; let images: [String]? }
         struct PhotoUpdate: Encodable {
             let image_url: String
+            let images: [String]
             let image_source: String
             let image_uploaded_at: String
             let image_uploaded_by: String?
@@ -370,14 +422,17 @@ public struct SupabaseNetworking: ATFNetworking {
         let updated: [UpdatedRow]
         do {
             let current: [CurrentRow] = try await client
-                .from("menu_items").select("image_url").eq("id", value: dishID.uuidString)
+                .from("menu_items").select("image_url, images").eq("id", value: dishID.uuidString)
                 .execute().value
-            previous = current.first?.image_url
+            guard let row = current.first else { throw SupabaseNetworkingError.notFound }
+            previous = row.image_url
             // RLS-denied updates affect 0 rows without erroring: select back to detect it.
             updated = try await client
                 .from("menu_items")
                 .update(PhotoUpdate(
                     image_url: publicURL.absoluteString,
+                    // The storefront detail sheet shows `images` first: keep the gallery in sync.
+                    images: Self.gallery(row.images ?? [], replacing: previous, with: publicURL.absoluteString),
                     image_source: "at_food_ios",
                     image_uploaded_at: ISO8601DateFormatter().string(from: Date()),
                     image_uploaded_by: client.auth.currentUser?.id.uuidString
@@ -398,14 +453,35 @@ public struct SupabaseNetworking: ATFNetworking {
         if let previous, previous != publicURL.absoluteString,
            let oldPath = Self.storagePath(fromPublicURL: previous, newURL: publicURL.absoluteString, newPath: newPath) {
             struct Ref: Decodable, Sendable { let id: UUID }
-            let others: [Ref] = (try? await client
+            async let byURL: [Ref]? = try? await client
                 .from("menu_items").select("id").eq("image_url", value: previous).limit(1)
-                .execute().value) ?? [Ref(id: dishID)]   // unsure → keep the file
-            if others.isEmpty {
+                .execute().value
+            async let byGallery: [Ref]? = try? await client
+                .from("menu_items").select("id")
+                .filter("images", operator: "cs", value: Self.jsonArray([previous])).limit(1)
+                .execute().value
+            // Delete only when we are sure nothing references the file anymore (unsure → keep it).
+            if let a = await byURL, let b = await byGallery, a.isEmpty, b.isEmpty {
                 _ = try? await storage.remove(paths: [oldPath])
             }
         }
         return publicURL
+    }
+
+    /// Gallery after a photo change: previous primary replaced in place, else new photo first.
+    /// An empty gallery stays empty (the storefront then falls back to image_url).
+    static func gallery(_ images: [String], replacing previous: String?, with new: String) -> [String] {
+        guard !images.isEmpty else { return [] }
+        if let previous, let index = images.firstIndex(of: previous) {
+            var copy = images
+            copy[index] = new
+            return copy
+        }
+        return [new] + images.filter { $0 != new }
+    }
+
+    static func jsonArray(_ values: [String]) -> String {
+        (try? String(data: JSONEncoder().encode(values), encoding: .utf8)) ?? "[]"
     }
 
     /// Old public URL → storage path, using the new URL's prefix as the bucket base.
@@ -418,8 +494,21 @@ public struct SupabaseNetworking: ATFNetworking {
         return path.removingPercentEncoding ?? path
     }
 
-    private func resolveUser(_ user: User) -> AppUser {
-        let name = user.email?.components(separatedBy: "@").first ?? "Utilisateur"
-        return AppUser(id: user.id, name: name, email: user.email ?? "")
+    /// Display name from admin_users.full_name (as on the web); empty when unknown.
+    private func resolveUser(_ user: User) async -> AppUser {
+        struct NameRow: Decodable, Sendable { let full_name: String? }
+        let rows: [NameRow] = (try? await client
+            .from("admin_users").select("full_name")
+            .eq("user_id", value: user.id.uuidString)
+            .not("full_name", operator: .is, value: "null")
+            .limit(1)
+            .execute().value) ?? []
+        var resolved = localUser(user)
+        resolved.name = rows.first?.full_name?.trimmingCharacters(in: .whitespaces) ?? ""
+        return resolved
+    }
+
+    private func localUser(_ user: User) -> AppUser {
+        AppUser(id: user.id, name: "", email: user.email ?? "")
     }
 }

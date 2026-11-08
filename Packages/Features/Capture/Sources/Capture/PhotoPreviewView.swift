@@ -1,6 +1,7 @@
 import SwiftUI
 import Vision
 import Mantis
+import Networking
 import Models
 import DesignSystem
 
@@ -157,7 +158,7 @@ public struct PhotoPreviewView: View {
                 originalImage = image
                 store.capturedImage = result
             } catch {
-                if !Task.isCancelled { backgroundError = error.localizedDescription }
+                if !Task.isCancelled { backgroundError = UserMessage.from(error) }
             }
             isRemovingBackground = false
         }

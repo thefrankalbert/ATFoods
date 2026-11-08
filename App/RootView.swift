@@ -17,7 +17,8 @@ import Profile
 @MainActor @Observable final class AppNavigator {
     var homeStore: HomeStore?
     var captureStore: CaptureStore?
-    var formStore: FormStore?
+    var formStore: FormStore?          // new dish (create flow)
+    var dishEditStore: FormStore?      // dish card (edit flow), independent of the create flow
     var draftsStore: DraftsStore?
     var profileStore: ProfileStore?
 }
@@ -32,11 +33,12 @@ public enum ATFRoute: Hashable {
     case attachDish
     case attachDraft(Draft)
     case dishForm
+    case dishEdit
     case drafts
     case profile
 }
 
-private struct AppError: LocalizedError {
+private struct AppError: UserFacingError {
     let errorDescription: String?
     init(_ message: String) { errorDescription = message }
 }
@@ -57,9 +59,12 @@ struct RootView: View {
     @State private var toast: ATFToastData?
     @State private var toastTask: Task<Void, Never>?
 
-    private let networking: any ATFNetworking = Env.isUITesting
-        ? MockNetworking()
-        : SupabaseNetworking(url: Env.supabaseURL, anonKey: Env.supabaseAnonKey)
+    private let networking: any ATFNetworking = {
+        #if DEBUG
+        if Env.isUITesting { return MockNetworking() }   // mock is not compiled in Release
+        #endif
+        return SupabaseNetworking(url: Env.supabaseURL, anonKey: Env.supabaseAnonKey)
+    }()
 
     @State private var authStore = AuthStore()
     // AppNavigator is a class — mutations from captured closures always reach the same instance
@@ -148,6 +153,7 @@ struct RootView: View {
         nav.homeStore = nil
         nav.captureStore = nil
         nav.formStore = nil
+        nav.dishEditStore = nil
         nav.draftsStore = nil
         nav.profileStore = nil
         path = []
@@ -168,7 +174,12 @@ struct RootView: View {
                         try? await networking.signOut()
                         clearSession()
                     }
-                }
+                },
+                // Opened from the profile: allow going back without switching.
+                onCancel: path.count > 1 ? {
+                    authStore.selectedRestaurant = nav.homeStore?.restaurant
+                    path.removeLast()
+                } : nil
             )
             .navigationBarHidden(true)
 
@@ -191,9 +202,13 @@ struct RootView: View {
                             nav.profileStore = ProfileStore(user: user, restaurant: store.restaurant)
                             path.append(.profile)
                         }
+                    },
+                    onDish: { item in
+                        nav.dishEditStore = FormStore(restaurant: store.restaurant, editing: item)
+                        path.append(.dishEdit)
                     }
                 )
-                .navigationBarHidden(true)
+                .navigationBarBackButtonHidden(true)   // Home has its own (visible) toolbar
             }
 
         case .camera:
@@ -237,13 +252,15 @@ struct RootView: View {
                     },
                     attach: { item in
                         guard let data = await store.capturedImage?.uploadJPEG() else {
-                            throw AppError("Photo invalide. Reprends la photo.")
+                            throw AppError("Photo illisible. Reprenez la photo.")
                         }
-                        _ = try await networking.attachPhoto(imageData: data, toDishID: item.id, restaurantID: store.restaurant.id)
+                        let url = try await networking.attachPhoto(imageData: data, toDishID: item.id, restaurantID: store.restaurant.id)
+                        if store.targetDish != nil { nav.dishEditStore?.photoReplaced(with: url) }
                     },
-                    saveDraft: {
+                    // Batch shooting only makes sense from Home, not when replacing one dish's photo.
+                    saveDraft: store.targetDish != nil ? nil : {
                         guard let data = await store.capturedImage?.uploadJPEG() else {
-                            throw AppError("Photo invalide. Reprends la photo.")
+                            throw AppError("Photo illisible. Reprenez la photo.")
                         }
                         _ = try await networking.saveDraft(imageData: data, restaurantID: store.restaurant.id)
                         showToast("Brouillon enregistré. Photo suivante !")
@@ -252,10 +269,16 @@ struct RootView: View {
                         popTo(.camera)
                     },
                     onAttached: {
-                        showToast("Photo attachée !")
-                        popTo(.home)
+                        if store.targetDish != nil {
+                            showToast("Photo remplacée !")
+                            popTo(.dishEdit)
+                        } else {
+                            showToast("Photo attachée !")
+                            popTo(.home)
+                        }
                     },
-                    onBack: { path.removeLast() }
+                    onBack: { path.removeLast() },
+                    fixedDish: store.targetDish
                 )
                 .navigationBarHidden(true)
             }
@@ -300,6 +323,26 @@ struct RootView: View {
                 .navigationBarHidden(true)
             }
 
+        case .dishEdit:
+            if let store = nav.dishEditStore {
+                DishFormView(
+                    store: store,
+                    networking: networking,
+                    onSaved: {
+                        showToast("Plat mis à jour !")
+                        nav.dishEditStore = nil
+                        popTo(.home)
+                    },
+                    onBack: { path.removeLast() },
+                    onChangePhoto: {
+                        guard let dish = store.editing else { return }
+                        nav.captureStore = CaptureStore(restaurant: store.restaurant, targetDish: dish)
+                        path.append(.camera)
+                    }
+                )
+                .navigationBarHidden(true)
+            }
+
         case .drafts:
             if let store = nav.draftsStore {
                 DraftsView(
@@ -320,7 +363,7 @@ struct RootView: View {
                     store: store,
                     networking: networking,
                     onSwitchRestaurant: authStore.restaurants.count > 1 ? {
-                        path = [.restaurantPicker]
+                        path.append(.restaurantPicker)
                     } : nil,
                     onSignOut: { clearSession() },
                     onBack: { path.removeLast() }

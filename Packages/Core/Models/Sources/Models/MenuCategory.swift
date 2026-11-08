@@ -21,6 +21,8 @@ public struct MenuRef: Identifiable, Hashable, Sendable {
     }
 }
 
+#if DEBUG
 public extension MenuCategory {
     static let mocks: [MenuCategory] = ["Plat", "Spécialité", "Grillades", "Entrée", "Boisson"].map { MenuCategory(name: $0) }
 }
+#endif

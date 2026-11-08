@@ -19,6 +19,7 @@ let package = Package(
                 .product(name: "Networking", package: "Networking"),
             ],
             path: "Sources/Auth",
+            resources: [.process("Resources")],
             swiftSettings: [.swiftLanguageMode(.v6)]
         ),
         .testTarget(

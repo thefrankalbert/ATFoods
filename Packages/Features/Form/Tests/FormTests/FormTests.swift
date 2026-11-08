@@ -9,6 +9,8 @@ import Networking
 private final class FlakyNetworking: ATFNetworking, @unchecked Sendable {
     private let lock = NSLock()
     private var _created = 0, _uploads = 0
+    private var _updated: MenuItem?
+    var updated: MenuItem? { lock.withLock { _updated } }
     var created: Int { lock.withLock { _created } }
     var uploads: Int { lock.withLock { _uploads } }
 
@@ -24,6 +26,10 @@ private final class FlakyNetworking: ATFNetworking, @unchecked Sendable {
     }
     func createMenuItem(_ item: MenuItem, categoryID: UUID, restaurantID: UUID) async throws -> MenuItem {
         lock.withLock { _created += 1 }
+        return item
+    }
+    func updateMenuItem(_ item: MenuItem, restaurantID: UUID) async throws -> MenuItem {
+        lock.withLock { _updated = item }
         return item
     }
     func attachPhoto(imageData: Data, toDishID dishID: UUID, restaurantID: UUID) async throws -> URL {
@@ -70,6 +76,25 @@ private func photo() -> UIImage {
     store.selectedCategoryID = store.categories[0].id
     #expect(store.isValid)
     #expect(store.price == 3800)
+    store.priceText = "38,50"   // XAF restaurant: no cents
+    #expect(!store.isValid)
+    #expect(store.priceError != nil)
+}
+
+@MainActor @Test func editingUpdatesTheDishWithoutCreatingOne() async {
+    let net = FlakyNetworking()
+    let category = MenuCategory(name: "Plat")
+    let dish = MenuItem(name: "Mafé", price: 3800, category: "Plat", categoryID: category.id)
+    let store = FormStore(restaurant: Restaurant.mocks[0], editing: dish)
+    store.categories = [category]
+    #expect(store.priceText == "3800")
+    store.priceText = "4 200"
+    store.isAvailable = false
+    await store.submit(networking: net)
+    #expect(store.error == nil)
+    #expect(net.created == 0)
+    #expect(net.updated?.price == 4200)
+    #expect(net.updated?.isAvailable == false)
 }
 
 @MainActor @Test func duplicateCategoryNamesShowTheirMenu() {

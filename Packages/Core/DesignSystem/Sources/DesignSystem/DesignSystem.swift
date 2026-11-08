@@ -15,7 +15,7 @@
 //
 // Components:
 //   ATFButton, ATFTextField, ATFToggle, ATFChip, ATFBadge
-//   ATFCard, ATFSheet (.atfSheet modifier), ATFToast / ATFToastOverlay
+//   ATFToast / ATFToastOverlay, ATFFoodCard, ATFSkeleton
 //   ATFAsyncImage
 //
 // Fonts:

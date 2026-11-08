@@ -4,11 +4,11 @@ import CoreImage
 import CoreImage.CIFilterBuiltins
 import Networking
 
-enum BackgroundRemoverError: LocalizedError {
+enum BackgroundRemoverError: UserFacingError {
     case noSubject
 
     var errorDescription: String? {
-        "Impossible de détourer le plat. Essaie avec un fond plus uni."
+        "Impossible de détourer le plat. Essayez avec un fond plus uni."
     }
 }
 

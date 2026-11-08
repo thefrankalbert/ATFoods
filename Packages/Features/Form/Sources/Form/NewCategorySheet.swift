@@ -94,7 +94,7 @@ public struct NewCategorySheet: View {
                 try await store.createCategory(name: trimmed, menuID: menuID, networking: networking)
                 onDone()
             } catch {
-                self.error = error.localizedDescription
+                self.error = UserMessage.from(error)
             }
             isSaving = false
         }

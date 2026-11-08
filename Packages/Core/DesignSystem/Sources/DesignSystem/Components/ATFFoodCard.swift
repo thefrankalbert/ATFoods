@@ -1,8 +1,7 @@
 // Packages/Core/DesignSystem/Sources/DesignSystem/Components/ATFFoodCard.swift
 import SwiftUI
 
-/// Food item card 148×170pt for horizontal lists.
-/// Takes raw values — no dependency on Models package.
+/// Food item card (fills its grid column, 170pt high). Takes raw values — no dependency on Models.
 public struct ATFFoodCard: View {
     let name: String
     let priceFormatted: String
@@ -15,7 +14,7 @@ public struct ATFFoodCard: View {
         priceFormatted: String,
         photoURL: URL? = nil,
         isAvailable: Bool = true,
-        onTap: @escaping () -> Void = {}
+        onTap: @escaping () -> Void
     ) {
         self.name = name; self.priceFormatted = priceFormatted
         self.photoURL = photoURL; self.isAvailable = isAvailable; self.onTap = onTap
@@ -24,12 +23,31 @@ public struct ATFFoodCard: View {
     public var body: some View {
         Button(action: onTap) {
             ZStack(alignment: .bottomLeading) {
-                ATFAsyncImage(url: photoURL,
-                              fallback: Color(hex: "1A1410"),
-                              radius: 12,
-                              height: 170,
-                              width: 148,
-                              overlay: false)
+                // Fixed-size box + overlay: a scaledToFill photo can never widen the grid column.
+                Color(hex: "1A1410")
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 170)
+                    .overlay {
+                        ATFAsyncImage(url: photoURL,
+                                      fallback: Color(hex: "1A1410"),
+                                      radius: 0,
+                                      height: 170,
+                                      overlay: false)
+                    }
+                    .clipped()
+
+                if photoURL == nil {
+                    // The app's job is photos: dishes without one stand out.
+                    VStack(spacing: 6) {
+                        Image(systemName: "camera.fill")
+                            .font(.title2)
+                        Text("Sans photo")
+                            .font(.atfCaption)
+                    }
+                    .foregroundStyle(Color.atfAccent)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .padding(.bottom, 36)
+                }
 
                 // Gradient for text legibility
                 LinearGradient(
@@ -42,7 +60,7 @@ public struct ATFFoodCard: View {
                     VStack {
                         HStack {
                             Spacer()
-                            ATFBadge("Indispo", kind: .soft).padding(8)
+                            ATFBadge("Épuisé", kind: .soft).padding(8)
                         }
                         Spacer()
                     }
@@ -54,14 +72,21 @@ public struct ATFFoodCard: View {
                         .foregroundStyle(.white)
                         .lineLimit(1)
                     Text(priceFormatted)
-                        .font(.system(size: 12, weight: .medium, design: .monospaced))
+                        .font(.system(.caption, design: .monospaced, weight: .medium))
+                        .lineLimit(1)
                         .foregroundStyle(Color.white.opacity(0.75))
                 }
                 .padding(10)
             }
-            .frame(width: 148, height: 170)
+            .frame(maxWidth: .infinity)
+            .frame(height: 170)
+            .clipShape(RoundedRectangle(cornerRadius: 12))
         }
         .buttonStyle(ATFScaleButtonStyle())
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel([name, priceFormatted, photoURL == nil ? "sans photo" : nil, isAvailable ? nil : "épuisé"]
+            .compactMap { $0 }.joined(separator: ", "))
+        .accessibilityAddTraits(.isButton)
     }
 }
 
@@ -69,10 +94,11 @@ public struct ATFFoodCard: View {
     HStack(spacing: 12) {
         ATFFoodCard(
             name: "Mafé bœuf", priceFormatted: "3 800 FCFA",
-            photoURL: URL(string: "https://images.unsplash.com/photo-1604908176997-125f25cc6f3d?w=400")
+            photoURL: URL(string: "https://images.unsplash.com/photo-1604908176997-125f25cc6f3d?w=400"),
+            onTap: {}
         )
-        ATFFoodCard(name: "Thieboudienne", priceFormatted: "4 500 FCFA", isAvailable: false)
-        ATFFoodCard(name: "Ndolé", priceFormatted: "4 200 FCFA")
+        ATFFoodCard(name: "Thieboudienne", priceFormatted: "4 500 FCFA", isAvailable: false, onTap: {})
+        ATFFoodCard(name: "Ndolé", priceFormatted: "4 200 FCFA", onTap: {})
     }
     .padding()
     .background(Color.atfSurface)

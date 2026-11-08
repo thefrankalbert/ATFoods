@@ -3,123 +3,152 @@ import Models
 import Networking
 import DesignSystem
 
+/// New dish (from a photo) or dish card (edit name, price, availability, category, photo).
 public struct DishFormView: View {
     @Bindable var store: FormStore
     let networking: any ATFNetworking
     let onSaved: () -> Void
     let onBack: () -> Void
+    /// Edit mode only: open the guided camera to replace this dish's photo.
+    let onChangePhoto: (@MainActor () -> Void)?
 
     @State private var showCategorySheet = false
+    @State private var confirmDiscard = false
+    @FocusState private var fieldFocused: Bool
 
     public init(
         store: FormStore,
         networking: any ATFNetworking,
         onSaved: @escaping () -> Void,
-        onBack: @escaping () -> Void
+        onBack: @escaping () -> Void,
+        onChangePhoto: (@MainActor () -> Void)? = nil
     ) {
         self.store = store
         self.networking = networking
         self.onSaved = onSaved
         self.onBack = onBack
+        self.onChangePhoto = onChangePhoto
     }
 
     public var body: some View {
-        ZStack {
-            Color.atfSurface.ignoresSafeArea()
-
-            VStack(spacing: 0) {
-                header
-                ScrollView {
-                    VStack(spacing: 20) {
-                        photoSection
-                        fieldsSection
-                        categorySection
-                        availabilityRow
-                        if let errorMsg = store.error {
-                            Text(errorMsg)
-                                .font(.atfCaption)
-                                .foregroundStyle(Color.atfDanger)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .padding(.horizontal, 20)
-                        }
+        VStack(spacing: 0) {
+            header
+            ScrollView {
+                VStack(spacing: 20) {
+                    photoSection
+                    fieldsSection
+                    categorySection
+                    availabilityRow
+                    if let errorMsg = store.error {
+                        Label(errorMsg, systemImage: "exclamationmark.triangle.fill")
+                            .font(.atfCaption)
+                            .foregroundStyle(Color.atfDanger)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.horizontal, 20)
                     }
-                    .padding(.top, 20)
-                    .padding(.bottom, 120)
                 }
+                .padding(.top, 20)
+                .padding(.bottom, 24)
             }
+            .scrollDismissesKeyboard(.interactively)
 
-            VStack {
+            saveButton
+                .padding(.horizontal, 20)
+                .padding(.vertical, 12)
+                .background(Color.atfSurface)
+        }
+        .background(Color.atfSurface.ignoresSafeArea())
+        .toolbar {
+            ToolbarItemGroup(placement: .keyboard) {
                 Spacer()
-                saveButton
-                    .padding(.horizontal, 20)
-                    .padding(.bottom, 32)
-                    .background(
-                        Color.atfSurface
-                            .ignoresSafeArea(edges: .bottom)
-                    )
+                Button("Terminé") { fieldFocused = false }
             }
         }
         .task { await store.loadCategories(networking: networking) }
+        .confirmationDialog("Abandonner les modifications ?", isPresented: $confirmDiscard, titleVisibility: .visible) {
+            Button("Abandonner", role: .destructive, action: onBack)
+            Button("Continuer la modification", role: .cancel) {}
+        }
     }
 
     // MARK: - Header
 
     private var header: some View {
         HStack {
-            Button(action: onBack) {
+            Button {
+                if store.hasUnsavedChanges { confirmDiscard = true } else { onBack() }
+            } label: {
                 Image(systemName: "chevron.left")
                     .font(.system(size: 18, weight: .semibold))
                     .foregroundStyle(Color.atfAccent)
                     .frame(width: 44, height: 44)
             }
+            // Leaving mid-save would pop the screen and then jump elsewhere when the save ends.
+            .disabled(store.isLoading)
+            .accessibilityLabel("Retour")
 
             Spacer()
 
-            Text("Nouveau plat")
+            Text(store.isEditing ? "Fiche plat" : "Nouveau plat")
                 .font(.atfHeadline)
                 .foregroundStyle(Color.atfText1)
 
             Spacer()
 
-            // Balance the back button
             Color.clear.frame(width: 44, height: 44)
         }
         .padding(.horizontal, 8)
         .padding(.vertical, 4)
     }
 
-    // MARK: - Photo Section
+    // MARK: - Photo
 
     private var photoSection: some View {
-        Group {
-            switch store.photo {
-            case .captured(let image):
-                Image(uiImage: image)
-                    .resizable()
-                    .scaledToFill()
-                    .frame(width: 120, height: 120)
-                    .clipped()
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
-            case .draft(let draft):
-                AsyncImage(url: draft.photoURL) { phase in
-                    if let image = phase.image {
-                        image.resizable().scaledToFill()
-                    } else {
-                        Color.atfSurface2
+        VStack(spacing: 10) {
+            Group {
+                if let editing = store.editing {
+                    remoteImage(editing.photoURL)
+                } else {
+                    switch store.photo {
+                    case .captured(let image):
+                        Image(uiImage: image).resizable().scaledToFill()
+                    case .draft(let draft):
+                        remoteImage(draft.photoURL)
+                    case nil:
+                        placeholder
                     }
                 }
-                .frame(width: 120, height: 120)
-                .clipShape(RoundedRectangle(cornerRadius: 12))
-            case nil:
-                RoundedRectangle(cornerRadius: 12)
-                    .fill(Color.atfSurface2)
-                    .frame(width: 120, height: 120)
-                    .overlay(
-                        Image(systemName: "photo")
-                            .font(.system(size: 28, weight: .medium))
-                            .foregroundStyle(Color.atfText3)
-                    )
             }
+            .frame(width: 120, height: 120)
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .accessibilityHidden(true)
+
+            if let onChangePhoto {
+                ATFButton(store.editing?.photoURL == nil ? "Ajouter une photo" : "Changer la photo",
+                          kind: .secondary, disabled: store.isLoading, action: onChangePhoto)
+                    .accessibilityIdentifier("changePhotoButton")
+            }
+        }
+    }
+
+    private func remoteImage(_ url: URL?) -> some View {
+        AsyncImage(url: url) { phase in
+            if let image = phase.image {
+                image.resizable().scaledToFill()
+            } else if url == nil {
+                placeholder
+            } else {
+                Color.atfSurface2
+            }
+        }
+    }
+
+    private var placeholder: some View {
+        ZStack {
+            Color.atfSurface2
+            Image(systemName: "photo")
+                .font(.system(size: 28, weight: .medium))
+                .foregroundStyle(Color.atfText3)
         }
     }
 
@@ -127,15 +156,21 @@ public struct DishFormView: View {
 
     private var fieldsSection: some View {
         VStack(spacing: 16) {
-            ATFTextField("Nom du plat", text: $store.name, placeholder: "Ex: Thieboudienne")
-            ATFTextField("Prix", text: $store.priceText, placeholder: "3 800", suffix: "FCFA")
-                .keyboardType(.numberPad)
+            ATFTextField("Nom du plat", text: $store.name, placeholder: "Ex. : Thieboudienne")
+                .textInputAutocapitalization(.sentences)
+                .focused($fieldFocused)
+            ATFTextField("Prix", text: $store.priceText,
+                         placeholder: store.allowsDecimals ? "12,50" : "3 800",
+                         suffix: store.currencySymbol,
+                         error: store.priceError)
+                .keyboardType(store.allowsDecimals ? .decimalPad : .numberPad)
+                .focused($fieldFocused)
         }
         .padding(.horizontal, 20)
         .disabled(store.isDishCreated)
     }
 
-    // MARK: - Category Picker
+    // MARK: - Category
 
     private var categorySection: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -144,28 +179,40 @@ public struct DishFormView: View {
                 .foregroundStyle(Color.atfText2)
                 .padding(.leading, 20)
 
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 8) {
-                    if store.isLoadingCategories {
-                        ProgressView().tint(Color.atfAccent)
+            if !store.menusLoaded && !store.isLoadingCategories {
+                HStack {
+                    Text("Catégories non chargées.")
+                        .font(.atfCaption)
+                        .foregroundStyle(Color.atfDanger)
+                    ATFButton("Réessayer", kind: .secondary) {
+                        Task { await store.loadCategories(networking: networking) }
                     }
-                    ForEach(store.categories) { cat in
-                        categoryChip(cat)
-                    }
-                    Button {
-                        showCategorySheet = true
-                    } label: {
-                        Label(store.categories.isEmpty ? "Créer une catégorie" : "Nouvelle", systemImage: "plus")
-                            .font(.atfCaption)
-                            .foregroundStyle(Color.atfAccent)
-                            .padding(.horizontal, 14)
-                            .padding(.vertical, 7)
-                            .background(Color.atfSurface2)
-                            .clipShape(Capsule())
-                    }
-                    .accessibilityIdentifier("newCategoryButton")
                 }
                 .padding(.horizontal, 20)
+            } else {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                        if store.isLoadingCategories {
+                            ProgressView().tint(Color.atfAccent)
+                        }
+                        Button {
+                            showCategorySheet = true
+                        } label: {
+                            Label(store.categories.isEmpty ? "Créer une catégorie" : "Nouvelle", systemImage: "plus")
+                                .font(.atfCaption)
+                                .foregroundStyle(Color.atfAccent)
+                                .padding(.horizontal, 14)
+                                .padding(.vertical, 7)
+                                .background(Color.atfAccentMuted)
+                                .clipShape(Capsule())
+                        }
+                        .accessibilityIdentifier("newCategoryButton")
+                        ForEach(store.categories) { cat in
+                            categoryChip(cat)
+                        }
+                    }
+                    .padding(.horizontal, 20)
+                }
             }
         }
         .disabled(store.isDishCreated)
@@ -189,32 +236,40 @@ public struct DishFormView: View {
                 .background(isSelected ? Color.atfAccent : Color.atfSurface2)
                 .clipShape(Capsule())
         }
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 
     // MARK: - Availability
 
     private var availabilityRow: some View {
         HStack {
-            Text("Disponible")
-                .font(.atfBody)
-                .foregroundStyle(Color.atfText1)
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Disponible")
+                    .font(.atfBody)
+                    .foregroundStyle(Color.atfText1)
+                Text(store.isAvailable ? "Visible et commandable sur votre menu" : "Affiché « épuisé » sur votre menu")
+                    .font(.atfCaption)
+                    .foregroundStyle(Color.atfText3)
+            }
             Spacer()
             ATFToggle(isOn: $store.isAvailable)
+                .accessibilityLabel("Disponible")
         }
         .padding(.horizontal, 20)
         .disabled(store.isDishCreated)
     }
 
-    // MARK: - Save Button
+    // MARK: - Save
 
     private var saveButton: some View {
         ATFButton(
-            store.isDishCreated ? "Réessayer l'envoi de la photo" : "Enregistrer",
+            store.isDishCreated ? "Réessayer l'envoi de la photo" : (store.isEditing ? "Enregistrer les modifications" : "Enregistrer"),
             kind: .primary,
             fullWidth: true,
             loading: store.isLoading,
             disabled: !store.isValid
         ) {
+            fieldFocused = false
             Task {
                 await store.submit(networking: networking)
                 if store.error == nil {

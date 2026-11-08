@@ -17,15 +17,21 @@ public final class AuthStore {
 
     public init() {}
 
+    private var trimmedEmail: String { email.trimmingCharacters(in: .whitespacesAndNewlines) }
+
+    /// Login is pointless (and the error misleading) until both fields are filled.
+    public var canSubmit: Bool { trimmedEmail.contains("@") && !password.isEmpty }
+
     public func signIn(networking: any ATFNetworking) async {
         isLoading = true
         defer { isLoading = false }
         error = nil
         let user: AppUser
         do {
-            user = try await networking.signIn(email: email, password: password)
+            // Autofill / QuickType often adds a trailing space: never let it fail a valid login.
+            user = try await networking.signIn(email: trimmedEmail, password: password)
         } catch {
-            self.error = Self.message(for: error, credentials: true)
+            self.error = UserMessage.from(error)
             return
         }
         // currentUser only set once restaurants loaded: a failure stays visible on the login screen.
@@ -35,7 +41,7 @@ public final class AuthStore {
             currentUser = user
         } catch {
             try? await networking.signOut()
-            self.error = Self.message(for: error, credentials: false)
+            self.error = UserMessage.from(error)
         }
     }
 
@@ -46,18 +52,7 @@ public final class AuthStore {
             restaurants = try await networking.fetchRestaurants(userID: user.id)
             restaurantsError = nil
         } catch {
-            restaurantsError = Self.message(for: error, credentials: false)
+            restaurantsError = UserMessage.from(error)
         }
-    }
-
-    private static func message(for error: Error, credentials: Bool) -> String {
-        let msg = error.localizedDescription.lowercased()
-        if credentials, msg.contains("invalid") || msg.contains("credentials") || msg.contains("wrong") || msg.contains("identifiants") {
-            return "Email ou mot de passe incorrect."
-        }
-        if error is URLError || msg.contains("network") || msg.contains("offline") || msg.contains("connect") {
-            return "Vérifiez votre connexion internet."
-        }
-        return "Connexion impossible. Réessayez."
     }
 }

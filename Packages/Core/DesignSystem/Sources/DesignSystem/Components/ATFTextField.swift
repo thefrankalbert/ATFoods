@@ -65,7 +65,7 @@ public struct ATFTextField: View {
                             .focused($isFocused)
                     }
                 }
-                .frame(height: isMultiline ? nil : 52)
+                .frame(minHeight: isMultiline ? nil : 52)
                 .font(.atfBody)
                 .foregroundStyle(Color.atfText1)
                 .background(Color.atfSurface)

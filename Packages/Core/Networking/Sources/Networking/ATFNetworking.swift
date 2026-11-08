@@ -15,6 +15,8 @@ public protocol ATFNetworking: Sendable {
     func fetchMenus(restaurantID: UUID) async throws -> [MenuRef]
     func createCategory(name: String, menuID: UUID?, restaurantID: UUID) async throws -> MenuCategory
     func createMenuItem(_ item: MenuItem, categoryID: UUID, restaurantID: UUID) async throws -> MenuItem
+    /// Name, price, availability and category. Throws if the dish no longer exists or rights are missing.
+    func updateMenuItem(_ item: MenuItem, restaurantID: UUID) async throws -> MenuItem
 
     // Photos
     func attachPhoto(imageData: Data, toDishID dishID: UUID, restaurantID: UUID) async throws -> URL

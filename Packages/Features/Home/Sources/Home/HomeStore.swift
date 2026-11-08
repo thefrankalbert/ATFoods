@@ -21,7 +21,7 @@ import Networking
             menuItems = try await items
             categories = try await cats
         } catch {
-            self.error = error.localizedDescription
+            self.error = UserMessage.from(error)
         }
         isLoading = false
     }

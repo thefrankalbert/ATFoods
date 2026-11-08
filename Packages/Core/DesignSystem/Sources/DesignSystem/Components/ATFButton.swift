@@ -52,7 +52,7 @@ public struct ATFButton: View {
                 }
             }
             .frame(maxWidth: isFullWidth ? .infinity : nil)
-            .frame(height: kind == .secondary ? 48 : 56)
+            .frame(minHeight: kind == .secondary ? 48 : 56)
             .padding(.horizontal, kind == .secondary ? 20 : 24)
             .background(background)
             .foregroundStyle(foregroundColor)
@@ -71,7 +71,7 @@ public struct ATFButton: View {
         switch kind {
         case .primary:  return AnyShapeStyle(Color.atfAccent)
         case .danger:   return AnyShapeStyle(Color.atfDanger)
-        case .secondary: return AnyShapeStyle(Color.atfSurface)
+        case .secondary: return AnyShapeStyle(Color.atfAccentMuted)
         case .outline, .ghost: return AnyShapeStyle(Color.clear)
         }
     }
@@ -80,7 +80,7 @@ public struct ATFButton: View {
         switch kind {
         case .primary, .danger: return .white
         case .outline, .ghost:  return .atfAccent
-        case .secondary:        return .atfText1
+        case .secondary:        return .atfAccent
         }
     }
 

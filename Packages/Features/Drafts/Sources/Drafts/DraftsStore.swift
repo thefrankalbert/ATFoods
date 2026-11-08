@@ -23,7 +23,7 @@ import Networking
             drafts = try await networking.fetchDrafts(restaurantID: restaurantID)
             error = nil
         } catch {
-            self.error = "Brouillons : \(error.localizedDescription)"
+            self.error = UserMessage.from(error)
         }
     }
 
@@ -46,7 +46,9 @@ import Networking
             isMultiSelect = false
             error = nil
         } catch {
-            self.error = "Suppression : \(error.localizedDescription)"
+            let message = UserMessage.from(error)
+            await load(networking: networking)   // partial delete: show what really remains
+            self.error = message                 // after reload, which clears errors on success
         }
     }
 }

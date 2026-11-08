@@ -20,14 +20,14 @@ public enum GuidanceHint: Equatable, Sendable {
 
     public var message: String {
         switch self {
-        case .tiltDown:   "Incline le téléphone vers le plat"
-        case .tiltUp:     "Redresse un peu le téléphone"
-        case .level:      "Tiens le téléphone bien droit"
-        case .tooDark:    "Trop sombre : rapproche-toi d'une fenêtre"
-        case .tooBright:  "Trop de lumière : évite le soleil direct"
-        case .center:     "Centre l'assiette dans le cercle"
-        case .moveCloser: "Rapproche-toi du plat"
-        case .moveBack:   "Recule un peu"
+        case .tiltDown:   "Inclinez le téléphone vers le plat"
+        case .tiltUp:     "Redressez un peu le téléphone"
+        case .level:      "Tenez le téléphone bien droit"
+        case .tooDark:    "Trop sombre : rapprochez-vous d'une fenêtre"
+        case .tooBright:  "Trop de lumière : évitez le soleil direct"
+        case .center:     "Centrez l'assiette dans le cercle"
+        case .moveCloser: "Rapprochez-vous du plat"
+        case .moveBack:   "Reculez un peu"
         }
     }
 }

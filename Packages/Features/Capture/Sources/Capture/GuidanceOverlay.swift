@@ -54,7 +54,7 @@ struct GuidanceBanner: View {
         let ready = engine.isReady
         HStack(spacing: 8) {
             Image(systemName: ready ? "checkmark.circle.fill" : "hand.point.up.left.fill")
-            Text(engine.hint?.message ?? "Parfait ! Prends la photo")
+            Text(engine.hint?.message ?? "Parfait ! Prenez la photo")
                 .font(.atfCaption)
             Spacer(minLength: 0)
             Text("\(Int(engine.pitch.rounded()))°")

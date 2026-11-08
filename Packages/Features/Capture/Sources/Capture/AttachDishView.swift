@@ -15,8 +15,12 @@ public struct AttachDishView: View {
     let saveDraft: (() async throws -> Void)?
     let onAttached: () -> Void
     let onBack: () -> Void
+    /// Photo taken from a dish card: no list, the photo goes to this dish.
+    let fixedDish: MenuItem?
 
     @State private var isLoading = false
+    @State private var loadFailed = false
+    @State private var search = ""
     @State private var menuItems: [MenuItem] = []
     @State private var selectedItem: MenuItem? = nil
     @State private var isAttaching = false
@@ -33,8 +37,10 @@ public struct AttachDishView: View {
         attach: @escaping (MenuItem) async throws -> Void,
         saveDraft: (() async throws -> Void)? = nil,
         onAttached: @escaping () -> Void,
-        onBack: @escaping () -> Void
+        onBack: @escaping () -> Void,
+        fixedDish: MenuItem? = nil
     ) {
+        self.fixedDish = fixedDish
         self.restaurant = restaurant
         self.networking = networking
         self.onNewDish = onNewDish
@@ -58,8 +64,9 @@ public struct AttachDishView: View {
                             .frame(width: 44, height: 44)
                     }
                     .disabled(isBusy)
+                    .accessibilityLabel("Retour")
                     Spacer()
-                    Text("Attacher à un plat")
+                    Text(fixedDish == nil ? "Attacher à un plat" : "Remplacer la photo")
                         .font(.atfHeadline)
                         .foregroundStyle(Color.atfText1)
                     Spacer()
@@ -70,6 +77,7 @@ public struct AttachDishView: View {
                 .padding(.top, 12)
                 .padding(.bottom, 8)
 
+                if fixedDish == nil {
                 // "+ Nouveau plat" button
                 ATFButton("+ Nouveau plat", kind: .secondary, fullWidth: true, disabled: isBusy, action: { onNewDish() })
                     .padding(.horizontal, 20)
@@ -92,6 +100,7 @@ public struct AttachDishView: View {
                         .font(.atfCaption)
                         .foregroundStyle(Color.atfText3)
                         .lineLimit(1)
+                        .fixedSize()
                     Rectangle()
                         .fill(Color.atfSurface2)
                         .frame(height: 1)
@@ -99,22 +108,39 @@ public struct AttachDishView: View {
                 .padding(.horizontal, 20)
                 .padding(.bottom, 8)
 
+                ATFTextField(text: $search, placeholder: "Rechercher un plat", rightIcon: .search)
+                    .autocorrectionDisabled()
+                    .padding(.horizontal, 20)
+                    .padding(.bottom, 8)
+                }
+
                 // Menu items list
                 if isLoading {
                     Spacer()
                     ProgressView()
                         .tint(Color.atfAccent)
                     Spacer()
-                } else if menuItems.isEmpty {
+                } else if loadFailed {
                     Spacer()
-                    Text("Aucun plat trouvé")
+                    VStack(spacing: 12) {
+                        Text("Impossible de charger vos plats.")
+                            .font(.atfBody)
+                            .foregroundStyle(Color.atfText2)
+                        ATFButton("Réessayer", kind: .secondary) { Task { await fetchMenuItems() } }
+                    }
+                    Spacer()
+                } else if filteredItems.isEmpty {
+                    Spacer()
+                    Text(menuItems.isEmpty ? "Aucun plat pour l'instant : créez-en un." : "Aucun plat ne correspond.")
                         .font(.atfBody)
                         .foregroundStyle(Color.atfText3)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 20)
                     Spacer()
                 } else {
                     ScrollView {
                         LazyVStack(spacing: 0) {
-                            ForEach(menuItems) { item in
+                            ForEach(filteredItems) { item in
                                 DishRow(
                                     item: item,
                                     isSelected: selectedItem?.id == item.id,
@@ -136,14 +162,14 @@ public struct AttachDishView: View {
                 if let errorMsg = error {
                     Text(errorMsg)
                         .font(.atfCaption)
-                        .foregroundStyle(Color.red)
+                        .foregroundStyle(Color.atfDanger)
                         .padding(.horizontal, 20)
                         .padding(.bottom, 8)
                         .multilineTextAlignment(.center)
                 }
 
                 ATFButton(
-                    "Attacher",
+                    fixedDish == nil ? "Attacher" : "Remplacer la photo",
                     kind: .primary,
                     fullWidth: true,
                     loading: isAttaching,
@@ -165,13 +191,25 @@ public struct AttachDishView: View {
 
     // MARK: - Actions
 
+    /// Accent- and case-insensitive name search (e.g. "mafe" finds "Mafé").
+    private var filteredItems: [MenuItem] {
+        let query = search.trimmingCharacters(in: .whitespaces)
+        guard !query.isEmpty else { return menuItems }
+        return menuItems.filter { $0.name.range(of: query, options: [.caseInsensitive, .diacriticInsensitive]) != nil }
+    }
+
     private func fetchMenuItems() async {
+        if let fixedDish {
+            menuItems = [fixedDish]
+            selectedItem = fixedDish
+            return
+        }
         isLoading = true
-        error = nil
+        loadFailed = false
         do {
             menuItems = try await networking.fetchMenuItems(restaurantID: restaurant.id)
         } catch {
-            self.error = error.localizedDescription
+            loadFailed = true
         }
         isLoading = false
     }
@@ -185,7 +223,7 @@ public struct AttachDishView: View {
                 try await attach(item)
                 onAttached()
             } catch {
-                self.error = error.localizedDescription
+                self.error = UserMessage.from(error)
             }
             isAttaching = false
         }
@@ -199,7 +237,7 @@ public struct AttachDishView: View {
             do {
                 try await saveDraft()
             } catch {
-                self.error = error.localizedDescription
+                self.error = UserMessage.from(error)
             }
             isSavingDraft = false
         }
