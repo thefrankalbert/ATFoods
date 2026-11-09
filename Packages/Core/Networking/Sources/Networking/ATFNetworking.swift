@@ -29,12 +29,17 @@ public protocol ATFNetworking: Sendable {
     /// Sets the draft photo on the dish, then removes the draft.
     func attachDraft(_ draft: Draft, toDishID dishID: UUID, restaurantID: UUID) async throws -> URL
     func deleteDrafts(_ drafts: [Draft]) async throws
+    /// Extra photos of a dish (web "Photos supplémentaires"); each returns the new list.
+    func addGalleryPhoto(imageData: Data, toDishID dishID: UUID, restaurantID: UUID) async throws -> [URL]
+    func removeGalleryPhoto(_ url: URL, fromDishID dishID: UUID, restaurantID: UUID) async throws -> [URL]
 }
 
 public enum AccountDeletionResult: Equatable, Sendable {
     case deleted
     /// Sole owner of this restaurant: it must be handed over or closed first.
     case soleOwner(restaurant: String)
-    /// Platform operator or restaurant-group owner: handled by support.
+    /// Owner of the restaurant group the web signup creates for every new owner: closing it goes through support.
+    case groupOwner
+    /// Platform operator (À Table team account): handled by support.
     case needsSupport
 }

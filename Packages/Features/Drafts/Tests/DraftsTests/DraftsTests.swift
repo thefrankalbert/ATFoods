@@ -21,6 +21,8 @@ private final class FailingDelete: ATFNetworking, @unchecked Sendable {
     func fetchDrafts(restaurantID: UUID) async throws -> [Draft] { Draft.mocks }
     func attachDraft(_ draft: Draft, toDishID dishID: UUID, restaurantID: UUID) async throws -> URL { draft.photoURL }
     func deleteDrafts(_ drafts: [Draft]) async throws { throw URLError(.notConnectedToInternet) }
+    func addGalleryPhoto(imageData: Data, toDishID dishID: UUID, restaurantID: UUID) async throws -> [URL] { throw URLError(.notConnectedToInternet) }
+    func removeGalleryPhoto(_ url: URL, fromDishID dishID: UUID, restaurantID: UUID) async throws -> [URL] { throw URLError(.notConnectedToInternet) }
 }
 
 @MainActor @Test func failedDeleteKeepsDraftsAndShowsError() async {

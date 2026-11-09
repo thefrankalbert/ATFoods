@@ -227,6 +227,8 @@ public struct ProfileView: View {
         switch store.deletionOutcome {
         case .soleOwner(let restaurant):
             return "Vous êtes le seul propriétaire de « \(restaurant) ». Nommez un autre propriétaire depuis le tableau de bord web, ou contactez le support pour fermer le restaurant, puis réessayez."
+        case .groupOwner:
+            return "Vous êtes le propriétaire de votre établissement sur À Table. Pour supprimer votre compte, l'établissement doit d'abord être fermé ou confié à quelqu'un d'autre : contactez le support, nous nous en chargeons."
         default:
             return "Ce compte est géré par l'équipe À Table. Contactez le support pour le supprimer."
         }

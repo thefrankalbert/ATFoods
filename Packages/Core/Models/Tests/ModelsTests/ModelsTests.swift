@@ -34,3 +34,34 @@ import Foundation
     #expect(AppPlan(fromDB: "business") == .business)
     #expect(AppPlan(fromDB: "unknown") == .starter)
 }
+
+@Test func menuOrderMatchesTheWebStorefront() {
+    let (midi, soir, desserts, boissons) = (UUID(), UUID(), UUID(), UUID())
+    // Soir first on the web (display_order 0), Desserts is a sub-carte of Soir, Boissons is transversal.
+    let menus = [
+        MenuOrder.MenuNode(id: midi, parentID: nil, displayOrder: 1, isTransversal: false),
+        MenuOrder.MenuNode(id: boissons, parentID: nil, displayOrder: 0, isTransversal: true),
+        MenuOrder.MenuNode(id: desserts, parentID: soir, displayOrder: 2, isTransversal: false),
+        MenuOrder.MenuNode(id: soir, parentID: nil, displayOrder: 0, isTransversal: false),
+    ]
+    #expect(MenuOrder.menuIDs(menus) == [soir, desserts, midi, boissons])
+
+    // Input is categories by display_order, as fetched.
+    let jus = MenuCategory(name: "Jus", menuID: boissons)
+    let entrees = MenuCategory(name: "Entrées", menuID: midi)
+    let gateaux = MenuCategory(name: "Gâteaux", menuID: desserts)
+    let grillades = MenuCategory(name: "Grillades", menuID: soir)
+    let orpheline = MenuCategory(name: "Sans carte", menuID: nil)
+    let sorted = MenuOrder.categories([jus, orpheline, entrees, gateaux, grillades], menus: menus)
+    #expect(sorted.map(\.name) == ["Grillades", "Gâteaux", "Entrées", "Jus", "Sans carte"])
+
+    // One carte only: the web keeps plain display_order.
+    let single = [MenuOrder.MenuNode(id: midi, parentID: nil, displayOrder: 0, isTransversal: false)]
+    #expect(MenuOrder.categories([orpheline, entrees], menus: single).map(\.name) == ["Sans carte", "Entrées"])
+
+    // Dishes follow the category order, creation order kept inside a category.
+    let a = MenuItem(name: "A", price: 1, category: "", categoryID: jus.id)
+    let b = MenuItem(name: "B", price: 1, category: "", categoryID: grillades.id)
+    let c = MenuItem(name: "C", price: 1, category: "", categoryID: grillades.id)
+    #expect(MenuOrder.items([a, b, c], categories: sorted).map(\.name) == ["B", "C", "A"])
+}

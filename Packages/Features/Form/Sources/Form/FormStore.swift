@@ -17,6 +17,15 @@ public enum DishPhotoSource {
     public var menus: [MenuRef] = []
     public var selectedCategoryID: UUID? = nil
     public var isAvailable: Bool = true
+    // Rest of the web dish sheet (attabl-saas useItemForm.ts).
+    public var descriptionText: String = ""
+    public var nameEn: String = ""
+    public var descriptionEn: String = ""
+    public var isFeatured: Bool = false
+    public var allergens: Set<String> = []
+    public var caloriesText: String = ""
+    public private(set) var gallery: [URL] = []
+    public private(set) var isUpdatingGallery = false
     public var isLoading: Bool = false
     public var isLoadingCategories: Bool = false
     public var error: String? = nil
@@ -41,6 +50,35 @@ public enum DishPhotoSource {
         priceText = Money.inputText(item.price, currency: restaurant.currency)
         isAvailable = item.isAvailable
         selectedCategoryID = item.categoryID
+        descriptionText = item.description
+        nameEn = item.nameEn
+        descriptionEn = item.descriptionEn
+        isFeatured = item.isFeatured
+        allergens = Set(item.allergens)
+        caloriesText = item.calories.map(String.init) ?? ""
+        gallery = item.gallery
+    }
+
+    /// Calories: empty = none; otherwise a whole number of kcal.
+    public var calories: Int? { Int(caloriesText.trimmingCharacters(in: .whitespaces)) }
+    public var caloriesError: String? {
+        let t = caloriesText.trimmingCharacters(in: .whitespaces)
+        guard !t.isEmpty else { return nil }
+        guard let n = Int(t), n >= 0 else { return "Nombre entier de kcal (ex. 450)." }
+        return n > 10_000 ? "Valeur trop élevée." : nil
+    }
+
+    /// Same order as the web list, so saving never reshuffles what the web stored.
+    private var orderedAllergens: [String] { Allergen.all.map(\.id).filter(allergens.contains) }
+
+    private func applyDetails(to item: inout MenuItem) {
+        let trim = { (t: String) in t.trimmingCharacters(in: .whitespacesAndNewlines) }
+        item.description = trim(descriptionText)
+        item.nameEn = trim(nameEn)
+        item.descriptionEn = trim(descriptionEn)
+        item.isFeatured = isFeatured
+        item.allergens = orderedAllergens
+        item.calories = calories
     }
 
     public var isEditing: Bool { editing != nil }
@@ -52,7 +90,40 @@ public enum DishPhotoSource {
             || price != item.price.roundedForCurrency(restaurant.currency)
             || isAvailable != item.isAvailable
             || selectedCategoryID != item.categoryID
+            || descriptionText.trimmingCharacters(in: .whitespacesAndNewlines) != item.description
+            || nameEn.trimmingCharacters(in: .whitespacesAndNewlines) != item.nameEn
+            || descriptionEn.trimmingCharacters(in: .whitespacesAndNewlines) != item.descriptionEn
+            || isFeatured != item.isFeatured
+            || allergens != Set(item.allergens)
+            || calories != item.calories
     }
+    /// Extra photos (edit mode only: the dish must exist). Saved immediately, like the main photo.
+    public func addGalleryPhoto(_ data: Data, networking: any ATFNetworking) async {
+        guard let item = editing, !isUpdatingGallery else { return }
+        isUpdatingGallery = true
+        defer { isUpdatingGallery = false }
+        do {
+            gallery = try await networking.addGalleryPhoto(imageData: data, toDishID: item.id, restaurantID: restaurant.id)
+            editing?.gallery = gallery
+            error = nil
+        } catch {
+            self.error = "Photo non ajoutée. \(UserMessage.from(error))"
+        }
+    }
+
+    public func removeGalleryPhoto(_ url: URL, networking: any ATFNetworking) async {
+        guard let item = editing, !isUpdatingGallery else { return }
+        isUpdatingGallery = true
+        defer { isUpdatingGallery = false }
+        do {
+            gallery = try await networking.removeGalleryPhoto(url, fromDishID: item.id, restaurantID: restaurant.id)
+            editing?.gallery = gallery
+            error = nil
+        } catch {
+            self.error = "Photo non retirée. \(UserMessage.from(error))"
+        }
+    }
+
     public var currencySymbol: String { Money.symbol(restaurant.currency) }
     public var allowsDecimals: Bool { Money.fractionDigits(restaurant.currency) > 0 }
 
@@ -103,6 +174,7 @@ public enum DishPhotoSource {
 
     public var isValid: Bool {
         !name.trimmingCharacters(in: .whitespaces).isEmpty && price != nil && selectedCategoryID != nil
+            && caloriesError == nil
     }
 
     public func submit(networking: any ATFNetworking) async {
@@ -119,6 +191,7 @@ public enum DishPhotoSource {
             item.isAvailable = isAvailable
             item.categoryID = categoryID
             item.category = categoryName
+            applyDetails(to: &item)
             do {
                 editing = try await networking.updateMenuItem(item, restaurantID: restaurant.id)
             } catch {
@@ -132,13 +205,15 @@ public enum DishPhotoSource {
             item = createdItem
         } else {
             do {
-                item = try await networking.createMenuItem(MenuItem(
+                var newItem = MenuItem(
                     name: trimmedName,
                     price: price,
                     category: categoryName,
                     categoryID: categoryID,
                     isAvailable: isAvailable
-                ), categoryID: categoryID, restaurantID: restaurant.id)
+                )
+                applyDetails(to: &newItem)
+                item = try await networking.createMenuItem(newItem, categoryID: categoryID, restaurantID: restaurant.id)
                 createdItem = item
             } catch {
                 self.error = UserMessage.from(error)

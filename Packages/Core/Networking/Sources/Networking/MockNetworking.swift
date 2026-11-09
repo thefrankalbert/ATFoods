@@ -83,6 +83,15 @@ public final class MockNetworking: ATFNetworking {
         try await Task.sleep(for: .milliseconds(200))
     }
 
+    public func addGalleryPhoto(imageData: Data, toDishID dishID: UUID, restaurantID: UUID) async throws -> [URL] {
+        try await Task.sleep(for: .milliseconds(300))
+        return [Self.mockPhotoURL]
+    }
+
+    public func removeGalleryPhoto(_ url: URL, fromDishID dishID: UUID, restaurantID: UUID) async throws -> [URL] {
+        return []
+    }
+
     private static let mockPhotoURL = URL(string: "https://images.unsplash.com/photo-1604908176997-125f25cc6f3d?w=400")!
 }
 

@@ -66,6 +66,8 @@ public struct ATFTextField: View {
                     }
                 }
                 .frame(minHeight: isMultiline ? nil : 52)
+                // VoiceOver reads the field's name ("Prix"), not its example ("3 800").
+                .accessibilityLabel(label ?? placeholder)
                 .font(.atfBody)
                 .foregroundStyle(Color.atfText1)
                 .background(Color.atfSurface)

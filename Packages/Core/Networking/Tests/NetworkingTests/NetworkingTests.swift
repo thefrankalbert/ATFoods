@@ -1,6 +1,7 @@
 import Testing
 import Foundation
 @testable import Networking
+import Models
 
 private let base = "https://x.supabase.co/storage/v1/object/public/menu-items/"
 private let newPath = "tenant/dish-2.jpg"
@@ -27,8 +28,9 @@ private let newPath = "tenant/dish-2.jpg"
     #expect(SupabaseNetworking.gallery(["a", "b"], replacing: "a", with: "n") == ["n", "b"])
     // Previous photo not in the gallery: the new one goes first.
     #expect(SupabaseNetworking.gallery(["b"], replacing: "a", with: "n") == ["n", "b"])
-    // Empty gallery stays empty (storefront falls back to image_url).
-    #expect(SupabaseNetworking.gallery([], replacing: "a", with: "n") == [])
+    // Web rule: the main photo is always first in images, even with no extra photo.
+    #expect(SupabaseNetworking.gallery([], replacing: "a", with: "n") == ["n"])
+    #expect(SupabaseNetworking.gallery(["a", "b", "b"], replacing: "a", with: "n") == ["n", "b"])
 }
 
 @Test func errorsAreShownInFrench() {
@@ -36,4 +38,18 @@ private let newPath = "tenant/dish-2.jpg"
     #expect(UserMessage.from(SupabaseNetworkingError.notAllowed).hasPrefix("Modification refusée"))
     struct Raw: Error {}
     #expect(UserMessage.from(Raw()) == "Une erreur est survenue. Réessayez.")
+}
+
+@Test func dishFieldsMatchTheWebSheet() throws {
+    var item = MenuItem(name: "Ndolé", price: 4500, description: "  ", createdAt: Date())
+    item.allergens = ["fish", "peanuts"]
+    item.isFeatured = true
+    let json = try JSONSerialization.jsonObject(with: JSONEncoder().encode(DishFields(item, categoryID: UUID()))) as! [String: Any]
+    // Cleared on the phone = cleared on the web (null, like attabl-saas useItemForm.ts), never left as before.
+    #expect(json["description"] is NSNull)
+    #expect(json["name_en"] is NSNull)
+    #expect(json["calories"] is NSNull)
+    #expect(json["allergens"] as? [String] == ["fish", "peanuts"])
+    #expect(json["is_featured"] as? Bool == true)
+    #expect(json["id"] == nil && json["tenant_id"] == nil)   // update never rewrites ownership
 }

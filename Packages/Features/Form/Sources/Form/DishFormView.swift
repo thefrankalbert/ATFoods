@@ -1,4 +1,5 @@
 import SwiftUI
+import PhotosUI
 import Models
 import Networking
 import DesignSystem
@@ -14,6 +15,8 @@ public struct DishFormView: View {
 
     @State private var showCategorySheet = false
     @State private var confirmDiscard = false
+    @State private var pickedGalleryItem: PhotosPickerItem?
+    @State private var showTranslation = false
     @FocusState private var fieldFocused: Bool
 
     public init(
@@ -36,9 +39,11 @@ public struct DishFormView: View {
             ScrollView {
                 VStack(spacing: 20) {
                     photoSection
+                    if store.isEditing { gallerySection }
                     fieldsSection
                     categorySection
                     availabilityRow
+                    detailsSection
                     if let errorMsg = store.error {
                         Label(errorMsg, systemImage: "exclamationmark.triangle.fill")
                             .font(.atfCaption)
@@ -260,6 +265,149 @@ public struct DishFormView: View {
         }
         .padding(.horizontal, 20)
         .disabled(store.isDishCreated)
+    }
+
+    // MARK: - Details (rest of the web dish sheet)
+
+    private var detailsSection: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            textArea("Description", text: $store.descriptionText,
+                     placeholder: "Ingrédients, accompagnement, cuisson…")
+
+            HStack {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("À la une")
+                        .font(.atfBody)
+                        .foregroundStyle(Color.atfText1)
+                    Text("Mis en avant en tête de votre menu")
+                        .font(.atfCaption)
+                        .foregroundStyle(Color.atfText3)
+                }
+                Spacer()
+                ATFToggle(isOn: $store.isFeatured, orange: true)
+                    .accessibilityLabel("À la une")
+            }
+
+            VStack(alignment: .leading, spacing: 10) {
+                Text("Allergènes")
+                    .font(.atfCaption)
+                    .foregroundStyle(Color.atfText2)
+                FlowLayout(spacing: 8) {
+                    ForEach(Allergen.all, id: \.id) { allergen in
+                        ATFChip(allergen.label, selected: store.allergens.contains(allergen.id), tap: true) {
+                            if store.allergens.contains(allergen.id) { store.allergens.remove(allergen.id) }
+                            else { store.allergens.insert(allergen.id) }
+                        }
+                        .accessibilityAddTraits(store.allergens.contains(allergen.id) ? .isSelected : [])
+                    }
+                }
+            }
+
+            ATFTextField("Calories", text: $store.caloriesText, placeholder: "Ex. : 450",
+                         suffix: "kcal", error: store.caloriesError)
+                .keyboardType(.numberPad)
+                .focused($fieldFocused)
+
+            DisclosureGroup(isExpanded: $showTranslation) {
+                VStack(spacing: 16) {
+                    ATFTextField("Nom (traduction)", text: $store.nameEn, placeholder: "Ex. : Grilled fish")
+                        .focused($fieldFocused)
+                    textArea("Description (traduction)", text: $store.descriptionEn,
+                             placeholder: "Shown to customers who read the menu in English")
+                }
+                .padding(.top, 12)
+            } label: {
+                Text("Traduction anglaise")
+                    .font(.atfBody)
+                    .foregroundStyle(Color.atfText1)
+            }
+            .tint(Color.atfAccent)
+        }
+        .padding(.horizontal, 20)
+        .disabled(store.isDishCreated)
+    }
+
+    private func textArea(_ label: String, text: Binding<String>, placeholder: String) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(label)
+                .font(.atfCaption)
+                .foregroundStyle(Color.atfText2)
+            TextField(placeholder, text: text, axis: .vertical)
+                .lineLimit(3...6)
+                .font(.atfBody)
+                .foregroundStyle(Color.atfText1)
+                .padding(12)
+                .background(Color.atfSurface)
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+                .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(Color.atfBorder, lineWidth: 1))
+                .focused($fieldFocused)
+                .accessibilityLabel(label)
+        }
+    }
+
+    // MARK: - Gallery (extra photos)
+
+    private var gallerySection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Photos supplémentaires")
+                .font(.atfCaption)
+                .foregroundStyle(Color.atfText2)
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 10) {
+                    ForEach(store.gallery, id: \.self) { url in
+                        AsyncImage(url: url) { phase in
+                            if let image = phase.image { image.resizable().scaledToFill() } else { Color.atfSurface2 }
+                        }
+                        .frame(width: 76, height: 76)
+                        .clipShape(RoundedRectangle(cornerRadius: 10))
+                        .overlay(alignment: .topTrailing) {
+                            Button {
+                                Task { await store.removeGalleryPhoto(url, networking: networking) }
+                            } label: {
+                                Image(systemName: "xmark.circle.fill")
+                                    .font(.system(size: 20))
+                                    .symbolRenderingMode(.palette)
+                                    .foregroundStyle(.white, .black.opacity(0.6))
+                                    .frame(width: 32, height: 32)
+                            }
+                            .accessibilityLabel("Retirer cette photo")
+                        }
+                    }
+                    PhotosPicker(selection: $pickedGalleryItem, matching: .images) {
+                        ZStack {
+                            RoundedRectangle(cornerRadius: 10).fill(Color.atfAccentMuted)
+                            if store.isUpdatingGallery {
+                                ProgressView().tint(Color.atfAccent)
+                            } else {
+                                Image(systemName: "plus").font(.system(size: 22, weight: .semibold))
+                                    .foregroundStyle(Color.atfAccent)
+                            }
+                        }
+                        .frame(width: 76, height: 76)
+                    }
+                    .disabled(store.isUpdatingGallery)
+                    .accessibilityLabel("Ajouter une photo supplémentaire")
+                    .accessibilityIdentifier("addGalleryPhotoButton")
+                }
+            }
+            Text("Affichées dans la fiche du plat sur votre menu, après la photo principale.")
+                .font(.atfCaption)
+                .foregroundStyle(Color.atfText3)
+        }
+        .padding(.horizontal, 20)
+        .disabled(store.isUpdatingGallery)
+        .onChange(of: pickedGalleryItem) { _, item in
+            guard let item else { return }
+            pickedGalleryItem = nil
+            Task {
+                guard let data = try? await item.loadTransferable(type: Data.self),
+                      let jpeg = await UIImage(data: data)?.uploadJPEG() else {
+                    store.error = "Impossible d'ouvrir cette photo. Choisissez-en une autre."
+                    return
+                }
+                await store.addGalleryPhoto(jpeg, networking: networking)
+            }
+        }
     }
 
     // MARK: - Save

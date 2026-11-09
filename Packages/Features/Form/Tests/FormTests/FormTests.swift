@@ -42,6 +42,8 @@ private final class FlakyNetworking: ATFNetworking, @unchecked Sendable {
     func fetchDrafts(restaurantID: UUID) async throws -> [Draft] { [] }
     func attachDraft(_ draft: Draft, toDishID dishID: UUID, restaurantID: UUID) async throws -> URL { draft.photoURL }
     func deleteDrafts(_ drafts: [Draft]) async throws {}
+    func addGalleryPhoto(imageData: Data, toDishID dishID: UUID, restaurantID: UUID) async throws -> [URL] { [] }
+    func removeGalleryPhoto(_ url: URL, fromDishID dishID: UUID, restaurantID: UUID) async throws -> [URL] { [] }
 }
 
 private func photo() -> UIImage {

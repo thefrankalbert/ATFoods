@@ -90,6 +90,8 @@ public struct SupabaseNetworking: ATFNetworking {
             return .deleted
         case let s where s.hasPrefix("sole_owner:"):
             return .soleOwner(restaurant: String(s.dropFirst("sole_owner:".count)))
+        case "group_owner":
+            return .groupOwner
         default:
             return .needsSupport
         }
@@ -187,21 +189,27 @@ public struct SupabaseNetworking: ATFNetworking {
             let is_available: Bool?
             let is_featured: Bool?
             let category_id: UUID?
+            let name_en: String?
+            let description_en: String?
+            let allergens: [String]?
+            let calories: Int?
+            let images: [String]?
+            let created_at: Date?
             let categories: CategoryRow?
             struct CategoryRow: Decodable, Sendable { let name: String }
         }
 
         let rows: [ItemRow] = try await client
             .from("menu_items")
-            .select("id, name, price, description, image_url, is_available, is_featured, category_id, categories(name)")
+            .select("id, name, price, description, image_url, is_available, is_featured, category_id, name_en, description_en, allergens, calories, images, created_at, categories(name)")
             .eq("tenant_id", value: restaurantID.uuidString)
             .is("deleted_at", value: nil)
-            .order("name", ascending: true)
+            .order("created_at", ascending: true)   // web storefront order inside a category
             .execute()
             .value
 
         return rows.map { row in
-            MenuItem(
+            var item = MenuItem(
                 id: row.id,
                 name: row.name,
                 price: row.price,
@@ -210,14 +218,21 @@ public struct SupabaseNetworking: ATFNetworking {
                 photoURL: row.image_url.flatMap(URL.init),
                 isAvailable: row.is_available ?? true,
                 isFeatured: row.is_featured ?? false,
-                description: row.description ?? ""
+                description: row.description ?? "",
+                createdAt: row.created_at ?? Date()
             )
+            item.nameEn = row.name_en ?? ""
+            item.descriptionEn = row.description_en ?? ""
+            item.allergens = row.allergens ?? []
+            item.calories = row.calories
+            item.gallery = (row.images ?? []).filter { $0 != row.image_url }.compactMap(URL.init)
+            return item
         }
     }
 
     public func fetchCategories(restaurantID: UUID) async throws -> [MenuCategory] {
         struct CatRow: Decodable, Sendable { let id: UUID; let name: String; let menu_id: UUID? }
-        let rows: [CatRow] = try await client
+        async let rows: [CatRow] = client
             .from("categories")
             .select("id, name, menu_id")
             .eq("tenant_id", value: restaurantID.uuidString)
@@ -225,23 +240,37 @@ public struct SupabaseNetworking: ATFNetworking {
             .order("display_order", ascending: true)
             .execute()
             .value
-        return rows.map { MenuCategory(id: $0.id, name: $0.name, menuID: $0.menu_id) }
+        async let menus = menuNodes(restaurantID: restaurantID)
+        let categories = try await rows.map { MenuCategory(id: $0.id, name: $0.name, menuID: $0.menu_id) }
+        return MenuOrder.categories(categories, menus: try await menus.map(\.node))
     }
 
     public func fetchMenus(restaurantID: UUID) async throws -> [MenuRef] {
-        struct MenuRow: Decodable, Sendable { let id: UUID; let name: String; let parent_menu_id: UUID? }
+        let rows = try await menuNodes(restaurantID: restaurantID)
+        let byID = Dictionary(uniqueKeysWithValues: rows.map { ($0.node.id, $0) })
+        return MenuOrder.menuIDs(rows.map(\.node)).compactMap { id in
+            guard let row = byID[id] else { return nil }
+            let parent = row.node.parentID.flatMap { byID[$0]?.name }
+            return MenuRef(id: id, name: parent.map { "\($0) › \(row.name)" } ?? row.name)
+        }
+    }
+
+    private func menuNodes(restaurantID: UUID) async throws -> [(node: MenuOrder.MenuNode, name: String)] {
+        struct MenuRow: Decodable, Sendable {
+            let id: UUID; let name: String; let parent_menu_id: UUID?
+            let display_order: Int?; let is_transversal_menu: Bool?
+        }
         let rows: [MenuRow] = try await client
             .from("menus")
-            .select("id, name, parent_menu_id")
+            .select("id, name, parent_menu_id, display_order, is_transversal_menu")
             .eq("tenant_id", value: restaurantID.uuidString)
             .eq("is_active", value: true)
             .order("display_order", ascending: true)
             .execute()
             .value
-        let names = Dictionary(uniqueKeysWithValues: rows.map { ($0.id, $0.name) })
-        return rows.map { row in
-            let label = row.parent_menu_id.flatMap { names[$0] }.map { "\($0) › \(row.name)" } ?? row.name
-            return MenuRef(id: row.id, name: label)
+        return rows.map {
+            (MenuOrder.MenuNode(id: $0.id, parentID: $0.parent_menu_id, displayOrder: $0.display_order ?? 0,
+                                isTransversal: $0.is_transversal_menu ?? false), $0.name)
         }
     }
 
@@ -279,29 +308,9 @@ public struct SupabaseNetworking: ATFNetworking {
     }
 
     public func createMenuItem(_ item: MenuItem, categoryID: UUID, restaurantID: UUID) async throws -> MenuItem {
-        struct Payload: Encodable {
-            let id: String
-            let name: String
-            let price: Decimal
-            let description: String
-            let is_available: Bool
-            let is_featured: Bool
-            let category_id: String
-            let tenant_id: String
-        }
-
         try await client
             .from("menu_items")
-            .insert(Payload(
-                id: item.id.uuidString,
-                name: item.name,
-                price: item.price,
-                description: item.description,
-                is_available: item.isAvailable,
-                is_featured: item.isFeatured,
-                category_id: categoryID.uuidString,
-                tenant_id: restaurantID.uuidString
-            ))
+            .insert(DishFields(item, categoryID: categoryID, id: item.id, tenantID: restaurantID))
             .execute()
 
         var created = item
@@ -311,17 +320,10 @@ public struct SupabaseNetworking: ATFNetworking {
 
     public func updateMenuItem(_ item: MenuItem, restaurantID: UUID) async throws -> MenuItem {
         guard let categoryID = item.categoryID else { throw SupabaseNetworkingError.notFound }
-        struct Payload: Encodable {
-            let name: String
-            let price: Decimal
-            let is_available: Bool
-            let category_id: String
-        }
         struct UpdatedRow: Decodable, Sendable { let id: UUID }
         let updated: [UpdatedRow] = try await client
             .from("menu_items")
-            .update(Payload(name: item.name, price: item.price, is_available: item.isAvailable,
-                            category_id: categoryID.uuidString))
+            .update(DishFields(item, categoryID: categoryID))
             .eq("id", value: item.id.uuidString)
             .eq("tenant_id", value: restaurantID.uuidString)
             .is("deleted_at", value: nil)
@@ -485,34 +487,82 @@ public struct SupabaseNetworking: ATFNetworking {
             throw SupabaseNetworkingError.notAllowed
         }
 
-        if let previous, previous != publicURL.absoluteString,
-           let oldPath = Self.storagePath(fromPublicURL: previous, newURL: publicURL.absoluteString, newPath: newPath) {
-            struct Ref: Decodable, Sendable { let id: UUID }
-            async let byURL: [Ref]? = try? await client
-                .from("menu_items").select("id").eq("image_url", value: previous).limit(1)
-                .execute().value
-            async let byGallery: [Ref]? = try? await client
-                .from("menu_items").select("id")
-                .filter("images", operator: "cs", value: Self.jsonArray([previous])).limit(1)
-                .execute().value
-            // Delete only when we are sure nothing references the file anymore (unsure → keep it).
-            if let a = await byURL, let b = await byGallery, a.isEmpty, b.isEmpty {
-                _ = try? await storage.remove(paths: [oldPath])
-            }
+        if let previous, previous != publicURL.absoluteString {
+            await removeFileIfUnused(previous)
         }
         return publicURL
     }
 
+    /// Deletes a photo file from our bucket once no dish references it (unsure → keep it).
+    private func removeFileIfUnused(_ url: String) async {
+        let storage = client.storage.from(Self.bucket)
+        // External URL or another bucket: never ours to delete.
+        guard let probe = try? storage.getPublicURL(path: "x").absoluteString,
+              let path = Self.storagePath(fromPublicURL: url, newURL: probe, newPath: "x") else { return }
+        struct Ref: Decodable, Sendable { let id: UUID }
+        async let byURL: [Ref]? = try? await client
+            .from("menu_items").select("id").eq("image_url", value: url).limit(1)
+            .execute().value
+        async let byGallery: [Ref]? = try? await client
+            .from("menu_items").select("id")
+            .filter("images", operator: "cs", value: Self.jsonArray([url])).limit(1)
+            .execute().value
+        if let a = await byURL, let b = await byGallery, a.isEmpty, b.isEmpty {
+            _ = try? await storage.remove(paths: [path])
+        }
+    }
+
+    // MARK: - Gallery (extra photos)
+
+    public func addGalleryPhoto(imageData: Data, toDishID dishID: UUID, restaurantID: UUID) async throws -> [URL] {
+        let path = Self.dishPhotoPath(dishID: dishID, restaurantID: restaurantID)
+        try await uploadPhoto(imageData, to: path)
+        let url = try client.storage.from(Self.bucket).getPublicURL(path: path).absoluteString
+        do {
+            return try await setGallery(dishID: dishID, restaurantID: restaurantID) { $0 + [url] }
+        } catch {
+            _ = try? await client.storage.from(Self.bucket).remove(paths: [path])
+            throw error
+        }
+    }
+
+    public func removeGalleryPhoto(_ url: URL, fromDishID dishID: UUID, restaurantID: UUID) async throws -> [URL] {
+        let gallery = try await setGallery(dishID: dishID, restaurantID: restaurantID) {
+            $0.filter { $0 != url.absoluteString }
+        }
+        await removeFileIfUnused(url.absoluteString)
+        return gallery
+    }
+
+    /// Rewrites menu_items.images as the web does: [main photo] + extras.
+    private func setGallery(dishID: UUID, restaurantID: UUID,
+                            change: ([String]) -> [String]) async throws -> [URL] {
+        struct Row: Decodable, Sendable { let image_url: String?; let images: [String]? }
+        struct Update: Encodable { let images: [String] }
+        struct UpdatedRow: Decodable, Sendable { let id: UUID }
+        let rows: [Row] = try await client
+            .from("menu_items").select("image_url, images")
+            .eq("id", value: dishID.uuidString).eq("tenant_id", value: restaurantID.uuidString)
+            .execute().value
+        guard let row = rows.first else { throw SupabaseNetworkingError.notFound }
+        let extras = change((row.images ?? []).filter { $0 != row.image_url })
+        let updated: [UpdatedRow] = try await client
+            .from("menu_items")
+            .update(Update(images: (row.image_url.map { [$0] } ?? []) + extras))
+            .eq("id", value: dishID.uuidString).eq("tenant_id", value: restaurantID.uuidString)
+            .select("id")
+            .execute().value
+        guard !updated.isEmpty else { throw SupabaseNetworkingError.notAllowed }
+        return extras.compactMap(URL.init)
+    }
+
     /// Gallery after a photo change: previous primary replaced in place, else new photo first.
     /// An empty gallery stays empty (the storefront then falls back to image_url).
+    /// Same rule as the web (attabl-saas useItemForm.ts): main photo first, then the extras, no duplicates.
     static func gallery(_ images: [String], replacing previous: String?, with new: String) -> [String] {
-        guard !images.isEmpty else { return [] }
-        if let previous, let index = images.firstIndex(of: previous) {
-            var copy = images
-            copy[index] = new
-            return copy
-        }
-        return [new] + images.filter { $0 != new }
+        var extras: [String] = []
+        for url in images where url != previous && url != new && !extras.contains(url) { extras.append(url) }
+        return [new] + extras
     }
 
     static func jsonArray(_ values: [String]) -> String {

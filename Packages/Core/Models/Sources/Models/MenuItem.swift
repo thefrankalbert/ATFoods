@@ -11,6 +11,14 @@ public struct MenuItem: Identifiable, Hashable, Sendable {
     public var isFeatured: Bool
     public var description: String
     public var createdAt: Date
+    // Same dish sheet as the web admin (attabl-saas useItemForm.ts).
+    public var nameEn: String = ""
+    public var descriptionEn: String = ""
+    /// EU allergen ids, as stored in menu_items.allergens (see Allergen).
+    public var allergens: [String] = []
+    public var calories: Int?
+    /// Extra photos after the main one (menu_items.images minus image_url).
+    public var gallery: [URL] = []
 
     public init(
         id: UUID = UUID(),

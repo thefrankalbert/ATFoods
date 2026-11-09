@@ -18,8 +18,9 @@ import Networking
         do {
             async let items = networking.fetchMenuItems(restaurantID: restaurant.id)
             async let cats = networking.fetchCategories(restaurantID: restaurant.id)
-            menuItems = try await items
-            categories = try await cats
+            let loadedCategories = try await cats
+            categories = loadedCategories
+            menuItems = MenuOrder.items(try await items, categories: loadedCategories)
         } catch {
             self.error = UserMessage.from(error)
         }
