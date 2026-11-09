@@ -1,6 +1,6 @@
--- App Review demo account for Atfood (run ONCE on production, in the Supabase SQL editor).
--- Creates: an auth user, an "active" demo restaurant (no Stripe), an owner membership,
--- 2 categories and 4 dishes. Replace the password below before running.
+-- App Review demo account for Atfood (already created in production on 2026-11-09; rerun only to recreate it).
+-- Creates: an auth user, an "active" demo restaurant (no Stripe), an ADMIN membership (not owner, so the
+-- reviewer can test in-app account deletion), 2 categories and 4 dishes. Replace the password below before running.
 -- Undo: delete from tenants where slug = 'atfood-demo-apple'; delete from auth.users where email = 'review@attabl.com';
 DO $$
 DECLARE
@@ -12,6 +12,9 @@ DECLARE
   v_email text := 'review@attabl.com';
   v_password text := 'CHANGE-ME-before-running';
 BEGIN
+  IF EXISTS (SELECT 1 FROM auth.users WHERE email = v_email) OR EXISTS (SELECT 1 FROM tenants WHERE slug = 'atfood-demo-apple') THEN
+    RAISE EXCEPTION 'demo account already exists';
+  END IF;
   INSERT INTO auth.users (instance_id, id, aud, role, email, encrypted_password, email_confirmed_at,
                           raw_app_meta_data, raw_user_meta_data, created_at, updated_at,
                           confirmation_token, recovery_token, email_change_token_new, email_change)
@@ -30,7 +33,7 @@ BEGIN
           true, true, true);
 
   INSERT INTO admin_users (user_id, tenant_id, email, full_name, role, is_active)
-  VALUES (v_user, v_tenant, v_email, 'Apple Review', 'owner', true);
+  VALUES (v_user, v_tenant, v_email, 'Apple Review', 'admin', true);
 
   INSERT INTO menus (id, tenant_id, name, slug, is_active, display_order)
   VALUES (v_menu, v_tenant, 'Carte', 'carte', true, 0);

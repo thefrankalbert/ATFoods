@@ -122,6 +122,11 @@ struct RootView: View {
     /// Reopens the app where the user left it: same account, same restaurant.
     private func restoreSession() async {
         defer { isRestoringSession = false }
+        // The Keychain outlives an uninstall: a fresh install must not reopen the previous owner's account.
+        if !hasSeenOnboarding {
+            try? await networking.signOut()
+            return
+        }
         guard let user = await networking.restoreSession() else { return }
         authStore.currentUser = user
         await authStore.loadRestaurants(networking: networking)   // failure → picker shows error + retry

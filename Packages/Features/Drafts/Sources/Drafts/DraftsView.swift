@@ -84,7 +84,9 @@ public struct DraftsView: View {
                 Image(systemName: "arrow.left")
                     .font(.system(size: 18, weight: .semibold))
                     .foregroundStyle(Color.atfText1)
+                    .frame(width: 44, height: 44)
             }
+            .accessibilityLabel("Retour")
             Spacer()
             Text("Brouillons")
                 .font(.atfHeadline)
@@ -193,16 +195,21 @@ private struct DraftCard: View {
 
     var body: some View {
         ZStack(alignment: .topTrailing) {
-            ATFAsyncImage(
-                url: draft.photoURL,
-                fallback: Color.atfSurface2,
-                radius: 0,
-                height: 104,
-                overlay: false,
-                contentMode: .fill
-            )
-            .frame(maxWidth: .infinity, minHeight: 104, maxHeight: 104)
-            .clipped()
+            // The cell sets the size; a .fill image laid out directly would push the grid column wider.
+            Color.clear
+                .frame(maxWidth: .infinity)
+                .frame(height: 104)
+                .overlay {
+                    ATFAsyncImage(
+                        url: draft.photoURL,
+                        fallback: Color.atfSurface2,
+                        radius: 0,
+                        height: 104,
+                        overlay: false,
+                        contentMode: .fill
+                    )
+                }
+                .clipped()
 
             if isMultiSelect {
                 Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")

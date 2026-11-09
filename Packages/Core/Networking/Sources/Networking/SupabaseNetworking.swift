@@ -53,7 +53,9 @@ public struct SupabaseNetworking: ATFNetworking {
     }
 
     public func signOut() async throws {
-        try await client.auth.signOut()
+        // .local: leaving the app must not sign the owner out of the web dashboard (default is .global).
+        // The SDK forgets the session on this device before calling the server, so a network error changes nothing.
+        try? await client.auth.signOut(scope: .local)
     }
 
     public func deleteAccount() async throws -> AccountDeletionResult {
