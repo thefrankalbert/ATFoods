@@ -19,6 +19,17 @@ public struct SupabaseNetworking: ATFNetworking {
     private let client: SupabaseClient
     private static let bucket = "menu-items"
 
+    /// Storage sometimes answers a one-off 5xx (seen: 520): try once more before showing an error.
+    private func uploadPhoto(_ data: Data, to path: String) async throws {
+        let options = FileOptions(contentType: "image/jpeg")
+        do {
+            try await client.storage.from(Self.bucket).upload(path, data: data, options: options)
+        } catch {
+            try await Task.sleep(for: .seconds(1))
+            try await client.storage.from(Self.bucket).upload(path, data: data, options: options)
+        }
+    }
+
     public init(url: URL, anonKey: String) {
         // 20 s without data = failure: a dead network shows an error instead of a minute-long spinner.
         let config = URLSessionConfiguration.default
@@ -326,9 +337,7 @@ public struct SupabaseNetworking: ATFNetworking {
 
     public func attachPhoto(imageData: Data, toDishID dishID: UUID, restaurantID: UUID) async throws -> URL {
         let path = Self.dishPhotoPath(dishID: dishID, restaurantID: restaurantID)
-        try await client.storage
-            .from(Self.bucket)
-            .upload(path, data: imageData, options: FileOptions(contentType: "image/jpeg"))
+        try await uploadPhoto(imageData, to: path)
         return try await setDishImage(dishID: dishID, newPath: path)
     }
 
@@ -338,9 +347,7 @@ public struct SupabaseNetworking: ATFNetworking {
         guard let userID = client.auth.currentUser?.id else { throw SupabaseNetworkingError.notAllowed }
         let id = UUID()
         let path = "\(restaurantID.uuidString.lowercased())/drafts/\(id.uuidString.lowercased()).jpg"
-        try await client.storage
-            .from(Self.bucket)
-            .upload(path, data: imageData, options: FileOptions(contentType: "image/jpeg"))
+        try await uploadPhoto(imageData, to: path)
         let publicURL = try client.storage.from(Self.bucket).getPublicURL(path: path)
 
         struct Payload: Encodable {
