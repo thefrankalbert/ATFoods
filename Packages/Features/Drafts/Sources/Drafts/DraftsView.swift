@@ -81,9 +81,9 @@ public struct DraftsView: View {
     private var topBar: some View {
         HStack {
             Button(action: onBack) {
-                Image(systemName: "arrow.left")
+                Image(systemName: "chevron.left")
                     .font(.system(size: 18, weight: .semibold))
-                    .foregroundStyle(Color.atfText1)
+                    .foregroundStyle(Color.atfAccent)
                     .frame(width: 44, height: 44)
             }
             .accessibilityLabel("Retour")

@@ -83,9 +83,10 @@ public struct OnboardingView: View {
                                    startPoint: .top, endPoint: .bottom)
                         .frame(height: 180)
                     Spacer()
-                    LinearGradient(colors: [.clear, .black.opacity(0.8)],
+                    // Tall, dark scrim: the text sits on busy food photos and must stay readable.
+                    LinearGradient(colors: [.clear, .black.opacity(0.65), .black.opacity(0.92)],
                                    startPoint: .top, endPoint: .bottom)
-                        .frame(height: 360)
+                        .frame(height: 520)
                 }
                 .ignoresSafeArea()
 
@@ -144,10 +145,10 @@ public struct OnboardingView: View {
             Text(slides[currentIndex].tag.uppercased())
                 .font(.atfOverline)
                 .tracking(1.0)
-                .foregroundStyle(Color.atfAccent)
+                .foregroundStyle(.white)
                 .padding(.horizontal, 12)
                 .padding(.vertical, 5)
-                .background(Color.white.opacity(0.12))
+                .background(Color.atfAccent)
                 .clipShape(Capsule())
 
             // Title with italic accent

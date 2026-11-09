@@ -1,4 +1,5 @@
 import SwiftUI
+import PhotosUI
 @preconcurrency import AVFoundation
 import UIKit
 import Models
@@ -124,6 +125,8 @@ public struct CameraView: View {
     @State private var isCameraAvailable = false
     @State private var permissionDenied = false
     @State private var didSetUp = false
+    @State private var pickedItem: PhotosPickerItem?
+    @State private var isLoadingPick = false
     @Environment(\.openURL) private var openURL
     @Environment(\.scenePhase) private var scenePhase
 
@@ -154,7 +157,7 @@ public struct CameraView: View {
                     Text("Accès à l'appareil photo refusé")
                         .font(.atfHeadline)
                         .foregroundStyle(.white)
-                    Text("Autorisez la caméra dans les Réglages pour photographier vos plats.")
+                    Text("Autorisez la caméra dans les Réglages pour photographier vos plats, ou choisissez une photo dans la galerie.")
                         .font(.atfBody)
                         .foregroundStyle(.white.opacity(0.75))
                         .multilineTextAlignment(.center)
@@ -164,9 +167,16 @@ public struct CameraView: View {
                 }
                 .padding(.horizontal, 32)
             } else if didSetUp {
-                Text("Caméra non disponible sur cet appareil")
-                    .foregroundColor(.white)
-                    .font(.atfHeadline)
+                VStack(spacing: 8) {
+                    Text("Caméra non disponible sur cet appareil")
+                        .font(.atfHeadline)
+                    Text("Choisissez une photo dans la galerie.")
+                        .font(.atfBody)
+                        .opacity(0.75)
+                }
+                .foregroundStyle(.white)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 32)
             } else {
                 ProgressView().tint(.white)
             }
@@ -214,8 +224,25 @@ public struct CameraView: View {
                     CaptureModePicker(engine: guidance)
                 }
 
-                // Bottom bar
+                // Bottom bar: gallery (left), shutter (center), like the system Camera app.
                 HStack {
+                    PhotosPicker(selection: $pickedItem, matching: .images) {
+                        Group {
+                            if isLoadingPick {
+                                ProgressView().tint(.white)
+                            } else {
+                                Image(systemName: "photo.on.rectangle")
+                                    .font(.system(size: 22, weight: .semibold))
+                            }
+                        }
+                        .foregroundStyle(.white)
+                        .frame(width: 56, height: 56)
+                        .background(Color.white.opacity(0.18), in: Circle())
+                    }
+                    .disabled(isLoadingPick || store.isCapturing)
+                    .accessibilityLabel("Choisir dans la galerie")
+                    .accessibilityIdentifier("galleryButton")
+
                     Spacer()
 
                     // Shutter button — ring turns green when guidance is satisfied (never blocks).
@@ -235,6 +262,8 @@ public struct CameraView: View {
                     .accessibilityIdentifier("shutterButton")
 
                     Spacer()
+
+                    Color.clear.frame(width: 56, height: 56)   // keeps the shutter centered
                 }
                 .padding(.horizontal, 32)
                 .padding(.bottom, 40)
@@ -244,6 +273,10 @@ public struct CameraView: View {
         .sensoryFeedback(.success, trigger: guidance.isReady) { _, ready in ready }
         .task {
             await setupSession()
+        }
+        .onChange(of: pickedItem) { _, item in
+            guard let item else { return }
+            Task { await usePicked(item) }
         }
         // Back from Settings with the camera now allowed: start without reopening the screen.
         .onChange(of: scenePhase) { _, phase in
@@ -256,6 +289,22 @@ public struct CameraView: View {
             guidance.stop()
             holder.stopRunning()
         }
+    }
+
+    // MARK: - Gallery
+
+    /// Same path as a shot from the camera: preview (crop, white background) then attach.
+    private func usePicked(_ item: PhotosPickerItem) async {
+        isLoadingPick = true
+        defer { isLoadingPick = false; pickedItem = nil }
+        guard let data = try? await item.loadTransferable(type: Data.self),
+              let image = UIImage(data: data) else {
+            store.error = "Impossible d'ouvrir cette photo. Choisissez-en une autre."
+            return
+        }
+        store.error = nil
+        store.setCapturedImage(image)
+        onCapture()
     }
 
     // MARK: - Session Setup

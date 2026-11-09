@@ -59,8 +59,8 @@ public struct AttachDishView: View {
                 HStack {
                     Button(action: { onBack() }) {
                         Image(systemName: "chevron.left")
-                            .font(.system(size: 20, weight: .semibold))
-                            .foregroundStyle(Color.atfText1)
+                            .font(.system(size: 18, weight: .semibold))
+                            .foregroundStyle(Color.atfAccent)
                             .frame(width: 44, height: 44)
                     }
                     .disabled(isBusy)

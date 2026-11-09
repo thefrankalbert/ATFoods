@@ -86,6 +86,10 @@ public struct LoginView: View {
             .padding(.horizontal, 24)
         }
         .scrollDismissesKeyboard(.interactively)
+        // Opaque status bar area: with the keyboard up, the logo scrolled under the clock.
+        .safeAreaInset(edge: .top, spacing: 0) {
+            Color.atfBg.frame(height: 0).background(Color.atfBg.ignoresSafeArea(edges: .top))
+        }
         .background(Color.atfBg.ignoresSafeArea())
     }
 

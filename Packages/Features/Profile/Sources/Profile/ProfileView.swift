@@ -33,12 +33,17 @@ public struct ProfileView: View {
                 avatarSection
                 restaurantCard
                 settingsList
+                deletionCard
                 signOutButton
                     .padding(.top, 24)
                     .padding(.bottom, 48)
             }
         }
         .background(Color.atfBg.ignoresSafeArea())
+        // Opaque status bar area: scrolled content no longer shows under the clock.
+        .safeAreaInset(edge: .top, spacing: 0) {
+            Color.atfBg.frame(height: 0).background(Color.atfBg.ignoresSafeArea(edges: .top))
+        }
         .confirmationDialog("Supprimer définitivement votre compte ?", isPresented: $confirmDeletion, titleVisibility: .visible) {
             Button("Supprimer mon compte", role: .destructive) {
                 Task {
@@ -69,9 +74,9 @@ public struct ProfileView: View {
     private var topBar: some View {
         HStack {
             Button(action: onBack) {
-                Image(systemName: "arrow.left")
+                Image(systemName: "chevron.left")
                     .font(.system(size: 18, weight: .semibold))
-                    .foregroundStyle(Color.atfText1)
+                    .foregroundStyle(Color.atfAccent)
                     .frame(width: 44, height: 44)
             }
             .accessibilityLabel("Retour")
@@ -110,11 +115,6 @@ public struct ProfileView: View {
             Text(store.user.email)
                 .font(.atfCaption)
                 .foregroundStyle(Color.atfText2)
-
-            ATFBadge(
-                store.restaurant.plan.displayName,
-                kind: store.restaurant.plan == .starter ? .soft : .pro
-            )
         }
         .padding(.vertical, 28)
     }
@@ -158,10 +158,7 @@ public struct ProfileView: View {
                 Divider().padding(.leading, 52)
             }
             settingsRow(icon: "safari", label: "Tableau de bord web", action: { openURL(AttablWeb.dashboard) })
-
-            Divider().padding(.leading, 16).padding(.vertical, 8)
-
-            // À propos
+            Divider().padding(.leading, 52)
             settingsRow(icon: "ant", label: "Signaler un bug", action: reportBug)
             Divider().padding(.leading, 52)
             settingsRow(icon: "info.circle", label: "Aide & support", action: { openURL(AttablWeb.support) })
@@ -171,21 +168,19 @@ public struct ProfileView: View {
             settingsRow(icon: "hand.raised", label: "Politique de confidentialité", action: { openURL(AttablWeb.privacy) })
             Divider().padding(.leading, 52)
             settingsRowInfo(icon: "number", label: "Version", value: appVersion)
-
-            Divider().padding(.leading, 16).padding(.vertical, 8)
-
-            settingsRow(icon: "person.crop.circle.badge.xmark",
-                        label: store.isDeleting ? "Suppression en cours…" : "Supprimer mon compte",
-                        action: { confirmDeletion = true })
-                .disabled(store.isDeleting)
         }
-        .background(Color.atfSurface)
-        .clipShape(RoundedRectangle(cornerRadius: 14))
-        .overlay(
-            RoundedRectangle(cornerRadius: 14)
-                .strokeBorder(Color.atfBorder, lineWidth: 1)
-        )
-        .padding(.horizontal, 16)
+        .modifier(SettingsCard())
+    }
+
+    /// Destructive action, apart and in red (sign-out is the ordinary action).
+    private var deletionCard: some View {
+        settingsRow(icon: "person.crop.circle.badge.xmark",
+                    label: store.isDeleting ? "Suppression en cours…" : "Supprimer mon compte",
+                    tint: Color.atfDanger,
+                    action: { confirmDeletion = true })
+            .disabled(store.isDeleting)
+            .modifier(SettingsCard())
+            .padding(.top, 16)
     }
 
     private func settingsRowInfo(icon: String, label: String, value: String) -> some View {
@@ -249,16 +244,17 @@ public struct ProfileView: View {
         }
     }
 
-    private func settingsRow(icon: String, label: String, action: @escaping () -> Void) -> some View {
+    private func settingsRow(icon: String, label: String, tint: Color? = nil,
+                             action: @escaping () -> Void) -> some View {
         Button(action: action) {
             HStack(spacing: 14) {
                 Image(systemName: icon)
                     .font(.system(size: 16))
-                    .foregroundStyle(Color.atfText2)
+                    .foregroundStyle(tint ?? Color.atfText2)
                     .frame(width: 22)
                 Text(label)
                     .font(.atfSubhead)
-                    .foregroundStyle(Color.atfText1)
+                    .foregroundStyle(tint ?? Color.atfText1)
                 Spacer()
                 Image(systemName: "chevron.right")
                     .font(.system(size: 13, weight: .semibold))
@@ -275,7 +271,7 @@ public struct ProfileView: View {
     private var signOutButton: some View {
         ATFButton(
             "Se déconnecter",
-            kind: .danger,
+            kind: .secondary,
             fullWidth: true,
             loading: store.isSigningOut
         ) {
@@ -285,6 +281,16 @@ public struct ProfileView: View {
             }
         }
         .padding(.horizontal, 16)
+    }
+}
+
+private struct SettingsCard: ViewModifier {
+    func body(content: Content) -> some View {
+        content
+            .background(Color.atfSurface)
+            .clipShape(RoundedRectangle(cornerRadius: 14))
+            .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(Color.atfBorder, lineWidth: 1))
+            .padding(.horizontal, 16)
     }
 }
 

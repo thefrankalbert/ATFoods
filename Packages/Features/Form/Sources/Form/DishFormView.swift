@@ -52,10 +52,13 @@ public struct DishFormView: View {
             }
             .scrollDismissesKeyboard(.interactively)
 
-            saveButton
-                .padding(.horizontal, 20)
-                .padding(.vertical, 12)
-                .background(Color.atfSurface)
+            // Hidden while typing: above the keyboard it covered the price field and the "Terminé" bar.
+            if !fieldFocused {
+                saveButton
+                    .padding(.horizontal, 20)
+                    .padding(.vertical, 12)
+                    .background(Color.atfSurface)
+            }
         }
         .background(Color.atfSurface.ignoresSafeArea())
         .toolbar {

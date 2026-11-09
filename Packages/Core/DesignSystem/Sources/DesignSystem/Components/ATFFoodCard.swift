@@ -1,7 +1,7 @@
 // Packages/Core/DesignSystem/Sources/DesignSystem/Components/ATFFoodCard.swift
 import SwiftUI
 
-/// Food item card (fills its grid column, 170pt high). Takes raw values — no dependency on Models.
+/// Food item card: photo on top, name and price below (fills its grid column). Takes raw values — no dependency on Models.
 public struct ATFFoodCard: View {
     let name: String
     let priceFormatted: String
@@ -22,65 +22,46 @@ public struct ATFFoodCard: View {
 
     public var body: some View {
         Button(action: onTap) {
-            ZStack(alignment: .bottomLeading) {
+            VStack(alignment: .leading, spacing: 8) {
                 // Fixed-size box + overlay: a scaledToFill photo can never widen the grid column.
-                Color(hex: "1A1410")
+                Color.atfSurface2
                     .frame(maxWidth: .infinity)
-                    .frame(height: 170)
+                    .frame(height: 130)
                     .overlay {
-                        ATFAsyncImage(url: photoURL,
-                                      fallback: Color(hex: "1A1410"),
-                                      radius: 0,
-                                      height: 170,
-                                      overlay: false)
-                    }
-                    .clipped()
-
-                if photoURL == nil {
-                    // The app's job is photos: dishes without one stand out.
-                    VStack(spacing: 6) {
-                        Image(systemName: "camera.fill")
-                            .font(.title2)
-                        Text("Sans photo")
-                            .font(.atfCaption)
-                    }
-                    .foregroundStyle(Color.atfAccent)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .padding(.bottom, 36)
-                }
-
-                // Gradient for text legibility
-                LinearGradient(
-                    colors: [.clear, Color.black.opacity(0.6)],
-                    startPoint: .center, endPoint: .bottom
-                )
-                .clipShape(RoundedRectangle(cornerRadius: 12))
-
-                if !isAvailable {
-                    VStack {
-                        HStack {
-                            Spacer()
-                            ATFBadge("Épuisé", kind: .soft).padding(8)
+                        if photoURL != nil {
+                            ATFAsyncImage(url: photoURL, fallback: Color.atfSurface2,
+                                          radius: 0, height: 130, overlay: false)
+                                .opacity(isAvailable ? 1 : 0.45)
+                        } else {
+                            // The app's job is photos: dishes without one stand out.
+                            VStack(spacing: 6) {
+                                Image(systemName: "camera.fill").font(.title3)
+                                Text("Ajouter une photo").font(.atfCaption)
+                            }
+                            .foregroundStyle(Color.atfAccent)
                         }
-                        Spacer()
                     }
-                }
+                    .overlay(alignment: .topTrailing) {
+                        if !isAvailable { ATFBadge("Épuisé", kind: .soft).padding(8) }
+                    }
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(name)
-                        .font(.atfCaption)
-                        .foregroundStyle(.white)
+                        .font(.atfBody)
+                        .fontWeight(.medium)
+                        .foregroundStyle(Color.atfText1)
                         .lineLimit(1)
                     Text(priceFormatted)
-                        .font(.system(.caption, design: .monospaced, weight: .medium))
+                        .font(.atfCaption)
+                        .monospacedDigit()
+                        .foregroundStyle(isAvailable ? Color.atfText2 : Color.atfText3)
                         .lineLimit(1)
-                        .foregroundStyle(Color.white.opacity(0.75))
                 }
-                .padding(10)
+                .padding(.horizontal, 2)
             }
-            .frame(maxWidth: .infinity)
-            .frame(height: 170)
-            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .contentShape(Rectangle())
         }
         .buttonStyle(ATFScaleButtonStyle())
         .accessibilityElement(children: .ignore)

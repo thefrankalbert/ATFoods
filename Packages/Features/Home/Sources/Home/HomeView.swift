@@ -27,7 +27,8 @@ public struct HomeView: View {
         self.onProfile = onProfile
     }
 
-    private let bgColor = Color(red: 0.059, green: 0.035, blue: 0.024)
+    // Same light surface as every other screen (login, dish card, drafts, profile).
+    private let bgColor = Color.atfBg
 
     public var body: some View {
         ZStack {
@@ -48,12 +49,10 @@ public struct HomeView: View {
                 mainContent
             }
         }
-        // Real (dark) navigation bar: gives a light status bar over this dark screen.
         .toolbar { toolbarContent }
         .navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(bgColor, for: .navigationBar)
         .toolbarBackground(.visible, for: .navigationBar)
-        .toolbarColorScheme(.dark, for: .navigationBar)
         .task { await store.load(networking: networking) }   // runs on every return to Home
         .refreshable { await store.load(networking: networking) }
     }
@@ -66,17 +65,17 @@ public struct HomeView: View {
             Button(action: onProfile) {
                 Image(systemName: "person.circle")
                     .font(.system(size: 22))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(Color.atfText1)
             }
             .accessibilityLabel("Profil")
             .accessibilityIdentifier("profileButton")
         }
         ToolbarItem(placement: .principal) {
             VStack(spacing: 2) {
-                ATFWordmark(size: 18, color: .white)
+                ATFWordmark(size: 18)
                 Text(store.restaurant.name)
                     .font(.atfCaption)
-                    .foregroundStyle(Color.white.opacity(0.7))
+                    .foregroundStyle(Color.atfText2)
                     .lineLimit(1)
             }
             .accessibilityElement(children: .combine)
@@ -85,7 +84,7 @@ public struct HomeView: View {
             Button(action: onDrafts) {
                 Image(systemName: "rectangle.stack")
                     .font(.system(size: 18))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(Color.atfText1)
             }
             .accessibilityLabel("Brouillons")
             .accessibilityIdentifier("draftsButton")
@@ -93,7 +92,7 @@ public struct HomeView: View {
             Button(action: onCamera) {
                 Image(systemName: "camera.fill")
                     .font(.system(size: 18))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(Color.atfAccent)
             }
             .accessibilityLabel("Prendre une photo")
             .accessibilityIdentifier("cameraButton")
@@ -127,13 +126,13 @@ public struct HomeView: View {
         Button(action: action) {
             Text(label)
                 .font(.atfCaption)
-                .foregroundStyle(isSelected ? Color.white : Color.white.opacity(0.6))
+                .foregroundStyle(isSelected ? Color.white : Color.atfText2)
                 .padding(.horizontal, 14)
                 .padding(.vertical, 7)
                 .background(
                     isSelected
                         ? Color.atfAccent
-                        : Color.white.opacity(0.12)
+                        : Color.atfSurface2
                 )
                 .clipShape(Capsule())
         }
@@ -152,7 +151,7 @@ public struct HomeView: View {
         } else if store.filteredItems.isEmpty {
             Text("Aucun plat dans cette catégorie")
                 .font(.atfBody)
-                .foregroundStyle(Color.white.opacity(0.6))
+                .foregroundStyle(Color.atfText2)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else {
             foodGrid
@@ -164,7 +163,7 @@ public struct HomeView: View {
         return ScrollView {
             LazyVGrid(columns: columns, spacing: 12) {
                 ForEach(0..<4, id: \.self) { _ in
-                    ATFSkeleton(height: 170, radius: 12)
+                    ATFSkeleton(height: 180, radius: 12)
                 }
             }
             .padding(.horizontal, 16)
@@ -175,7 +174,7 @@ public struct HomeView: View {
     private var foodGrid: some View {
         let columns = [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)]
         return ScrollView {
-            LazyVGrid(columns: columns, spacing: 12) {
+            LazyVGrid(columns: columns, spacing: 20) {
                 ForEach(store.filteredItems) { item in
                     ATFFoodCard(
                         name: item.name,
@@ -196,13 +195,13 @@ public struct HomeView: View {
             Spacer()
             Image(systemName: "wifi.exclamationmark")
                 .font(.system(size: 44))
-                .foregroundStyle(Color.white.opacity(0.5))
+                .foregroundStyle(Color.atfText3)
             Text("Impossible de charger le menu")
                 .font(.atfHeadline)
-                .foregroundStyle(.white)
+                .foregroundStyle(Color.atfText1)
             Text(message)
                 .font(.atfCaption)
-                .foregroundStyle(Color.white.opacity(0.6))
+                .foregroundStyle(Color.atfText2)
                 .multilineTextAlignment(.center)
             ATFButton("Réessayer", kind: .primary) {
                 Task { await store.load(networking: networking) }
@@ -218,13 +217,14 @@ public struct HomeView: View {
             Spacer()
             Image(systemName: "fork.knife")
                 .font(.system(size: 48))
-                .foregroundStyle(Color.white.opacity(0.5))
+                .foregroundStyle(Color.atfText3)
             Text("Aucun plat pour l'instant")
                 .font(.atfHeadline)
-                .foregroundStyle(.white)
+                .foregroundStyle(Color.atfText1)
             Text("Touchez l'appareil photo pour ajouter votre premier plat")
                 .font(.atfBody)
-                .foregroundStyle(Color.white.opacity(0.6))
+                .foregroundStyle(Color.atfText2)
+                .multilineTextAlignment(.center)
             Spacer()
         }
         .frame(maxWidth: .infinity)
