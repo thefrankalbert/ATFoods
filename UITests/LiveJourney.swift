@@ -97,7 +97,20 @@ final class LiveJourney: XCTestCase {
         XCTAssertTrue(created.waitForExistence(timeout: 10), "New dish not on Home")
         created.swipeUp(); pause(); app.swipeDown(); pause()
 
-        // 7. Profile: deletion dialog (cancelled), then sign out
+        // 7. Photo from the gallery, attached to an existing dish (replaces its photo)
+        home.tap(); pause()
+        app.buttons["galleryButton"].tap(); sleep(3)
+        app.coordinate(withNormalizedOffset: CGVector(dx: 0.16, dy: 0.72)).tap()
+        XCTAssertTrue(app.buttons["Utiliser cette photo"].waitForExistence(timeout: 15), "Preview not shown")
+        pause(); app.buttons["Utiliser cette photo"].tap()
+        let row = app.staticTexts["Parcours live"]
+        XCTAssertTrue(row.waitForExistence(timeout: 15), "Dish list not loaded"); pause()
+        row.tap(); pause()
+        app.buttons["Attacher"].tap()
+        XCTAssertTrue(app.staticTexts["Photo attachée !"].waitForExistence(timeout: 20), "Photo not attached")
+        pause(); shot("home_photo_attached")
+
+        // 8. Profile: deletion dialog (cancelled), then sign out
         app.buttons["profileButton"].tap(); pause()
         app.swipeUp(); pause()
         app.staticTexts["Supprimer mon compte"].tap(); pause()
@@ -121,10 +134,11 @@ final class LiveJourney: XCTestCase {
     private func dismissPasswordPrompt() {
         // The iOS Passwords prompt can come several seconds after login, from the app or from SpringBoard.
         let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
-        for _ in 0..<10 {
-            for later in [app.buttons["Plus tard"], springboard.buttons["Plus tard"]] where later.exists {
-                later.tap(); sleep(1); return
-            }
+        // It can come back after a first tap: continue only after 4 quiet seconds.
+        var quiet = 0
+        for _ in 0..<20 where quiet < 4 {
+            let later = [app.buttons["Plus tard"], springboard.buttons["Plus tard"]].first { $0.exists }
+            if let later { later.tap(); quiet = 0 } else { quiet += 1 }
             sleep(1)
         }
     }
