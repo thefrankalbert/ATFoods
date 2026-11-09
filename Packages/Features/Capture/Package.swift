@@ -9,6 +9,7 @@ let package = Package(
         .package(path: "../../Core/DesignSystem"),
         .package(path: "../../Core/Models"),
         .package(path: "../../Core/Networking"),
+        .package(url: "https://github.com/guoyingtao/Mantis.git", from: "3.1.0"),
     ],
     targets: [
         .target(
@@ -17,6 +18,7 @@ let package = Package(
                 .product(name: "DesignSystem", package: "DesignSystem"),
                 .product(name: "Models", package: "Models"),
                 .product(name: "Networking", package: "Networking"),
+                .product(name: "Mantis", package: "Mantis"),
             ],
             path: "Sources/Capture",
             swiftSettings: [.swiftLanguageMode(.v6)]

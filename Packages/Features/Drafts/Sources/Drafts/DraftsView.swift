@@ -6,29 +6,53 @@ import Networking
 public struct DraftsView: View {
     @Bindable var store: DraftsStore
     let networking: any ATFNetworking
-    let onAIRetouch: (UUID) -> Void
+    /// Tap on a draft: pick the dish to attach it to.
+    let onSelect: (Draft) -> Void
     let onBack: () -> Void
 
     public init(
         store: DraftsStore,
         networking: any ATFNetworking,
-        onAIRetouch: @escaping (UUID) -> Void,
+        onSelect: @escaping (Draft) -> Void,
         onBack: @escaping () -> Void
     ) {
         self.store = store; self.networking = networking
-        self.onAIRetouch = onAIRetouch; self.onBack = onBack
+        self.onSelect = onSelect; self.onBack = onBack
     }
+
+    @State private var confirmDelete = false
 
     private let columns = Array(repeating: GridItem(.flexible(), spacing: 4), count: 3)
 
     public var body: some View {
         VStack(spacing: 0) {
             topBar
-            filterRow
+            if let error = store.error, !store.drafts.isEmpty {
+                Text(error)
+                    .font(.atfCaption)
+                    .foregroundStyle(Color.atfDanger)
+                    .padding(.horizontal, 16)
+                    .padding(.bottom, 8)
+            }
             if store.isLoading {
                 skeletonGrid
-            } else if store.filteredDrafts.isEmpty {
-                emptyState
+            } else if let error = store.error, store.drafts.isEmpty {
+                // Load failed: say so, never pretend there is nothing.
+                VStack(spacing: 12) {
+                    Spacer()
+                    Text(error)
+                        .font(.atfBody)
+                        .foregroundStyle(Color.atfText2)
+                        .multilineTextAlignment(.center)
+                    ATFButton("Réessayer", kind: .secondary) {
+                        Task { await store.load(networking: networking) }
+                    }
+                    Spacer()
+                }
+                .padding(.horizontal, 32)
+            } else if store.drafts.isEmpty {
+                // Scrollable so pull-to-refresh works on the empty state too.
+                ScrollView { emptyState.containerRelativeFrame(.vertical) }
             } else {
                 draftGrid
             }
@@ -38,6 +62,18 @@ public struct DraftsView: View {
         }
         .background(Color.atfBg.ignoresSafeArea())
         .task { await store.load(networking: networking) }
+        .refreshable { await store.load(networking: networking) }
+        .confirmationDialog(
+            store.selectedIDs.count > 1 ? "Supprimer \(store.selectedIDs.count) brouillons ?" : "Supprimer ce brouillon ?",
+            isPresented: $confirmDelete, titleVisibility: .visible
+        ) {
+            Button("Supprimer", role: .destructive) {
+                Task { await store.deleteSelected(networking: networking) }
+            }
+            Button("Annuler", role: .cancel) {}
+        } message: {
+            Text("Les photos seront définitivement effacées.")
+        }
     }
 
     // MARK: - Top Bar
@@ -45,10 +81,12 @@ public struct DraftsView: View {
     private var topBar: some View {
         HStack {
             Button(action: onBack) {
-                Image(systemName: "arrow.left")
+                Image(systemName: "chevron.left")
                     .font(.system(size: 18, weight: .semibold))
-                    .foregroundStyle(Color.atfText1)
+                    .foregroundStyle(Color.atfAccent)
+                    .frame(width: 44, height: 44)
             }
+            .accessibilityLabel("Retour")
             Spacer()
             Text("Brouillons")
                 .font(.atfHeadline)
@@ -60,31 +98,14 @@ public struct DraftsView: View {
                     store.selectedIDs.removeAll()
                 }
             } label: {
-                Text(store.isMultiSelect ? "Annuler" : "Sélect.")
+                Text(store.isMultiSelect ? "Annuler" : "Sélectionner")
                     .font(.atfCaption)
                     .foregroundStyle(Color.atfAccent)
             }
         }
         .padding(.horizontal, 16)
-        .padding(.top, 52)
+        .padding(.top, 12)
         .padding(.bottom, 14)
-        .background(Color.atfBg)
-    }
-
-    // MARK: - Filter
-
-    private var filterRow: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 8) {
-                ForEach(DraftFilter.allCases, id: \.self) { f in
-                    ATFChip(f.rawValue, selected: store.filter == f, tap: true) {
-                        store.filter = f
-                    }
-                }
-            }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 10)
-        }
         .background(Color.atfBg)
     }
 
@@ -93,14 +114,14 @@ public struct DraftsView: View {
     private var draftGrid: some View {
         ScrollView {
             LazyVGrid(columns: columns, spacing: 4) {
-                ForEach(store.filteredDrafts) { draft in
+                ForEach(store.drafts) { draft in
                     DraftCard(
                         draft: draft,
                         isSelected: store.selectedIDs.contains(draft.id),
                         isMultiSelect: store.isMultiSelect,
                         onTap: {
                             if store.isMultiSelect { store.toggleSelection(draft.id) }
-                            else { onAIRetouch(draft.id) }
+                            else { onSelect(draft) }
                         },
                         onLongPress: {
                             withAnimation(.easeInOut(duration: 0.2)) { store.isMultiSelect = true }
@@ -137,7 +158,7 @@ public struct DraftsView: View {
             Text("Aucun brouillon")
                 .font(.atfHeadline)
                 .foregroundStyle(Color.atfText1)
-            Text("Prenez des photos pour les retrouver ici")
+            Text("Après une photo, touchez « Garder en brouillon » pour enchaîner les plats, puis attachez-les ici.")
                 .font(.atfBody)
                 .foregroundStyle(Color.atfText2)
                 .multilineTextAlignment(.center)
@@ -151,9 +172,9 @@ public struct DraftsView: View {
 
     private var actionBar: some View {
         HStack(spacing: 12) {
-            ATFButton("Attacher", kind: .secondary, fullWidth: true) {}
-            ATFButton("Supprimer", kind: .danger, fullWidth: true) {
-                withAnimation { store.deleteSelected() }
+            ATFButton("Supprimer (\(store.selectedIDs.count))", kind: .danger, fullWidth: true,
+                      loading: store.isDeleting) {
+                confirmDelete = true
             }
         }
         .padding(.horizontal, 16)
@@ -174,21 +195,21 @@ private struct DraftCard: View {
 
     var body: some View {
         ZStack(alignment: .topTrailing) {
-            ATFAsyncImage(
-                url: draft.photoURL,
-                fallback: Color.atfSurface2,
-                radius: 0,
-                height: 104,
-                overlay: false,
-                contentMode: .fill
-            )
-            .frame(maxWidth: .infinity, minHeight: 104, maxHeight: 104)
-            .clipped()
-
-            if draft.status == .attached {
-                ATFBadge("Rattaché", kind: .attached)
-                    .padding(6)
-            }
+            // The cell sets the size; a .fill image laid out directly would push the grid column wider.
+            Color.clear
+                .frame(maxWidth: .infinity)
+                .frame(height: 104)
+                .overlay {
+                    ATFAsyncImage(
+                        url: draft.photoURL,
+                        fallback: Color.atfSurface2,
+                        radius: 0,
+                        height: 104,
+                        overlay: false,
+                        contentMode: .fill
+                    )
+                }
+                .clipped()
 
             if isMultiSelect {
                 Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
@@ -206,6 +227,11 @@ private struct DraftCard: View {
         .contentShape(Rectangle())
         .onTapGesture(perform: onTap)
         .onLongPressGesture(perform: onLongPress)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Brouillon du \(draft.createdAt.formatted(date: .abbreviated, time: .shortened))")
+        .accessibilityAddTraits(isSelected ? [.isButton, .isSelected] : .isButton)
+        .accessibilityHint(isMultiSelect ? "Sélectionner" : "Choisir le plat à illustrer")
+        .accessibilityAction(named: "Sélectionner", onLongPress)
     }
 }
 
@@ -214,5 +240,5 @@ private struct DraftCard: View {
 #Preview("DraftsView") {
     let store = DraftsStore(restaurantID: UUID())
     store.drafts = Draft.mocks
-    return DraftsView(store: store, networking: MockNetworking(), onAIRetouch: { _ in }, onBack: {})
+    return DraftsView(store: store, networking: MockNetworking(), onSelect: { _ in }, onBack: {})
 }

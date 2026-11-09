@@ -1,7 +1,7 @@
 // Packages/Core/DesignSystem/Sources/DesignSystem/Components/ATFToggle.swift
 import SwiftUI
 
-/// iOS-style custom toggle. orange=true → accent orange au lieu de success vert.
+/// Brand toggle. orange=true → accent orange au lieu de success vert.
 public struct ATFToggle: View {
     @Binding var isOn: Bool
     let isOrange: Bool
@@ -11,25 +11,11 @@ public struct ATFToggle: View {
         self.isOrange = orange
     }
 
+    // ponytail: native Toggle (VoiceOver, hit area, haptics) with the brand tint.
     public var body: some View {
-        ZStack(alignment: isOn ? .trailing : .leading) {
-            RoundedRectangle(cornerRadius: ATFRadius.pill)
-                .fill(isOn ? (isOrange ? Color.atfAccent : Color.atfSuccess) : Color.atfSurface2)
-                .frame(width: 51, height: 31)
-                .overlay(
-                    RoundedRectangle(cornerRadius: ATFRadius.pill)
-                        .strokeBorder(Color.atfBorder, lineWidth: 1)
-                )
-
-            Circle()
-                .fill(Color.white)
-                .frame(width: 25, height: 25)
-                .shadow(color: .black.opacity(0.18), radius: 2, y: 1)
-                .padding(2)
-        }
-        .frame(width: 51, height: 31)
-        .animation(.spring(response: 0.25, dampingFraction: 0.8), value: isOn)
-        .onTapGesture { isOn.toggle() }
+        Toggle("", isOn: $isOn)
+            .labelsHidden()
+            .tint(isOrange ? Color.atfAccent : Color.atfSuccess)
     }
 }
 

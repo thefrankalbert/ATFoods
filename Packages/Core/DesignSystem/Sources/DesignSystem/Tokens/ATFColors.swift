@@ -42,25 +42,3 @@ public extension Color {
     static let atfDanger      = Color(hex: "DC2626")
     static let atfDangerBg    = Color(hex: "DC2626").opacity(0.12)
 }
-
-// MARK: - Dark mode adaptive tokens
-
-public extension Color {
-    // UIKit-backed dynamic color — resolves correctly on device and in UIHostingController.
-    // In pure SwiftUI Previews using .preferredColorScheme(), use colorScheme env var directly.
-    static func atfAdaptive(light: Color, dark: Color) -> Color {
-        Color(UIColor { trait in
-            trait.userInterfaceStyle == .dark
-                ? UIColor(dark)
-                : UIColor(light)
-        })
-    }
-
-    // Dark surface tokens
-    static let atfBgDark       = Color(hex: "0E0E0E")
-    static let atfSurfaceDark  = Color(hex: "1A1A1A")
-    static let atfSurface2Dark = Color(hex: "252525")
-    static let atfText1Dark    = Color(hex: "FAFAFA")
-    static let atfText2Dark    = Color(hex: "A1A1A1")
-    static let atfText3Dark    = Color(hex: "6B6B6B")
-}

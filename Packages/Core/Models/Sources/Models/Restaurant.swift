@@ -7,6 +7,9 @@ public struct Restaurant: Identifiable, Hashable, Sendable {
     public var role: RestaurantRole
     public var dishCount: Int
     public var photoURL: URL?
+    public var plan: AppPlan
+    /// ISO 4217 code from tenants.currency (XAF, XOF, EUR…).
+    public var currency: String
 
     public init(
         id: UUID = UUID(),
@@ -14,10 +17,14 @@ public struct Restaurant: Identifiable, Hashable, Sendable {
         city: String,
         role: RestaurantRole = .owner,
         dishCount: Int = 0,
-        photoURL: URL? = nil
+        photoURL: URL? = nil,
+        plan: AppPlan = .starter,
+        currency: String = "XAF"
     ) {
         self.id = id; self.name = name; self.city = city
         self.role = role; self.dishCount = dishCount; self.photoURL = photoURL
+        self.plan = plan
+        self.currency = currency
     }
 }
 
@@ -38,14 +45,12 @@ public struct AppUser: Sendable {
     public let id: UUID
     public var name: String
     public var email: String
-    public var plan: AppPlan
-    public init(id: UUID = UUID(), name: String, email: String, plan: AppPlan = .starter) {
-        self.id = id; self.name = name; self.email = email; self.plan = plan
+    public init(id: UUID = UUID(), name: String, email: String) {
+        self.id = id; self.name = name; self.email = email
     }
-    public static let mock = AppUser(name: "Mariam", email: "mariam@chezflora.cm")
 }
 
-public enum AppPlan: String, Sendable {
+public enum AppPlan: String, Sendable, Hashable {
     case starter, pro, business, enterprise
     // Map renamed legacy plans
     public init(fromDB value: String) {
@@ -56,6 +61,13 @@ public enum AppPlan: String, Sendable {
         default: self = .starter
         }
     }
+
+    public var displayName: String { rawValue.capitalized }
+}
+
+#if DEBUG
+public extension AppUser {
+    static let mock = AppUser(name: "Mariam", email: "mariam@chezflora.cm")
 }
 
 public extension Restaurant {
@@ -65,3 +77,4 @@ public extension Restaurant {
         Restaurant(name: "Le Maquis du Port", city: "Yaoundé", role: .admin, dishCount: 23),
     ]
 }
+#endif

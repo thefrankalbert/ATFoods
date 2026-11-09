@@ -6,7 +6,7 @@ import DesignSystem
 
 private struct OnboardingSlide {
     let id: Int
-    let imageURL: URL?
+    let imageName: String   // bundled: onboarding works offline
     let tag: String
     let title: String
     let titleItalic: String
@@ -15,23 +15,23 @@ private struct OnboardingSlide {
 
 private let slides: [OnboardingSlide] = [
     OnboardingSlide(id: 0,
-        imageURL: URL(string: "https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=800"),
+        imageName: "onboarding-1",
         tag: "Pour les restaurateurs",
         title: "Publiez vos plats",
         titleItalic: "en 2 gestes.",
         body: "Photo, nom, prix — votre carte en ligne en moins d'une minute."),
     OnboardingSlide(id: 1,
-        imageURL: URL(string: "https://images.unsplash.com/photo-1547592180-85f173990554?w=800"),
-        tag: "Shoot rapide",
+        imageName: "onboarding-2",
+        tag: "Photo guidée",
         title: "Photographiez",
         titleItalic: "comme un pro.",
-        body: "Notre cadrage automatique met vos plats en valeur."),
+        body: "L'appli vous guide : angle, lumière, cadrage."),
     OnboardingSlide(id: 2,
-        imageURL: URL(string: "https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?w=800"),
+        imageName: "onboarding-3",
         tag: "Carte numérique",
         title: "Votre menu,",
         titleItalic: "toujours à jour.",
-        body: "Activez ou désactivez un plat en un tap, en temps réel."),
+        body: "Changez un prix ou marquez un plat épuisé en un geste, en temps réel."),
 ]
 
 // MARK: - Local scale button style (ATFScaleButtonStyle is internal to DesignSystem)
@@ -60,15 +60,17 @@ public struct OnboardingView: View {
         GeometryReader { geo in
             ZStack {
                 // Background photo + Ken Burns
-                ATFAsyncImage(
-                    url: slides[currentIndex].imageURL,
-                    fallback: Color(red: 0.102, green: 0.059, blue: 0.039),
-                    radius: 0,
-                    height: geo.size.height,
-                    width: geo.size.width,
-                    overlay: false,
-                    contentMode: .fill
-                )
+                Group {
+                    if let path = Bundle.module.path(forResource: slides[currentIndex].imageName, ofType: "jpg"),
+                       let image = UIImage(contentsOfFile: path) {
+                        Image(uiImage: image).resizable().scaledToFill()
+                    } else {
+                        Color(red: 0.102, green: 0.059, blue: 0.039)
+                    }
+                }
+                .frame(width: geo.size.width, height: geo.size.height)
+                .clipped()
+                .accessibilityHidden(true)
                 .scaleEffect(kenBurnsScale)
                 .animation(.linear(duration: 8).repeatForever(autoreverses: true), value: kenBurnsScale)
                 .ignoresSafeArea()
@@ -81,9 +83,10 @@ public struct OnboardingView: View {
                                    startPoint: .top, endPoint: .bottom)
                         .frame(height: 180)
                     Spacer()
-                    LinearGradient(colors: [.clear, .black.opacity(0.8)],
+                    // Tall, dark scrim: the text sits on busy food photos and must stay readable.
+                    LinearGradient(colors: [.clear, .black.opacity(0.65), .black.opacity(0.92)],
                                    startPoint: .top, endPoint: .bottom)
-                        .frame(height: 360)
+                        .frame(height: 520)
                 }
                 .ignoresSafeArea()
 
@@ -96,6 +99,13 @@ public struct OnboardingView: View {
             }
         }
         .ignoresSafeArea()
+        // Swipe between slides, like any onboarding.
+        .gesture(DragGesture(minimumDistance: 30).onEnded { value in
+            if value.translation.width < -50 { advanceSlide() }
+            else if value.translation.width > 50, currentIndex > 0 {
+                withAnimation(.easeInOut(duration: 0.3)) { currentIndex -= 1 }
+            }
+        })
         .statusBarHidden()
     }
 
@@ -135,10 +145,10 @@ public struct OnboardingView: View {
             Text(slides[currentIndex].tag.uppercased())
                 .font(.atfOverline)
                 .tracking(1.0)
-                .foregroundStyle(Color.atfAccent)
+                .foregroundStyle(.white)
                 .padding(.horizontal, 12)
                 .padding(.vertical, 5)
-                .background(Color.white.opacity(0.12))
+                .background(Color.atfAccent)
                 .clipShape(Capsule())
 
             // Title with italic accent

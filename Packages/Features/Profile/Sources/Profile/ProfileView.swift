@@ -7,24 +7,23 @@ public struct ProfileView: View {
     @Bindable var store: ProfileStore
     let networking: any ATFNetworking
     @Environment(\.openURL) private var openURL
-    let onCredits: () -> Void
-    let onUpgrade: () -> Void
-    let onOffline: () -> Void
+    @State private var confirmDeletion = false
+    @State private var mailFallback = false
+    /// nil when the user has a single restaurant (row hidden).
+    let onSwitchRestaurant: (() -> Void)?
     let onSignOut: () -> Void
     let onBack: () -> Void
 
     public init(
         store: ProfileStore,
         networking: any ATFNetworking,
-        onCredits: @escaping () -> Void,
-        onUpgrade: @escaping () -> Void,
-        onOffline: @escaping () -> Void,
+        onSwitchRestaurant: (() -> Void)? = nil,
         onSignOut: @escaping () -> Void,
         onBack: @escaping () -> Void
     ) {
+        self.onSwitchRestaurant = onSwitchRestaurant
         self.store = store; self.networking = networking
-        self.onCredits = onCredits; self.onUpgrade = onUpgrade
-        self.onOffline = onOffline; self.onSignOut = onSignOut; self.onBack = onBack
+        self.onSignOut = onSignOut; self.onBack = onBack
     }
 
     public var body: some View {
@@ -32,17 +31,42 @@ public struct ProfileView: View {
             VStack(spacing: 0) {
                 topBar
                 avatarSection
-                planCard
-                creditsCard
                 restaurantCard
                 settingsList
+                deletionCard
                 signOutButton
                     .padding(.top, 24)
                     .padding(.bottom, 48)
             }
         }
         .background(Color.atfBg.ignoresSafeArea())
-        .task { await store.loadCredits(networking: networking) }
+        // Opaque status bar area: scrolled content no longer shows under the clock.
+        .safeAreaInset(edge: .top, spacing: 0) {
+            Color.atfBg.frame(height: 0).background(Color.atfBg.ignoresSafeArea(edges: .top))
+        }
+        .confirmationDialog("Supprimer définitivement votre compte ?", isPresented: $confirmDeletion, titleVisibility: .visible) {
+            Button("Supprimer mon compte", role: .destructive) {
+                Task {
+                    await store.deleteAccount(networking: networking)
+                    if store.deletionOutcome == .deleted { onSignOut() }
+                }
+            }
+            Button("Annuler", role: .cancel) {}
+        } message: {
+            Text("Votre accès à tous vos restaurants et vos données personnelles sont supprimés. Les plats et photos de vos restaurants restent en ligne. Cette action est irréversible.")
+        }
+        .alert(deletionAlertTitle, isPresented: deletionAlertShown) {
+            Button("Contacter le support") { requestAccountDeletion() }
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(deletionAlertMessage)
+        }
+        .alert("Écrivez-nous", isPresented: $mailFallback) {
+            Button("Copier l'adresse") { UIPasteboard.general.string = AttablWeb.supportEmail }
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text("Aucune app de messagerie n'est configurée. Écrivez à \(AttablWeb.supportEmail).")
+        }
     }
 
     // MARK: - Top Bar
@@ -50,14 +74,16 @@ public struct ProfileView: View {
     private var topBar: some View {
         HStack {
             Button(action: onBack) {
-                Image(systemName: "arrow.left")
+                Image(systemName: "chevron.left")
                     .font(.system(size: 18, weight: .semibold))
-                    .foregroundStyle(Color.atfText1)
+                    .foregroundStyle(Color.atfAccent)
+                    .frame(width: 44, height: 44)
             }
+            .accessibilityLabel("Retour")
             Spacer()
         }
-        .padding(.horizontal, 16)
-        .padding(.top, 52)
+        .padding(.horizontal, 8)
+        .padding(.top, 4)
         .padding(.bottom, 8)
     }
 
@@ -74,97 +100,23 @@ public struct ProfileView: View {
                 .clipShape(Circle())
                 .frame(width: 80, height: 80)
 
-                Text(store.user.name.prefix(1).uppercased())
+                Text((store.user.name.isEmpty ? store.user.email : store.user.name).prefix(1).uppercased())
                     .font(.system(size: 32, weight: .semibold))
                     .foregroundStyle(.white)
             }
+            .accessibilityHidden(true)
 
+            if !store.user.name.isEmpty {
             Text(store.user.name)
                 .font(.atfHeadline)
                 .foregroundStyle(Color.atfText1)
 
+            }
             Text(store.user.email)
                 .font(.atfCaption)
                 .foregroundStyle(Color.atfText2)
-
-            ATFBadge(
-                store.user.plan == .pro ? "Pro" : "Gratuit",
-                kind: store.user.plan == .pro ? .pro : .soft
-            )
         }
         .padding(.vertical, 28)
-    }
-
-    // MARK: - Plan Card
-
-    private var planCard: some View {
-        Group {
-            if store.user.plan != .pro {
-                Button(action: onUpgrade) {
-                    HStack(spacing: 14) {
-                        Image(systemName: "sparkles")
-                            .font(.system(size: 20))
-                            .foregroundStyle(Color.atfAccent)
-                        VStack(alignment: .leading, spacing: 3) {
-                            Text("Passer au Pro")
-                                .font(.atfBodyStr)
-                                .foregroundStyle(Color.atfText1)
-                            Text("IA illimitée, fonds personnalisés…")
-                                .font(.atfCaption)
-                                .foregroundStyle(Color.atfText2)
-                        }
-                        Spacer()
-                        Image(systemName: "chevron.right")
-                            .font(.system(size: 14, weight: .semibold))
-                            .foregroundStyle(Color.atfText3)
-                    }
-                    .padding(16)
-                    .background(Color.atfSurface)
-                    .clipShape(RoundedRectangle(cornerRadius: 14))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 14)
-                            .strokeBorder(Color.atfAccent.opacity(0.5), lineWidth: 1.5)
-                    )
-                }
-                .buttonStyle(.plain)
-                .padding(.horizontal, 16)
-                .padding(.bottom, 8)
-            }
-        }
-    }
-
-    // MARK: - Credits Card
-
-    private var creditsCard: some View {
-        Button(action: onCredits) {
-            HStack(spacing: 14) {
-                Image(systemName: "bolt.fill")
-                    .font(.system(size: 20))
-                    .foregroundStyle(Color.atfAccent)
-                VStack(alignment: .leading, spacing: 3) {
-                    Text("Crédits IA")
-                        .font(.atfBodyStr)
-                        .foregroundStyle(Color.atfText1)
-                    Text("\(store.creditsBalance) / \(store.creditsTotal) disponibles")
-                        .font(.atfCaption)
-                        .foregroundStyle(Color.atfText2)
-                }
-                Spacer()
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundStyle(Color.atfText3)
-            }
-            .padding(16)
-            .background(Color.atfSurface)
-            .clipShape(RoundedRectangle(cornerRadius: 14))
-            .overlay(
-                RoundedRectangle(cornerRadius: 14)
-                    .strokeBorder(Color.atfBorder, lineWidth: 1)
-            )
-        }
-        .buttonStyle(.plain)
-        .padding(.horizontal, 16)
-        .padding(.bottom, 8)
     }
 
     // MARK: - Restaurant Card
@@ -201,37 +153,34 @@ public struct ProfileView: View {
     private var settingsList: some View {
         VStack(spacing: 0) {
             // Compte
-            settingsRow(icon: "safari", label: "Ouvrir le dashboard web", action: openDashboard)
+            if let onSwitchRestaurant {
+                settingsRow(icon: "arrow.left.arrow.right", label: "Changer de restaurant", action: onSwitchRestaurant)
+                Divider().padding(.leading, 52)
+            }
+            settingsRow(icon: "safari", label: "Tableau de bord web", action: { openURL(AttablWeb.dashboard) })
             Divider().padding(.leading, 52)
-            settingsRow(icon: "faceid", label: "Activer Face ID", action: {})
-
-            Divider().padding(.leading, 16).padding(.vertical, 8)
-
-            // Préférences
-            settingsRow(icon: "bell", label: "Notifications", action: openNotificationSettings)
-            Divider().padding(.leading, 52)
-            settingsRow(icon: "globe", label: "Langue", action: {})
-            Divider().padding(.leading, 52)
-            settingsRow(icon: "wifi.slash", label: "Mode hors-ligne", action: onOffline)
-
-            Divider().padding(.leading, 16).padding(.vertical, 8)
-
-            // À propos
             settingsRow(icon: "ant", label: "Signaler un bug", action: reportBug)
             Divider().padding(.leading, 52)
-            settingsRow(icon: "info.circle", label: "Aide & Support", action: openSupport)
+            settingsRow(icon: "info.circle", label: "Aide & support", action: { openURL(AttablWeb.support) })
             Divider().padding(.leading, 52)
-            settingsRow(icon: "doc.text", label: "Conditions d'utilisation", action: openTerms)
+            settingsRow(icon: "doc.text", label: "Conditions d'utilisation", action: { openURL(AttablWeb.legal) })
+            Divider().padding(.leading, 52)
+            settingsRow(icon: "hand.raised", label: "Politique de confidentialité", action: { openURL(AttablWeb.privacy) })
             Divider().padding(.leading, 52)
             settingsRowInfo(icon: "number", label: "Version", value: appVersion)
         }
-        .background(Color.atfSurface)
-        .clipShape(RoundedRectangle(cornerRadius: 14))
-        .overlay(
-            RoundedRectangle(cornerRadius: 14)
-                .strokeBorder(Color.atfBorder, lineWidth: 1)
-        )
-        .padding(.horizontal, 16)
+        .modifier(SettingsCard())
+    }
+
+    /// Destructive action, apart and in red (sign-out is the ordinary action).
+    private var deletionCard: some View {
+        settingsRow(icon: "person.crop.circle.badge.xmark",
+                    label: store.isDeleting ? "Suppression en cours…" : "Supprimer mon compte",
+                    tint: Color.atfDanger,
+                    action: { confirmDeletion = true })
+            .disabled(store.isDeleting)
+            .modifier(SettingsCard())
+            .padding(.top, 16)
     }
 
     private func settingsRowInfo(icon: String, label: String, value: String) -> some View {
@@ -258,36 +207,56 @@ public struct ProfileView: View {
         return "v\(v) (\(b))"
     }
 
-    private func openDashboard() {
-        openURL(URL(string: "https://attabl.com")!)
-    }
-
-    private func openNotificationSettings() {
-        openURL(URL(string: "app-settings:")!)
-    }
-
     private func reportBug() {
-        openURL(URL(string: "mailto:support@attabl.com?subject=Bug%20At%20Food")!)
+        sendMail(subject: "Bug Atfood", body: "\n\n—\nAtfood \(appVersion) · \(store.restaurant.name)")
     }
 
-    private func openSupport() {
-        openURL(URL(string: "https://attabl.com/support")!)
+    private var deletionAlertShown: Binding<Bool> {
+        Binding(
+            get: { store.deletionError != nil || store.deletionOutcome.map { $0 != .deleted } == true },
+            set: { if !$0 { store.deletionError = nil; store.deletionOutcome = nil } }
+        )
     }
 
-    private func openTerms() {
-        openURL(URL(string: "https://attabl.com/terms")!)
+    private var deletionAlertTitle: String {
+        store.deletionError != nil ? "Suppression impossible" : "Compte non supprimé"
     }
 
-    private func settingsRow(icon: String, label: String, action: @escaping () -> Void) -> some View {
+    private var deletionAlertMessage: String {
+        if let error = store.deletionError { return error }
+        switch store.deletionOutcome {
+        case .soleOwner(let restaurant):
+            return "Vous êtes le seul propriétaire de « \(restaurant) ». Nommez un autre propriétaire depuis le tableau de bord web, ou contactez le support pour fermer le restaurant, puis réessayez."
+        case .groupOwner:
+            return "Vous êtes le propriétaire de votre établissement sur À Table. Pour supprimer votre compte, l'établissement doit d'abord être fermé ou confié à quelqu'un d'autre : contactez le support, nous nous en chargeons."
+        default:
+            return "Ce compte est géré par l'équipe À Table. Contactez le support pour le supprimer."
+        }
+    }
+
+    private func requestAccountDeletion() {
+        sendMail(subject: "Suppression de compte Atfood",
+                 body: "Bonjour,\n\nJe demande la suppression de mon compte \(store.user.email) et de mes données personnelles.\n\nMerci.")
+    }
+
+    /// Opens Mail; without a mail app, shows the address (openURL would otherwise fail silently).
+    private func sendMail(subject: String, body: String) {
+        openURL(AttablWeb.mail(subject: subject, body: body)) { accepted in
+            if !accepted { mailFallback = true }
+        }
+    }
+
+    private func settingsRow(icon: String, label: String, tint: Color? = nil,
+                             action: @escaping () -> Void) -> some View {
         Button(action: action) {
             HStack(spacing: 14) {
                 Image(systemName: icon)
                     .font(.system(size: 16))
-                    .foregroundStyle(Color.atfText2)
+                    .foregroundStyle(tint ?? Color.atfText2)
                     .frame(width: 22)
                 Text(label)
                     .font(.atfSubhead)
-                    .foregroundStyle(Color.atfText1)
+                    .foregroundStyle(tint ?? Color.atfText1)
                 Spacer()
                 Image(systemName: "chevron.right")
                     .font(.system(size: 13, weight: .semibold))
@@ -304,7 +273,7 @@ public struct ProfileView: View {
     private var signOutButton: some View {
         ATFButton(
             "Se déconnecter",
-            kind: .danger,
+            kind: .secondary,
             fullWidth: true,
             loading: store.isSigningOut
         ) {
@@ -317,10 +286,20 @@ public struct ProfileView: View {
     }
 }
 
+private struct SettingsCard: ViewModifier {
+    func body(content: Content) -> some View {
+        content
+            .background(Color.atfSurface)
+            .clipShape(RoundedRectangle(cornerRadius: 14))
+            .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(Color.atfBorder, lineWidth: 1))
+            .padding(.horizontal, 16)
+    }
+}
+
 // MARK: - Preview
 
 #Preview("ProfileView") {
     let store = ProfileStore(user: AppUser.mock, restaurant: Restaurant.mocks[0])
     return ProfileView(store: store, networking: MockNetworking(),
-                       onCredits: {}, onUpgrade: {}, onOffline: {}, onSignOut: {}, onBack: {})
+                       onSignOut: {}, onBack: {})
 }

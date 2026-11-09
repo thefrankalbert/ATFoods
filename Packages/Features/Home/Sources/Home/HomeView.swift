@@ -9,14 +9,17 @@ public struct HomeView: View {
     let onCamera: () -> Void
     let onDrafts: () -> Void
     let onProfile: () -> Void
+    let onDish: (MenuItem) -> Void
 
     public init(
         store: HomeStore,
         networking: any ATFNetworking,
         onCamera: @escaping () -> Void,
-        onDrafts: @escaping () -> Void = {},
-        onProfile: @escaping () -> Void = {}
+        onDrafts: @escaping () -> Void,
+        onProfile: @escaping () -> Void,
+        onDish: @escaping (MenuItem) -> Void
     ) {
+        self.onDish = onDish
         self.store = store
         self.networking = networking
         self.onCamera = onCamera
@@ -24,61 +27,76 @@ public struct HomeView: View {
         self.onProfile = onProfile
     }
 
-    private let bgColor = Color(red: 0.059, green: 0.035, blue: 0.024)
+    // Same light surface as every other screen (login, dish card, drafts, profile).
+    private let bgColor = Color.atfBg
 
     public var body: some View {
         ZStack {
             bgColor.ignoresSafeArea()
 
             VStack(spacing: 0) {
-                topBar
                 categoryFilter
+                if let error = store.error, !store.menuItems.isEmpty {
+                    // Refresh failed: keep the menu visible, say it may be outdated.
+                    Label("Menu non actualisé : \(error)", systemImage: "wifi.exclamationmark")
+                        .font(.atfCaption)
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 8)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(Color.atfDanger.opacity(0.85))
+                }
                 mainContent
             }
         }
-        .task { await store.load(networking: networking) }
+        .toolbar { toolbarContent }
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbarBackground(bgColor, for: .navigationBar)
+        .toolbarBackground(.visible, for: .navigationBar)
+        .task { await store.load(networking: networking) }   // runs on every return to Home
+        .refreshable { await store.load(networking: networking) }
     }
 
-    // MARK: - Top Bar
+    // MARK: - Toolbar
 
-    private var topBar: some View {
-        HStack(spacing: 0) {
+    @ToolbarContentBuilder
+    private var toolbarContent: some ToolbarContent {
+        ToolbarItem(placement: .topBarLeading) {
             Button(action: onProfile) {
                 Image(systemName: "person.circle")
                     .font(.system(size: 22))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(Color.atfText1)
             }
+            .accessibilityLabel("Profil")
             .accessibilityIdentifier("profileButton")
-
-            Spacer()
-
+        }
+        ToolbarItem(placement: .principal) {
             VStack(spacing: 2) {
-                ATFWordmark(size: 18, color: .white)
+                ATFWordmark(size: 18)
                 Text(store.restaurant.name)
                     .font(.atfCaption)
-                    .foregroundStyle(Color.white.opacity(0.7))
+                    .foregroundStyle(Color.atfText2)
+                    .lineLimit(1)
             }
-
-            Spacer()
-
-            HStack(spacing: 16) {
-                Button(action: onDrafts) {
-                    Image(systemName: "rectangle.stack")
-                        .font(.system(size: 18))
-                        .foregroundStyle(.white)
-                }
-                .accessibilityIdentifier("draftsButton")
-
-                Button(action: onCamera) {
-                    Image(systemName: "camera.fill")
-                        .font(.system(size: 18))
-                        .foregroundStyle(.white)
-                }
-                .accessibilityIdentifier("cameraButton")
-            }
+            .accessibilityElement(children: .combine)
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 12)
+        ToolbarItemGroup(placement: .topBarTrailing) {
+            Button(action: onDrafts) {
+                Image(systemName: "rectangle.stack")
+                    .font(.system(size: 18))
+                    .foregroundStyle(Color.atfText1)
+            }
+            .accessibilityLabel("Brouillons")
+            .accessibilityIdentifier("draftsButton")
+
+            Button(action: onCamera) {
+                Image(systemName: "camera.fill")
+                    .font(.system(size: 18))
+                    .foregroundStyle(Color.atfAccent)
+            }
+            .accessibilityLabel("Prendre une photo")
+            .accessibilityIdentifier("cameraButton")
+        }
     }
 
     // MARK: - Category Filter
@@ -86,16 +104,16 @@ public struct HomeView: View {
     private var categoryFilter: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 8) {
-                categoryChip(label: "Tous", isSelected: store.selectedCategory == nil) {
-                    store.selectedCategory = nil
+                categoryChip(label: "Tous", isSelected: store.selectedCategoryID == nil) {
+                    store.selectedCategoryID = nil
                 }
 
-                ForEach(store.categories, id: \.self) { category in
+                ForEach(store.categories) { category in
                     categoryChip(
-                        label: category,
-                        isSelected: store.selectedCategory == category
+                        label: category.name,
+                        isSelected: store.selectedCategoryID == category.id
                     ) {
-                        store.selectedCategory = category
+                        store.selectedCategoryID = category.id
                     }
                 }
             }
@@ -108,13 +126,13 @@ public struct HomeView: View {
         Button(action: action) {
             Text(label)
                 .font(.atfCaption)
-                .foregroundStyle(isSelected ? Color.white : Color.white.opacity(0.6))
+                .foregroundStyle(isSelected ? Color.white : Color.atfText2)
                 .padding(.horizontal, 14)
                 .padding(.vertical, 7)
                 .background(
                     isSelected
                         ? Color.atfAccent
-                        : Color.white.opacity(0.12)
+                        : Color.atfSurface2
                 )
                 .clipShape(Capsule())
         }
@@ -126,22 +144,26 @@ public struct HomeView: View {
     private var mainContent: some View {
         if store.isLoading {
             skeletonGrid
+        } else if let error = store.error, store.menuItems.isEmpty {
+            errorState(error)
         } else if store.menuItems.isEmpty {
             emptyState
+        } else if store.filteredItems.isEmpty {
+            Text("Aucun plat dans cette catégorie")
+                .font(.atfBody)
+                .foregroundStyle(Color.atfText2)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else {
             foodGrid
         }
     }
 
     private var skeletonGrid: some View {
-        let columns = [
-            GridItem(.fixed(148), spacing: 12),
-            GridItem(.fixed(148), spacing: 12)
-        ]
+        let columns = [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)]
         return ScrollView {
             LazyVGrid(columns: columns, spacing: 12) {
                 ForEach(0..<4, id: \.self) { _ in
-                    ATFSkeleton(width: 148, height: 170, radius: 12)
+                    ATFSkeleton(height: 180, radius: 12)
                 }
             }
             .padding(.horizontal, 16)
@@ -150,18 +172,16 @@ public struct HomeView: View {
     }
 
     private var foodGrid: some View {
-        let columns = [
-            GridItem(.fixed(148), spacing: 12),
-            GridItem(.fixed(148), spacing: 12)
-        ]
+        let columns = [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)]
         return ScrollView {
-            LazyVGrid(columns: columns, spacing: 12) {
+            LazyVGrid(columns: columns, spacing: 20) {
                 ForEach(store.filteredItems) { item in
                     ATFFoodCard(
                         name: item.name,
-                        priceFormatted: item.priceFormatted,
+                        priceFormatted: item.formattedPrice(currency: store.restaurant.currency),
                         photoURL: item.photoURL,
-                        isAvailable: item.isAvailable
+                        isAvailable: item.isAvailable,
+                        onTap: { onDish(item) }
                     )
                 }
             }
@@ -170,18 +190,41 @@ public struct HomeView: View {
         }
     }
 
+    private func errorState(_ message: String) -> some View {
+        VStack(spacing: 16) {
+            Spacer()
+            Image(systemName: "wifi.exclamationmark")
+                .font(.system(size: 44))
+                .foregroundStyle(Color.atfText3)
+            Text("Impossible de charger le menu")
+                .font(.atfHeadline)
+                .foregroundStyle(Color.atfText1)
+            Text(message)
+                .font(.atfCaption)
+                .foregroundStyle(Color.atfText2)
+                .multilineTextAlignment(.center)
+            ATFButton("Réessayer", kind: .primary) {
+                Task { await store.load(networking: networking) }
+            }
+            Spacer()
+        }
+        .padding(.horizontal, 32)
+        .frame(maxWidth: .infinity)
+    }
+
     private var emptyState: some View {
         VStack(spacing: 16) {
             Spacer()
             Image(systemName: "fork.knife")
                 .font(.system(size: 48))
-                .foregroundStyle(Color.white.opacity(0.5))
+                .foregroundStyle(Color.atfText3)
             Text("Aucun plat pour l'instant")
                 .font(.atfHeadline)
-                .foregroundStyle(.white)
-            Text("Ajoutez votre premier plat")
+                .foregroundStyle(Color.atfText1)
+            Text("Touchez l'appareil photo pour ajouter votre premier plat")
                 .font(.atfBody)
-                .foregroundStyle(Color.white.opacity(0.6))
+                .foregroundStyle(Color.atfText2)
+                .multilineTextAlignment(.center)
             Spacer()
         }
         .frame(maxWidth: .infinity)
@@ -193,5 +236,5 @@ public struct HomeView: View {
 #Preview("HomeView") {
     let store = HomeStore(restaurant: Restaurant.mocks[0])
     store.menuItems = MenuItem.mocks
-    return HomeView(store: store, networking: MockNetworking(), onCamera: {})
+    return HomeView(store: store, networking: MockNetworking(), onCamera: {}, onDrafts: {}, onProfile: {}, onDish: { _ in })
 }

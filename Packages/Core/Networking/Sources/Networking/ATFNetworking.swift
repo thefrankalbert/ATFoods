@@ -2,19 +2,44 @@ import Foundation
 import Models
 
 public protocol ATFNetworking: Sendable {
+    // Auth
     func signIn(email: String, password: String) async throws -> AppUser
+    /// Session saved in the keychain by a previous launch, refreshed if needed. nil = must log in.
+    func restoreSession() async -> AppUser?
     func signOut() async throws
+    /// Deletes the signed-in account (server-side checks). Signs out locally on success.
+    func deleteAccount() async throws -> AccountDeletionResult
+
+    // Menu
     func fetchRestaurants(userID: UUID) async throws -> [Restaurant]
     func fetchMenuItems(restaurantID: UUID) async throws -> [MenuItem]
-    func fetchCategories(restaurantID: UUID) async throws -> [String]
-    func createMenuItem(_ item: MenuItem, restaurantID: UUID) async throws -> MenuItem
+    func fetchCategories(restaurantID: UUID) async throws -> [MenuCategory]
+    func fetchMenus(restaurantID: UUID) async throws -> [MenuRef]
+    func createCategory(name: String, menuID: UUID?, restaurantID: UUID) async throws -> MenuCategory
+    func createMenuItem(_ item: MenuItem, categoryID: UUID, restaurantID: UUID) async throws -> MenuItem
+    /// Name, price, availability and category. Throws if the dish no longer exists or rights are missing.
+    func updateMenuItem(_ item: MenuItem, restaurantID: UUID) async throws -> MenuItem
+
+    // Photos
     func attachPhoto(imageData: Data, toDishID dishID: UUID, restaurantID: UUID) async throws -> URL
+
+    // Drafts (batch shooting)
+    func saveDraft(imageData: Data, restaurantID: UUID) async throws -> Draft
     func fetchDrafts(restaurantID: UUID) async throws -> [Draft]
-    func applyAIRetouch(dishID: UUID, effect: AIRetouchEffect) async throws -> URL
-    func fetchCredits(userID: UUID) async throws -> Int
+    /// Sets the draft photo on the dish, then removes the draft.
+    func attachDraft(_ draft: Draft, toDishID dishID: UUID, restaurantID: UUID) async throws -> URL
+    func deleteDrafts(_ drafts: [Draft]) async throws
+    /// Extra photos of a dish (web "Photos supplémentaires"); each returns the new list.
+    func addGalleryPhoto(imageData: Data, toDishID dishID: UUID, restaurantID: UUID) async throws -> [URL]
+    func removeGalleryPhoto(_ url: URL, fromDishID dishID: UUID, restaurantID: UUID) async throws -> [URL]
 }
 
-public enum AIRetouchEffect: Sendable {
-    case removeBackground
-    case changeBackground(id: String)
+public enum AccountDeletionResult: Equatable, Sendable {
+    case deleted
+    /// Sole owner of this restaurant: it must be handed over or closed first.
+    case soleOwner(restaurant: String)
+    /// Owner of the restaurant group the web signup creates for every new owner: closing it goes through support.
+    case groupOwner
+    /// Platform operator (À Table team account): handled by support.
+    case needsSupport
 }

@@ -8,7 +8,7 @@ public struct ATFWordmark: View {
     let color: Color
     let showDot: Bool
 
-    public init(size: CGFloat = 22, color: Color = .primary, showDot: Bool = true) {
+    public init(size: CGFloat = 22, color: Color = .atfText1, showDot: Bool = true) {
         self.size = size
         self.color = color
         self.showDot = showDot
