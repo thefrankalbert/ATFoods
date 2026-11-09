@@ -47,14 +47,20 @@ final class LiveJourney: XCTestCase {
         let oldPrice = (price.value as? String) ?? ""
         replaceText(in: price, with: "6900"); pause()
         app.buttons["Terminé"].tap()
-        app.switches.firstMatch.tap(); pause()
+        app.switches["Disponible"].tap(); pause()
+        XCTAssertEqual(price.value as? String, "6900", "Price not typed")
+        XCTAssertEqual(app.switches["Disponible"].value as? String, "0", "Not marked sold out")
+        shot("before_save")
         app.buttons["Enregistrer les modifications"].tap()
         XCTAssertTrue(home.waitForExistence(timeout: 15), "Save failed")
+        let edited = app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Poulet DG'")).firstMatch
+        XCTAssertTrue(edited.label.filter(\.isNumber).contains("6900"), "Home not refreshed: \(edited.label)")
         pause(); shot("home_after_edit")
         openDish("Poulet DG")
+        XCTAssertEqual(app.switches["Disponible"].value as? String, "0", "Sold out not reloaded")
         replaceText(in: app.textFields.element(boundBy: 1), with: oldPrice)
         app.buttons["Terminé"].tap()
-        app.switches.firstMatch.tap(); pause()
+        app.switches["Disponible"].tap(); pause()
         app.buttons["Enregistrer les modifications"].tap()
         XCTAssertTrue(home.waitForExistence(timeout: 15), "Restore failed")
         pause()
@@ -78,6 +84,7 @@ final class LiveJourney: XCTestCase {
         app.buttons["draftsButton"].tap()
         let draft = app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Brouillon du'")).firstMatch
         XCTAssertTrue(draft.waitForExistence(timeout: 15)); pause()
+        let usedDraft = app.buttons[draft.label]   // older drafts may remain: track this one only
         draft.tap()
         let newDish = app.buttons["+ Nouveau plat"]
         XCTAssertTrue(newDish.waitForExistence(timeout: 10)); pause()
@@ -91,7 +98,9 @@ final class LiveJourney: XCTestCase {
         let save = app.buttons["Enregistrer"]
         for _ in 0..<10 where !save.isEnabled { sleep(1) }
         save.tap()
-        XCTAssertTrue(app.staticTexts["Aucun brouillon"].waitForExistence(timeout: 20), "Create failed")
+        XCTAssertTrue(app.staticTexts["Brouillons"].waitForExistence(timeout: 20), "Create failed")
+        let gone = expectation(for: NSPredicate(format: "exists == false"), evaluatedWith: usedDraft)
+        wait(for: [gone], timeout: 10)
         pause(); app.buttons["Retour"].tap()
         let created = app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Parcours live'")).firstMatch
         XCTAssertTrue(created.waitForExistence(timeout: 10), "New dish not on Home")

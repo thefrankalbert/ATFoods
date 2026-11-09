@@ -136,6 +136,49 @@ final class NewOwnerJourney: XCTestCase {
         pause()
     }
 
+    /// Run after testNewOwner once the QA restaurant was edited on the web side (same database):
+    /// Alloco 2000 F, featured, gluten, new description; new category "Boissons" (order 1) with "Bissap".
+    func testWebEditsShowInApp() throws {
+        let env = ProcessInfo.processInfo.environment
+        guard let email = env["ATF_QA_EMAIL"], let password = env["ATF_QA_PASSWORD"], env["ATF_QA_WEB_EDITED"] != nil else {
+            throw XCTSkip("ATF_QA_EMAIL / ATF_QA_PASSWORD / ATF_QA_WEB_EDITED not set")
+        }
+        continueAfterFailure = false
+        app = XCUIApplication()
+        app.launch()
+        if app.buttons["Passer"].waitForExistence(timeout: 10) { app.buttons["Passer"].tap() }
+        XCTAssertTrue(app.buttons["Se connecter"].waitForExistence(timeout: 10))
+        let emailField = app.textFields.firstMatch
+        emailField.tap(); emailField.typeText(email)
+        let secure = app.secureTextFields.firstMatch
+        secure.tap(); secure.typeText(password)
+        app.buttons["Se connecter"].tap()
+        XCTAssertTrue(app.buttons["cameraButton"].waitForExistence(timeout: 20), "Home not reached")
+        dismissPasswordPrompt()
+
+        // New web category and dish are there, in the web order (Plats before Boissons).
+        XCTAssertTrue(app.buttons["Boissons"].waitForExistence(timeout: 15), "Web category missing")
+        let bissap = dishCard("Bissap"), alloco = dishCard("Alloco")
+        XCTAssertTrue(bissap.waitForExistence(timeout: 15), "Web dish missing")
+        XCTAssertTrue(alloco.label.filter(\.isNumber).contains("2000"), "Web price not shown: \(alloco.label)")
+        XCTAssertLessThan(alloco.frame.minY, bissap.frame.minY, "Order differs from the web")
+        pause(); shot("web_edits_home")
+        app.buttons["Boissons"].tap(); pause(); shot("web_category_filter")
+        app.buttons["Tous"].tap(); pause()
+
+        // The web edits on the dish sheet.
+        alloco.tap()
+        XCTAssertTrue(app.staticTexts["Fiche plat"].waitForExistence(timeout: 5)); pause()
+        XCTAssertEqual(app.switches["À la une"].value as? String, "1", "Web featured not shown")
+        XCTAssertTrue(app.buttons["Gluten"].isSelected, "Web allergen not shown")
+        let description = (textInput("Description").value as? String) ?? ""
+        XCTAssertTrue(description.contains("modifié depuis le web"), "Web description not shown: \(description)")
+        pause(); shot("web_edits_sheet")
+        app.buttons["Retour"].tap()
+        XCTAssertTrue(app.buttons["cameraButton"].waitForExistence(timeout: 10))
+        pause()
+    }
+
     // MARK: - Helpers
 
     private func pause() { sleep(2) }
