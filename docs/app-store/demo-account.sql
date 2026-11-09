@@ -16,7 +16,7 @@ BEGIN
                           raw_app_meta_data, raw_user_meta_data, created_at, updated_at,
                           confirmation_token, recovery_token, email_change_token_new, email_change)
   VALUES ('00000000-0000-0000-0000-000000000000', v_user, 'authenticated', 'authenticated', v_email,
-          crypt(v_password, gen_salt('bf')), now(),
+          extensions.crypt(v_password, extensions.gen_salt('bf')), now(),
           '{"provider":"email","providers":["email"]}', '{"full_name":"Apple Review"}', now(), now(),
           '', '', '', '');
   INSERT INTO auth.identities (id, user_id, provider_id, identity_data, provider, last_sign_in_at, created_at, updated_at)
