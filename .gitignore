@@ -36,3 +36,6 @@ ruvector.db
 .claude-flow/
 .swarm/
 .playwright-mcp/
+
+# Tuist-generated package lock
+.package.resolved
