@@ -252,7 +252,7 @@ private struct DishRow: View {
     }
 
     private var thumbnail: some View {
-        AsyncImage(url: item.photoURL) { phase in
+        AsyncImage(url: Thumbnail.url(item.photoURL, points: 56)) { phase in
             if let image = phase.image {
                 image.resizable().scaledToFill()
             } else {

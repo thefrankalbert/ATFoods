@@ -161,9 +161,10 @@ public struct CameraView: View {
                         .font(.atfBody)
                         .foregroundStyle(.white.opacity(0.75))
                         .multilineTextAlignment(.center)
-                    ATFButton("Ouvrir les Réglages", kind: .primary) {
+                    ATFDarkButton("Ouvrir les Réglages") {
                         if let url = URL(string: UIApplication.openSettingsURLString) { openURL(url) }
                     }
+                    .frame(maxWidth: 260)
                 }
                 .padding(.horizontal, 32)
             } else if didSetUp {
@@ -196,7 +197,7 @@ public struct CameraView: View {
                     Button(action: { flashEnabled.toggle() }) {
                         Image(systemName: flashEnabled ? "bolt.fill" : "bolt.slash.fill")
                             .font(.system(size: 20, weight: .semibold))
-                            .foregroundColor(flashEnabled ? .yellow : .white)
+                            .foregroundColor(.white)
                             .frame(width: 44, height: 44)
                     }
                     .accessibilityLabel("Flash")
@@ -210,7 +211,7 @@ public struct CameraView: View {
                         .foregroundStyle(.white)
                         .padding(.horizontal, 14)
                         .padding(.vertical, 10)
-                        .background(Color.atfDanger, in: Capsule())
+                        .background(Color.atfDanger, in: Capsule())   // error stays red: it must stand out on the preview
                         .padding(.horizontal, 20)
                         .onTapGesture { store.error = nil }
                 } else if isCameraAvailable {

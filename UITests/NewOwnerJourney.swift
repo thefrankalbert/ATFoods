@@ -38,7 +38,7 @@ final class NewOwnerJourney: XCTestCase {
         // 3. First dish: gallery photo -> new dish -> first category
         pickGalleryPhoto()
         XCTAssertTrue(app.staticTexts["Aucun plat pour l'instant : créez-en un."].waitForExistence(timeout: 15))
-        pause(); app.buttons["+ Nouveau plat"].tap()
+        pause(); app.buttons["Créer un nouveau plat"].tap()
         XCTAssertTrue(app.staticTexts["Nouveau plat"].waitForExistence(timeout: 5))
         fillDish(name: "Attiéké poisson", price: "3000")
         app.buttons["newCategoryButton"].tap()
@@ -63,8 +63,8 @@ final class NewOwnerJourney: XCTestCase {
         let draft = app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Brouillon du'")).firstMatch
         XCTAssertTrue(draft.waitForExistence(timeout: 15)); pause()
         draft.tap()
-        XCTAssertTrue(app.buttons["+ Nouveau plat"].waitForExistence(timeout: 10)); pause()
-        app.buttons["+ Nouveau plat"].tap()
+        XCTAssertTrue(app.buttons["Créer un nouveau plat"].waitForExistence(timeout: 10)); pause()
+        app.buttons["Créer un nouveau plat"].tap()
         fillDish(name: "Alloco", price: "1500")
         XCTAssertTrue(app.buttons["Plats"].waitForExistence(timeout: 10))
         app.buttons["Plats"].tap(); pause()

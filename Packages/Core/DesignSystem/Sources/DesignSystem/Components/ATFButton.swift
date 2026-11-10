@@ -46,23 +46,23 @@ public struct ATFButton: View {
                     ATFIconView(icon, size: 18, color: foregroundColor)
                 }
                 Text(label)
-                    .font(kind == .secondary ? .atfSubhead.weight(.medium) : .atfBodyStr)
+                    .font(.atfBodyStr)
                 if let iconRight {
                     ATFIconView(iconRight, size: 18, color: foregroundColor)
                 }
             }
             .frame(maxWidth: isFullWidth ? .infinity : nil)
-            .frame(minHeight: kind == .secondary ? 48 : 56)
-            .padding(.horizontal, kind == .secondary ? 20 : 24)
-            .background(background)
-            .foregroundStyle(foregroundColor)
+            .frame(minHeight: 50)
+            .padding(.horizontal, 22)
+            .background(isDisabled ? AnyShapeStyle(Color.atfSurface2) : background)
+            .foregroundStyle(isDisabled ? Color.atfText3 : foregroundColor)
             .clipShape(Capsule())
             .overlay(
                 Capsule()
-                    .strokeBorder(borderColor, lineWidth: kind == .outline ? 1.5 : 0)
+                    .strokeBorder(borderColor, lineWidth: kind == .outline ? 1 : 0)
             )
         }
-        .opacity(isDisabled || isLoading ? 0.5 : 1)
+        .opacity(isLoading ? 0.7 : 1)
         .disabled(isDisabled || isLoading)
         .buttonStyle(ATFScaleButtonStyle())
     }
@@ -70,7 +70,7 @@ public struct ATFButton: View {
     private var background: AnyShapeStyle {
         switch kind {
         case .primary:  return AnyShapeStyle(Color.atfAccent)
-        case .danger:   return AnyShapeStyle(Color.atfDanger)
+        case .danger:   return AnyShapeStyle(Color.atfDangerBg)
         case .secondary: return AnyShapeStyle(Color.atfAccentMuted)
         case .outline, .ghost: return AnyShapeStyle(Color.clear)
         }
@@ -78,14 +78,14 @@ public struct ATFButton: View {
 
     private var foregroundColor: Color {
         switch kind {
-        case .primary, .danger: return .white
-        case .outline, .ghost:  return .atfAccent
-        case .secondary:        return .atfAccent
+        case .primary:          return .atfAccentOn
+        case .danger:           return .atfDanger
+        case .outline, .ghost, .secondary: return .atfText1
         }
     }
 
     private var borderColor: Color {
-        kind == .outline ? .atfAccent : .clear
+        kind == .outline ? .atfBorderStr : .clear
     }
 }
 
@@ -94,8 +94,9 @@ public struct ATFScaleButtonStyle: ButtonStyle {
     public init() {}
     public func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .scaleEffect(configuration.isPressed ? 0.96 : 1)
-            .animation(.easeInOut(duration: 0.18), value: configuration.isPressed)
+            .scaleEffect(configuration.isPressed ? 0.97 : 1)
+            .animation(.easeOut(duration: 0.12), value: configuration.isPressed)
+            .sensoryFeedback(.impact(weight: .light), trigger: configuration.isPressed) { _, pressed in pressed }
     }
 }
 

@@ -24,8 +24,7 @@ public struct LoginView: View {
                     RoundedRectangle(cornerRadius: 20)
                         .fill(Color.atfAccent)
                         .frame(width: 72, height: 72)
-                        .shadow(color: Color.atfAccent.opacity(0.45), radius: 16, y: 6)
-                    ATFIconView(.fork, size: 32, color: .white)
+                    ATFIconView(.fork, size: 32, color: .atfAccentOn)
                 }
 
                 Spacer().frame(height: 20)

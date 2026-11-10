@@ -72,19 +72,7 @@ public struct ProfileView: View {
     // MARK: - Top Bar
 
     private var topBar: some View {
-        HStack {
-            Button(action: onBack) {
-                Image(systemName: "chevron.left")
-                    .font(.system(size: 18, weight: .semibold))
-                    .foregroundStyle(Color.atfAccent)
-                    .frame(width: 44, height: 44)
-            }
-            .accessibilityLabel("Retour")
-            Spacer()
-        }
-        .padding(.horizontal, 8)
-        .padding(.top, 4)
-        .padding(.bottom, 8)
+        ATFHeader("Profil", onBack: onBack)
     }
 
     // MARK: - Avatar
@@ -92,17 +80,13 @@ public struct ProfileView: View {
     private var avatarSection: some View {
         VStack(spacing: 10) {
             ZStack {
-                LinearGradient(
-                    colors: [Color.atfAccent, Color.atfAccentHover],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-                .clipShape(Circle())
-                .frame(width: 80, height: 80)
+                Circle()
+                    .fill(Color.atfSurface2)
+                    .frame(width: 80, height: 80)
 
                 Text((store.user.name.isEmpty ? store.user.email : store.user.name).prefix(1).uppercased())
-                    .font(.system(size: 32, weight: .semibold))
-                    .foregroundStyle(.white)
+                    .font(.system(.largeTitle, design: .serif, weight: .medium))
+                    .foregroundStyle(Color.atfText1)
             }
             .accessibilityHidden(true)
 
@@ -124,7 +108,7 @@ public struct ProfileView: View {
     private var restaurantCard: some View {
         HStack(spacing: 14) {
             Image(systemName: "fork.knife")
-                .font(.system(size: 20))
+                .font(.title3)
                 .foregroundStyle(Color.atfText2)
             VStack(alignment: .leading, spacing: 3) {
                 Text("Restaurant actif")
@@ -138,12 +122,7 @@ public struct ProfileView: View {
             ATFBadge(store.restaurant.role.displayName, kind: .soft)
         }
         .padding(16)
-        .background(Color.atfSurface)
-        .clipShape(RoundedRectangle(cornerRadius: 14))
-        .overlay(
-            RoundedRectangle(cornerRadius: 14)
-                .strokeBorder(Color.atfBorder, lineWidth: 1)
-        )
+        .background(Color.atfField, in: RoundedRectangle(cornerRadius: 12))
         .padding(.horizontal, 16)
         .padding(.bottom, 24)
     }
@@ -186,7 +165,7 @@ public struct ProfileView: View {
     private func settingsRowInfo(icon: String, label: String, value: String) -> some View {
         HStack(spacing: 14) {
             Image(systemName: icon)
-                .font(.system(size: 16))
+                .font(.body)
                 .foregroundStyle(Color.atfText2)
                 .frame(width: 22)
             Text(label)
@@ -251,15 +230,15 @@ public struct ProfileView: View {
         Button(action: action) {
             HStack(spacing: 14) {
                 Image(systemName: icon)
-                    .font(.system(size: 16))
+                    .font(.body)
                     .foregroundStyle(tint ?? Color.atfText2)
                     .frame(width: 22)
                 Text(label)
-                    .font(.atfSubhead)
+                    .font(.body)
                     .foregroundStyle(tint ?? Color.atfText1)
                 Spacer()
                 Image(systemName: "chevron.right")
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(.footnote.weight(.semibold))
                     .foregroundStyle(Color.atfText3)
             }
             .padding(.horizontal, 16)
@@ -289,9 +268,7 @@ public struct ProfileView: View {
 private struct SettingsCard: ViewModifier {
     func body(content: Content) -> some View {
         content
-            .background(Color.atfSurface)
-            .clipShape(RoundedRectangle(cornerRadius: 14))
-            .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(Color.atfBorder, lineWidth: 1))
+            .background(Color.atfField, in: RoundedRectangle(cornerRadius: 12))
             .padding(.horizontal, 16)
     }
 }

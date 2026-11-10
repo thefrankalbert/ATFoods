@@ -6,6 +6,8 @@ import Sentry
 @main
 struct ATFoodApp: App {
     init() {
+        // Thumbnails and photos stay on disk between launches: lists scroll without re-downloading on mobile data.
+        URLCache.shared = URLCache(memoryCapacity: 50_000_000, diskCapacity: 300_000_000)
         startCrashReporting()
     }
 

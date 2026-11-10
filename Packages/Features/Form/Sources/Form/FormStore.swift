@@ -177,6 +177,19 @@ public enum DishPhotoSource {
             && caloriesError == nil
     }
 
+    /// Shown above a disabled save button: says exactly what is missing, instead of a grey button with no reason.
+    public var missingFieldsHint: String? {
+        guard !isValid, !isDishCreated else { return nil }
+        var missing: [String] = []
+        if name.trimmingCharacters(in: .whitespaces).isEmpty { missing.append("un nom") }
+        if price == nil { missing.append(priceText.trimmingCharacters(in: .whitespaces).isEmpty ? "un prix" : "un prix valide") }
+        if selectedCategoryID == nil { missing.append("une catégorie") }
+        if caloriesError != nil { missing.append("des calories valides") }
+        guard let last = missing.popLast() else { return nil }
+        let list = missing.isEmpty ? last : missing.joined(separator: ", ") + " et " + last
+        return "Ajoutez \(list) pour enregistrer."
+    }
+
     public func submit(networking: any ATFNetworking) async {
         guard isValid, let price, let categoryID = selectedCategoryID else { return }
         isLoading = true

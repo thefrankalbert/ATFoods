@@ -57,7 +57,7 @@ final class ScreenTour: XCTestCase {
         sleep(5); shot("12_photo_preview")
         app.buttons["Utiliser cette photo"].tap()
         sleep(3); shot("13_attach_dish")
-        app.buttons["+ Nouveau plat"].tap(); sleep(2); shot("14_new_dish_form")
+        app.buttons["Créer un nouveau plat"].tap(); sleep(2); shot("14_new_dish_form")
 
         // Back to home whatever the depth
         for _ in 0..<4 where !app.buttons["cameraButton"].isHittable {

@@ -86,7 +86,7 @@ final class LiveJourney: XCTestCase {
         XCTAssertTrue(draft.waitForExistence(timeout: 15)); pause()
         let usedDraft = app.buttons[draft.label]   // older drafts may remain: track this one only
         draft.tap()
-        let newDish = app.buttons["+ Nouveau plat"]
+        let newDish = app.buttons["Créer un nouveau plat"]
         XCTAssertTrue(newDish.waitForExistence(timeout: 10)); pause()
         newDish.tap()
         XCTAssertTrue(app.staticTexts["Nouveau plat"].waitForExistence(timeout: 5))
@@ -115,7 +115,7 @@ final class LiveJourney: XCTestCase {
         let row = app.staticTexts["Parcours live"]
         XCTAssertTrue(row.waitForExistence(timeout: 15), "Dish list not loaded"); pause()
         row.tap(); pause()
-        app.buttons["Attacher"].tap()
+        app.buttons["attachButton"].tap()
         XCTAssertTrue(app.staticTexts["Photo attachée !"].waitForExistence(timeout: 20), "Photo not attached")
         pause(); shot("home_photo_attached")
 

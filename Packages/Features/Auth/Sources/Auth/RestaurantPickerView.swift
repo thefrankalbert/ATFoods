@@ -1,6 +1,7 @@
 import SwiftUI
 import DesignSystem
 import Models
+import Networking
 
 public struct RestaurantPickerView: View {
     @Bindable var store: AuthStore
@@ -29,8 +30,9 @@ public struct RestaurantPickerView: View {
                 if let onCancel {
                     Button(action: onCancel) {
                         Label("Annuler", systemImage: "chevron.left")
-                            .font(.atfSubhead)
-                            .foregroundStyle(Color.atfAccent)
+                            .font(.body)
+                            .foregroundStyle(Color.atfText1)
+                            .frame(minHeight: 44)
                     }
                     .padding(.bottom, 8)
                 }
@@ -40,12 +42,13 @@ public struct RestaurantPickerView: View {
                         .foregroundStyle(Color.atfText2)
                 }
                 Text("Quel établissement ?")
-                    .font(.atfTitle)
+                    .font(.system(.largeTitle, design: .serif, weight: .medium))
                     .foregroundStyle(Color.atfText1)
                 Button("Changer de compte") { confirmSignOut = true }
-                    .font(.atfCaption)
-                    .foregroundStyle(Color.atfAccent)
-                    .padding(.top, 4)
+                    .font(.subheadline.weight(.medium))
+                    .foregroundStyle(Color.atfText1)
+                    .underline()
+                    .frame(minHeight: 44)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, 24)
@@ -128,8 +131,8 @@ private struct RestaurantRow: View {
         HStack(spacing: 14) {
             // Thumbnail
             ATFAsyncImage(
-                url: restaurant.photoURL,
-                fallback: Color.atfAccent.opacity(0.18),
+                url: Thumbnail.url(restaurant.photoURL, points: 48),
+                fallback: Color.atfSurface2,
                 radius: 10,
                 height: 48,
                 width: 48,
@@ -157,25 +160,22 @@ private struct RestaurantRow: View {
             // Selected checkmark
             if isSelected {
                 Image(systemName: "checkmark.circle.fill")
-                    .font(.system(size: 22, weight: .semibold))
+                    .font(.title2)
                     .foregroundStyle(Color.atfAccent)
                     .transition(.scale.combined(with: .opacity))
             } else {
                 Image(systemName: "circle")
-                    .font(.system(size: 22))
-                    .foregroundStyle(Color.atfText3)
+                    .font(.title2)
+                    .foregroundStyle(Color.atfBorderStr)
             }
         }
         .padding(14)
-        .background(Color.atfBg)
-        .clipShape(RoundedRectangle(cornerRadius: 14))
+        .background(Color.atfField, in: RoundedRectangle(cornerRadius: 12))
         .overlay(
-            RoundedRectangle(cornerRadius: 14)
-                .strokeBorder(
-                    isSelected ? Color.atfAccent : Color.atfBorder,
-                    lineWidth: isSelected ? 2 : 1
-                )
+            RoundedRectangle(cornerRadius: 12)
+                .strokeBorder(isSelected ? Color.atfAccent : Color.clear, lineWidth: 1.5)
         )
+        .sensoryFeedback(.selection, trigger: isSelected)
         .animation(.easeInOut(duration: 0.18), value: isSelected)
     }
 }

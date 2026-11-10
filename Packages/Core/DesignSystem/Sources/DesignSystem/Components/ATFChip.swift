@@ -32,14 +32,13 @@ public struct ATFChip: View {
             HStack(spacing: 6) {
                 if let icon {
                     ATFIconView(icon, size: 14,
-                                color: isSelected ? .white :
-                                       kind == .add ? .atfAccent : .atfText1)
+                                color: isSelected ? .atfAccentOn : .atfText1)
                 }
                 Text(label)
-                    .font(isTap ? .system(size: 12, weight: .medium) : .system(size: 14, weight: .medium))
+                    .font(.subheadline)
             }
-            .padding(.horizontal, isTap ? 10 : 14)
-            .frame(height: isTap ? 28 : 36)
+            .padding(.horizontal, isTap ? 12 : 14)
+            .frame(height: isTap ? 32 : 36)
             .background(chipBackground)
             .foregroundStyle(chipForeground)
             .clipShape(Capsule())
@@ -49,25 +48,22 @@ public struct ATFChip: View {
             )
         }
         .buttonStyle(ATFScaleButtonStyle())
+        .frame(minHeight: 44)   // hit area even when the chip is drawn smaller
         .fixedSize()
     }
 
     private var chipBackground: Color {
         if isSelected { return .atfAccent }
         if kind == .add { return .clear }
-        return .atfSurface
+        return .atfSurface2
     }
 
     private var chipForeground: Color {
-        if isSelected { return .white }
-        if kind == .add { return .atfAccent }
-        return .atfText1
+        isSelected ? .atfAccentOn : .atfText1
     }
 
     private var chipBorder: Color {
-        if isSelected { return .atfAccent }
-        if kind == .add { return Color.atfAccent.opacity(0.6) }
-        return .atfBorder
+        kind == .add && !isSelected ? .atfBorderStr : .clear
     }
 }
 

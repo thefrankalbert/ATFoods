@@ -27,6 +27,7 @@ public extension Color {
     // Surfaces (light only: Info.plist pins the light appearance)
     static let atfBg          = Color(hex: "FAF9F5")   // Ivory
     static let atfSurface     = Color(hex: "F5F4ED")
+    static let atfField       = Color.white            // text fields and grouped rows on Ivory
     static let atfSurface2    = Color(hex: "F0EEE6")
     static let atfBorder      = Color(hex: "1F1E1D").opacity(0.15)
     static let atfBorderStr   = Color(hex: "1F1E1D").opacity(0.30)

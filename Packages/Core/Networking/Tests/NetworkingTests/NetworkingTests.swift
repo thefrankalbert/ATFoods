@@ -33,6 +33,16 @@ private let newPath = "tenant/dish-2.jpg"
     #expect(SupabaseNetworking.gallery(["a", "b", "b"], replacing: "a", with: "n") == ["n", "b"])
 }
 
+@Test func thumbnailsUseTheResizeEndpointOnlyForOurStorage() {
+    let ours = URL(string: base + "tenant/mon%20plat.jpg")!
+    let thumb = Thumbnail.url(ours, points: 56)!.absoluteString
+    #expect(thumb.hasPrefix("https://x.supabase.co/storage/v1/render/image/public/menu-items/tenant/mon%20plat.jpg?"))
+    #expect(thumb.contains("width=168") && thumb.contains("height=168") && thumb.contains("resize=cover"))
+    let external = URL(string: "https://images.unsplash.com/p.jpg?w=400")!
+    #expect(Thumbnail.url(external, points: 56) == external)
+    #expect(Thumbnail.url(nil, points: 56) == nil)
+}
+
 @Test func errorsAreShownInFrench() {
     #expect(UserMessage.from(URLError(.notConnectedToInternet)).hasPrefix("Pas de connexion internet"))
     #expect(UserMessage.from(SupabaseNetworkingError.notAllowed).hasPrefix("Modification refusée"))

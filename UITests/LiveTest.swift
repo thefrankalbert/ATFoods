@@ -38,7 +38,7 @@ final class LiveTest: XCTestCase {
         XCTAssertTrue(draft.waitForExistence(timeout: 15), "Seeded draft not listed")
         shot("live02_drafts")
         draft.tap()
-        let newDish = app.buttons["+ Nouveau plat"]
+        let newDish = app.buttons["Créer un nouveau plat"]
         XCTAssertTrue(newDish.waitForExistence(timeout: 10))
         newDish.tap()
         XCTAssertTrue(app.staticTexts["Nouveau plat"].waitForExistence(timeout: 5))
@@ -62,6 +62,33 @@ final class LiveTest: XCTestCase {
     }
 
     /// Run alone, with a THROWAWAY non-owner account as ATF_LIVE_EMAIL: it really deletes that account.
+    /// Home availability switch against the real database: off, reload from the server, on again (data left as found).
+    func testLive04_homeAvailabilitySwitch() throws {
+        let toggle = app.switches["Poulet DG disponible"]
+        XCTAssertTrue(toggle.waitForExistence(timeout: 15), "Demo dish not loaded from Supabase")
+        XCTAssertEqual(toggle.value as? String, "1", "Demo dish should start available")
+
+        toggle.tap()
+        sleep(2)   // write reaches Supabase
+        reloadHome()
+        XCTAssertEqual(app.switches["Poulet DG disponible"].value as? String, "0", "Sold-out state not stored: \(errorText())")
+        shot("live04_sold_out_after_reload")
+
+        app.switches["Poulet DG disponible"].tap()
+        sleep(2)
+        reloadHome()
+        XCTAssertEqual(app.switches["Poulet DG disponible"].value as? String, "1", "Available state not stored: \(errorText())")
+    }
+
+    /// Leave Home and come back: HomeView reloads the menu from the server on appear.
+    private func reloadHome() {
+        app.buttons["profileButton"].tap()
+        XCTAssertTrue(app.buttons["Retour"].waitForExistence(timeout: 5))
+        app.buttons["Retour"].tap()
+        XCTAssertTrue(app.switches["Poulet DG disponible"].waitForExistence(timeout: 15))
+        sleep(2)   // fetch finished
+    }
+
     func testLive03_deleteThrowawayAccount() throws {
         guard ProcessInfo.processInfo.environment["ATF_LIVE_ALLOW_DELETE"] == "1" else {
             throw XCTSkip("Set ATF_LIVE_ALLOW_DELETE=1 with a throwaway account")

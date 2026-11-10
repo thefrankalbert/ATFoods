@@ -29,6 +29,7 @@ private final class FlakyNetworking: ATFNetworking, @unchecked Sendable {
         lock.withLock { _created += 1 }
         return item
     }
+    func setAvailability(dishID: UUID, isAvailable: Bool, restaurantID: UUID) async throws {}
     func updateMenuItem(_ item: MenuItem, restaurantID: UUID) async throws -> MenuItem {
         lock.withLock { _updated = item }
         return item
@@ -108,4 +109,15 @@ private func photo() -> UIImage {
                         MenuCategory(name: "Desserts", menuID: soir.id)]
     #expect(store.label(for: store.categories[0]) == "Entrées · Midi")
     #expect(store.label(for: store.categories[2]) == "Desserts")
+}
+
+@MainActor @Test func disabledSaveSaysWhatIsMissing() {
+    let store = FormStore(restaurant: Restaurant.mocks[0])
+    #expect(store.missingFieldsHint == "Ajoutez un nom, un prix et une catégorie pour enregistrer.")
+    store.name = "Ndolé"
+    store.priceText = "12,5"   // XAF has no cents
+    #expect(store.missingFieldsHint == "Ajoutez un prix valide et une catégorie pour enregistrer.")
+    store.priceText = "3800"
+    store.selectedCategoryID = UUID()
+    #expect(store.missingFieldsHint == nil)
 }

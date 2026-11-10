@@ -22,7 +22,7 @@ public struct DraftsView: View {
 
     @State private var confirmDelete = false
 
-    private let columns = Array(repeating: GridItem(.flexible(), spacing: 4), count: 3)
+    private let columns = Array(repeating: GridItem(.flexible(), spacing: 8), count: 3)
 
     public var body: some View {
         VStack(spacing: 0) {
@@ -79,19 +79,7 @@ public struct DraftsView: View {
     // MARK: - Top Bar
 
     private var topBar: some View {
-        HStack {
-            Button(action: onBack) {
-                Image(systemName: "chevron.left")
-                    .font(.system(size: 18, weight: .semibold))
-                    .foregroundStyle(Color.atfAccent)
-                    .frame(width: 44, height: 44)
-            }
-            .accessibilityLabel("Retour")
-            Spacer()
-            Text("Brouillons")
-                .font(.atfHeadline)
-                .foregroundStyle(Color.atfText1)
-            Spacer()
+        ATFHeader("Brouillons", onBack: onBack) {
             Button {
                 withAnimation(.easeInOut(duration: 0.2)) {
                     store.isMultiSelect.toggle()
@@ -99,21 +87,19 @@ public struct DraftsView: View {
                 }
             } label: {
                 Text(store.isMultiSelect ? "Annuler" : "Sélectionner")
-                    .font(.atfCaption)
-                    .foregroundStyle(Color.atfAccent)
+                    .font(.body.weight(.medium))
+                    .foregroundStyle(Color.atfText1)
+                    .frame(minHeight: 44)
+                    .padding(.horizontal, 8)
             }
         }
-        .padding(.horizontal, 16)
-        .padding(.top, 12)
-        .padding(.bottom, 14)
-        .background(Color.atfBg)
     }
 
     // MARK: - Grid
 
     private var draftGrid: some View {
         ScrollView {
-            LazyVGrid(columns: columns, spacing: 4) {
+            LazyVGrid(columns: columns, spacing: 8) {
                 ForEach(store.drafts) { draft in
                     DraftCard(
                         draft: draft,
@@ -130,20 +116,22 @@ public struct DraftsView: View {
                     )
                 }
             }
-            .padding(4)
+            .padding(.horizontal, 16)
+            .padding(.top, 8)
             .padding(.bottom, 16)
         }
     }
 
     private var skeletonGrid: some View {
         ScrollView {
-            LazyVGrid(columns: columns, spacing: 4) {
+            LazyVGrid(columns: columns, spacing: 8) {
                 ForEach(0..<9, id: \.self) { _ in
                     ATFSkeleton(height: 104, radius: 8)
                         .frame(maxWidth: .infinity)
                 }
             }
-            .padding(4)
+            .padding(.horizontal, 16)
+            .padding(.top, 8)
         }
     }
 
@@ -201,7 +189,7 @@ private struct DraftCard: View {
                 .frame(height: 104)
                 .overlay {
                     ATFAsyncImage(
-                        url: draft.photoURL,
+                        url: Thumbnail.url(draft.photoURL, points: 120),
                         fallback: Color.atfSurface2,
                         radius: 0,
                         height: 104,
@@ -213,16 +201,16 @@ private struct DraftCard: View {
 
             if isMultiSelect {
                 Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
-                    .font(.system(size: 22, weight: .semibold))
-                    .foregroundStyle(isSelected ? Color.atfAccent : Color.white)
-                    .shadow(color: .black.opacity(0.3), radius: 2)
+                    .font(.title3.weight(.semibold))
+                    .symbolRenderingMode(.palette)
+                    .foregroundStyle(isSelected ? Color.atfAccentOn : Color.white, isSelected ? Color.atfAccent : Color.black.opacity(0.35))
                     .padding(6)
             }
         }
         .clipShape(RoundedRectangle(cornerRadius: 8))
         .overlay(
             RoundedRectangle(cornerRadius: 8)
-                .strokeBorder(isSelected ? Color.atfAccent : Color.clear, lineWidth: 2)
+                .strokeBorder(isSelected ? Color.atfAccent : Color.clear, lineWidth: 3)
         )
         .contentShape(Rectangle())
         .onTapGesture(perform: onTap)

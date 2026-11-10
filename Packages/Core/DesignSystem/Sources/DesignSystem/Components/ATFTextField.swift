@@ -40,7 +40,7 @@ public struct ATFTextField: View {
         VStack(alignment: .leading, spacing: 6) {
             if let label {
                 Text(label)
-                    .font(.atfCaption)
+                    .font(.footnote)
                     .foregroundStyle(Color.atfText2)
                     .padding(.leading, 4)
             }
@@ -65,18 +65,18 @@ public struct ATFTextField: View {
                             .focused($isFocused)
                     }
                 }
-                .frame(minHeight: isMultiline ? nil : 52)
+                .frame(minHeight: isMultiline ? nil : 50)
                 // VoiceOver reads the field's name ("Prix"), not its example ("3 800").
                 .accessibilityLabel(label ?? placeholder)
                 .font(.atfBody)
                 .foregroundStyle(Color.atfText1)
-                .background(Color.atfSurface)
+                .background(Color.atfField)
                 .clipShape(RoundedRectangle(cornerRadius: ATFRadius.input))
                 .overlay(
                     RoundedRectangle(cornerRadius: ATFRadius.input)
                         .strokeBorder(
                             error != nil ? Color.atfDanger :
-                            isFocused ? Color.atfAccent :
+                            isFocused ? Color.atfBorderStr :
                             Color.atfBorder,
                             lineWidth: 1
                         )
@@ -84,8 +84,8 @@ public struct ATFTextField: View {
 
                 if let suffix {
                     Text(suffix)
-                        .font(.system(size: 14, weight: .medium, design: .monospaced))
-                        .foregroundStyle(Color.atfText3)
+                        .font(.subheadline)
+                        .foregroundStyle(Color.atfText2)
                         .padding(.trailing, 14)
                 } else if let rightIcon {
                     ATFIconView(rightIcon, size: 18, color: .atfText3)
@@ -97,13 +97,13 @@ public struct ATFTextField: View {
                 HStack(spacing: 4) {
                     ATFIconView(.alert, size: 12, color: .atfDanger)
                     Text(error)
-                        .font(.system(size: 12))
+                        .font(.footnote)
                         .foregroundStyle(Color.atfDanger)
                 }
                 .padding(.leading, 4)
             } else if let hint {
                 Text(hint)
-                    .font(.system(size: 12))
+                    .font(.footnote)
                     .foregroundStyle(Color.atfText3)
                     .padding(.leading, 4)
             }
