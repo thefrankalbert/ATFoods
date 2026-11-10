@@ -268,17 +268,17 @@ struct RootView: View {
                             throw AppError("Photo illisible. Reprenez la photo.")
                         }
                         _ = try await networking.saveDraft(imageData: data, restaurantID: store.restaurant.id)
-                        showToast("Brouillon enregistré. Photo suivante !")
+                        showToast("Brouillon enregistré. Photo suivante.")
                         store.reset()
                         nav.formStore = nil
                         popTo(.camera)
                     },
                     onAttached: {
                         if store.targetDish != nil {
-                            showToast("Photo remplacée !")
+                            showToast("Photo remplacée")
                             popTo(.dishEdit)
                         } else {
-                            showToast("Photo attachée !")
+                            showToast("Photo attachée")
                             popTo(.home)
                         }
                     },
@@ -305,7 +305,7 @@ struct RootView: View {
                         _ = try await networking.attachDraft(draft, toDishID: item.id, restaurantID: restaurant.id)
                     },
                     onAttached: {
-                        showToast("Photo attachée !")
+                        showToast("Photo attachée")
                         popTo(.drafts)
                     },
                     onBack: { path.removeLast() }
@@ -319,7 +319,7 @@ struct RootView: View {
                     store: store,
                     networking: networking,
                     onSaved: {
-                        showToast("Plat enregistré !")
+                        showToast("Plat enregistré")
                         nav.formStore = nil
                         if case .draft = store.photo { popTo(.drafts) } else { popTo(.home) }
                     },
@@ -334,7 +334,7 @@ struct RootView: View {
                     store: store,
                     networking: networking,
                     onSaved: {
-                        showToast("Plat mis à jour !")
+                        showToast("Plat mis à jour")
                         nav.dishEditStore = nil
                         popTo(.home)
                     },

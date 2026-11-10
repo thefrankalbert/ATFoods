@@ -116,7 +116,7 @@ final class LiveJourney: XCTestCase {
         XCTAssertTrue(row.waitForExistence(timeout: 15), "Dish list not loaded"); pause()
         row.tap(); pause()
         app.buttons["attachButton"].tap()
-        XCTAssertTrue(app.staticTexts["Photo attachée !"].waitForExistence(timeout: 20), "Photo not attached")
+        XCTAssertTrue(app.staticTexts["Photo attachée"].waitForExistence(timeout: 20), "Photo not attached")
         pause(); shot("home_photo_attached")
 
         // 8. Profile: deletion dialog (cancelled), then sign out
