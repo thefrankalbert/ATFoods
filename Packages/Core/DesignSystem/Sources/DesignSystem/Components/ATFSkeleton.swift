@@ -36,6 +36,8 @@ public struct ATFSkeleton: View {
     }
 }
 
+// Previews use DEBUG-only demo data (MockNetworking, .mocks): never compiled into Release.
+#if DEBUG
 #Preview("ATFSkeleton") {
     VStack(alignment: .leading, spacing: 12) {
         ATFSkeleton(width: 148, height: 170, radius: 12)
@@ -44,3 +46,4 @@ public struct ATFSkeleton: View {
     }
     .padding()
 }
+#endif

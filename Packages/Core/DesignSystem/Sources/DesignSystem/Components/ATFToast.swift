@@ -41,6 +41,8 @@ public struct ATFToastOverlay: View {
     }
 }
 
+// Previews use DEBUG-only demo data (MockNetworking, .mocks): never compiled into Release.
+#if DEBUG
 #Preview("ATFToast") {
     ZStack(alignment: .top) {
         Color.gray.opacity(0.1).ignoresSafeArea()
@@ -48,3 +50,4 @@ public struct ATFToastOverlay: View {
             .padding(.top, 64)
     }
 }
+#endif

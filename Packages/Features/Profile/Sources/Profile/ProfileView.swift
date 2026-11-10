@@ -273,6 +273,8 @@ private struct SettingsCard: ViewModifier {
     }
 }
 
+// Previews use DEBUG-only demo data (MockNetworking, .mocks): never compiled into Release.
+#if DEBUG
 // MARK: - Preview
 
 #Preview("ProfileView") {
@@ -280,3 +282,4 @@ private struct SettingsCard: ViewModifier {
     return ProfileView(store: store, networking: MockNetworking(),
                        onSignOut: {}, onBack: {})
 }
+#endif

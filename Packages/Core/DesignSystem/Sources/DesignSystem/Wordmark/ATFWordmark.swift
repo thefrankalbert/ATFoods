@@ -33,6 +33,8 @@ public struct ATFWordmark: View {
     }
 }
 
+// Previews use DEBUG-only demo data (MockNetworking, .mocks): never compiled into Release.
+#if DEBUG
 #Preview("ATFWordmark") {
     VStack(spacing: 24) {
         ATFWordmark(size: 32)
@@ -44,3 +46,4 @@ public struct ATFWordmark: View {
     }
     .padding()
 }
+#endif

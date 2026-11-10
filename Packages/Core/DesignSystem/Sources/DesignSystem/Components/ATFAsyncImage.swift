@@ -68,6 +68,8 @@ public struct ATFAsyncImage: View {
     }
 }
 
+// Previews use DEBUG-only demo data (MockNetworking, .mocks): never compiled into Release.
+#if DEBUG
 #Preview("ATFAsyncImage") {
     VStack(spacing: 12) {
         ATFAsyncImage(url: nil, fallback: Color(hex: "C9551E"), radius: 14, height: 160)
@@ -80,3 +82,4 @@ public struct ATFAsyncImage: View {
     }
     .padding()
 }
+#endif

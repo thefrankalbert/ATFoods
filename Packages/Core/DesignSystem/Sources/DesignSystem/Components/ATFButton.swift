@@ -100,6 +100,8 @@ public struct ATFScaleButtonStyle: ButtonStyle {
     }
 }
 
+// Previews use DEBUG-only demo data (MockNetworking, .mocks): never compiled into Release.
+#if DEBUG
 #Preview("ATFButton variants") {
     VStack(spacing: 12) {
         ATFButton("Se connecter", kind: .primary, fullWidth: true) {}
@@ -112,3 +114,4 @@ public struct ATFScaleButtonStyle: ButtonStyle {
     }
     .padding()
 }
+#endif

@@ -178,6 +178,8 @@ public struct PhotoPreviewView: View {
     }
 }
 
+// Previews use DEBUG-only demo data (MockNetworking, .mocks): never compiled into Release.
+#if DEBUG
 // MARK: - Preview
 
 #Preview("PhotoPreviewView") {
@@ -187,3 +189,4 @@ public struct PhotoPreviewView: View {
         onUse: {}
     )
 }
+#endif

@@ -101,6 +101,9 @@ public struct NewCategorySheet: View {
     }
 }
 
+// Previews use DEBUG-only demo data (MockNetworking, .mocks): never compiled into Release.
+#if DEBUG
 #Preview("NewCategorySheet") {
     NewCategorySheet(store: FormStore(restaurant: Restaurant.mocks[0]), networking: MockNetworking(), onDone: {})
 }
+#endif

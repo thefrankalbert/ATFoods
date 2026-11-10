@@ -280,6 +280,8 @@ private struct DishRow: View {
     }
 }
 
+// Previews use DEBUG-only demo data (MockNetworking, .mocks): never compiled into Release.
+#if DEBUG
 // MARK: - Preview
 
 #Preview("AttachDishView") {
@@ -293,3 +295,4 @@ private struct DishRow: View {
         onBack: {}
     )
 }
+#endif

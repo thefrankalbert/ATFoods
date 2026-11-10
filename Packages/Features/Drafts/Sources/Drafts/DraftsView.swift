@@ -223,6 +223,8 @@ private struct DraftCard: View {
     }
 }
 
+// Previews use DEBUG-only demo data (MockNetworking, .mocks): never compiled into Release.
+#if DEBUG
 // MARK: - Preview
 
 #Preview("DraftsView") {
@@ -230,3 +232,4 @@ private struct DraftCard: View {
     store.drafts = Draft.mocks
     return DraftsView(store: store, networking: MockNetworking(), onSelect: { _ in }, onBack: {})
 }
+#endif

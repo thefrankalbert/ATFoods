@@ -281,6 +281,8 @@ private extension View {
     }
 }
 
+// Previews use DEBUG-only demo data (MockNetworking, .mocks): never compiled into Release.
+#if DEBUG
 // MARK: - Preview
 
 #Preview("HomeView") {
@@ -290,3 +292,4 @@ private extension View {
         HomeView(store: store, networking: MockNetworking(), onCamera: {}, onDrafts: {}, onProfile: {}, onDish: { _ in })
     }
 }
+#endif

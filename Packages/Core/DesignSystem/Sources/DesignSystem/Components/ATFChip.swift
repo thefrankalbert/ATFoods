@@ -67,6 +67,8 @@ public struct ATFChip: View {
     }
 }
 
+// Previews use DEBUG-only demo data (MockNetworking, .mocks): never compiled into Release.
+#if DEBUG
 #Preview("ATFChip") {
     @Previewable @State var sel = "plat"
     let cats = ["Entrée", "Plat", "Grillades", "Spécialité"]
@@ -82,3 +84,4 @@ public struct ATFChip: View {
         .padding()
     }
 }
+#endif

@@ -222,8 +222,11 @@ public struct OnboardingView: View {
     }
 }
 
+// Previews use DEBUG-only demo data (MockNetworking, .mocks): never compiled into Release.
+#if DEBUG
 // MARK: - Preview
 
 #Preview("OnboardingView") {
     OnboardingView {}
 }
+#endif

@@ -14,8 +14,8 @@
 //   ATFWordmark → "Atfood." logotype
 //
 // Components:
-//   ATFButton, ATFTextField, ATFToggle, ATFChip, ATFBadge
-//   ATFToast / ATFToastOverlay, ATFFoodCard, ATFSkeleton
+//   ATFButton, ATFTextField, ATFChip, ATFBadge
+//   ATFToast / ATFToastOverlay, ATFSkeleton
 //   ATFAsyncImage
 //
 // Fonts: system only (SF Pro, New York), nothing to register.

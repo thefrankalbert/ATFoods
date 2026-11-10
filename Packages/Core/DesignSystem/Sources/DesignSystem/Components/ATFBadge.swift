@@ -48,6 +48,8 @@ public struct ATFBadge: View {
     }
 }
 
+// Previews use DEBUG-only demo data (MockNetworking, .mocks): never compiled into Release.
+#if DEBUG
 #Preview("ATFBadge") {
     HStack(spacing: 8) {
         ATFBadge("Pro", kind: .pro, icon: .star)
@@ -58,3 +60,4 @@ public struct ATFBadge: View {
     }
     .padding()
 }
+#endif
