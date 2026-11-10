@@ -208,7 +208,7 @@ public struct ProfileView: View {
     }
 
     private func reportBug() {
-        sendMail(subject: "Bug Atfood", body: "\n\n—\nAtfood \(appVersion) · \(store.restaurant.name)")
+        sendMail(subject: "Bug Atfood", body: "\n\n\nAtfood \(appVersion) · \(store.restaurant.name)")
     }
 
     private var deletionAlertShown: Binding<Bool> {

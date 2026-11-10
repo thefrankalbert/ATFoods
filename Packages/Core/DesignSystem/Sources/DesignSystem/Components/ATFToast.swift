@@ -13,7 +13,7 @@ public struct ATFToastData: Equatable, Sendable {
     }
 }
 
-/// Overlay global — placer dans le ZStack racine.
+/// Overlay global: placer dans le ZStack racine.
 public struct ATFToastOverlay: View {
     let toast: ATFToastData?
 

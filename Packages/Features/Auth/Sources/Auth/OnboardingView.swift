@@ -13,13 +13,15 @@ private struct OnboardingSlide {
     let body: String
 }
 
+// Photos: Unsplash License (free commercial use, no attribution required), cropped to 1320x2868.
+// 1: Keesha's Kitchen (unsplash.com/photos/b4Ht8TQ1JGo) · 2: VK bro (al9eh9QkdPA) · 3: Victoria Shes (UC0HZdUitWY)
 private let slides: [OnboardingSlide] = [
     OnboardingSlide(id: 0,
         imageName: "onboarding-1",
         tag: "Pour les restaurateurs",
         title: "Publiez vos plats",
         titleItalic: "en 2 gestes.",
-        body: "Photo, nom, prix — votre carte en ligne en moins d'une minute."),
+        body: "Une photo, un nom, un prix : votre carte en ligne en moins d'une minute."),
     OnboardingSlide(id: 1,
         imageName: "onboarding-2",
         tag: "Photo guidée",
@@ -148,16 +150,16 @@ public struct OnboardingView: View {
                 .foregroundStyle(.white)
                 .padding(.horizontal, 12)
                 .padding(.vertical, 5)
-                .background(Color.atfAccent)
+                .background(.white.opacity(0.2))
                 .clipShape(Capsule())
 
-            // Title with italic accent
+            // Title with italic accent (system serif: New York)
             Group {
                 Text(slides[currentIndex].title + " ")
-                    .font(.custom("InstrumentSerif-Regular", size: 42))
+                    .font(.system(size: 38, weight: .medium, design: .serif))
                 + Text(slides[currentIndex].titleItalic)
-                    .font(.custom("InstrumentSerif-Italic", size: 42))
-                    .foregroundColor(Color.atfAccent)
+                    .font(.system(size: 38, weight: .medium, design: .serif).italic())
+                    .foregroundColor(Color.white.opacity(0.75))
             }
             .foregroundStyle(.white)
 
@@ -200,10 +202,10 @@ public struct OnboardingView: View {
                 Image(systemName: "arrow.right.circle.fill")
                     .font(.system(size: 20))
             }
-            .foregroundStyle(.white)
+            .foregroundStyle(Color.atfText1)
             .padding(.horizontal, 24)
             .padding(.vertical, 14)
-            .background(Color.atfAccent)
+            .background(Color.atfBg)   // Ivory on the dark photo: Slate would disappear
             .clipShape(Capsule())
         }
         .buttonStyle(ScaleButtonStyle())

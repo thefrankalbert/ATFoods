@@ -11,10 +11,6 @@ let package = Package(
         .target(
             name: "DesignSystem",
             path: "Sources/DesignSystem",
-            exclude: [],
-            resources: [
-                .process("Resources"),
-            ],
             swiftSettings: [
                 .swiftLanguageMode(.v6),
             ]

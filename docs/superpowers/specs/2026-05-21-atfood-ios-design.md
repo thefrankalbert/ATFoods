@@ -1,18 +1,18 @@
-# At Food iOS — Spec d'implémentation v1
+# At Food iOS: Spec d'implémentation v1
 
 **Date :** 2026-05-21  
-**Prototype source :** `At Food — Prototype v1 (Print).pdf` · 16 écrans · iPhone 15 Pro  
+**Prototype source :** `At Food: Prototype v1 (Print).pdf` · 16 écrans · iPhone 15 Pro  
 **Stack validée :** Swift 6 · SwiftUI · iOS 17+ · @Observable · SPM + Tuist · Supabase
 
 ---
 
-## 1. Règle UX/UI — Non-négociable
+## 1. Règle UX/UI: Non-négociable
 
 > **Fidélité pixel-perfect au prototype.** Chaque composant est validé en SwiftUI Preview sur iPhone 15 Pro (393pt) avant d'être utilisé dans un écran. Aucun écran ne passe en "done" sans comparaison côte-à-côte avec la capture du prototype.
 
 - Typographie : `Instrument Serif` (display) via bundle + `Inter` (text) via system font stack
-- Accent orange : `#F97316` strict — jamais approximé
-- Dark mode : `@Environment(\.colorScheme)` sur chaque token — jamais de couleur hardcodée
+- Accent orange : `#F97316` strict: jamais approximé
+- Dark mode : `@Environment(\.colorScheme)` sur chaque token: jamais de couleur hardcodée
 - Animations : durées issues du prototype (sheetUp 0.28s, fadeUp 0.45s, spin 0.8s, flash 0.25s)
 - Safe area : respectée via `.safeAreaInset` et `.ignoresSafeArea` ciblés, jamais globaux
 
@@ -20,7 +20,7 @@
 
 ## 2. Design Tokens
 
-Extraits de `tokens.css` — mappés vers Swift enums/structs dans `DesignSystem`.
+Extraits de `tokens.css`: mappés vers Swift enums/structs dans `DesignSystem`.
 
 ### Couleurs
 
@@ -95,18 +95,18 @@ Mappage JSX → SwiftUI. Chaque composant a sa Preview standalone.
 | `Btn` (primary/outline/ghost/secondary/danger) | `ATFButton` | `kind: ATFButtonKind` enum, `loading: Bool`, `full: Bool` |
 | `Field` | `ATFTextField` | `multiline: Bool`, `suffix: String?`, `error: String?` |
 | `Chip` | `ATFChip` | `selected: Bool`, `kind: .default/.add`, `tap: Bool` |
-| `Toggle` | `ATFToggle` | `orange: Bool` — iOS switch style custom |
+| `Toggle` | `ATFToggle` | `orange: Bool`: iOS switch style custom |
 | `Badge` | `ATFBadge` | `.pro/.pending/.attached/.danger/.soft` |
 | `Card` / `Card elev` | `ATFCard` | `elevated: Bool` |
 | `Sheet` | `ATFSheet` | `detent: .small/.medium/.large` via `.sheet` SwiftUI |
 | `Toast` | `ATFToast` | Overlay global via `ZStack` dans `RootView` |
-| `Icon` | `ATFIcon` | SF Symbols mapping — pas d'asset custom |
+| `Icon` | `ATFIcon` | SF Symbols mapping: pas d'asset custom |
 | `Wordmark` | `ATFWordmark` | `Instrument Serif` + dot orange |
 | `Img` | `ATFAsyncImage` | `AsyncImage` + fallback color + overlay vignette |
 | `FoodVignette` | `ATFFoodCard` | Wrapper `ATFAsyncImage` avec tone-to-URL |
 | `Skeleton` | `ATFSkeleton` | `shimmer` animation via `.overlay` |
 
-### ATFIcon — SF Symbols mapping
+### ATFIcon: SF Symbols mapping
 
 ```swift
 enum ATFIcon: String {
@@ -209,7 +209,7 @@ enum UpgradeSource { case retouch, profile }
 
 Navigation stack racine + `.sheet` pour modaux (S09 Nouvelle catégorie, S15 Upgrade).
 
-### State management — @Observable par feature
+### State management: @Observable par feature
 
 ```swift
 // Auth
@@ -301,7 +301,7 @@ enum MenuCategory: String, CaseIterable {
 
 ## 6. Inventaire des 16 écrans
 
-### Section 01 — Premier lancement
+### Section 01: Premier lancement
 
 **S01 · Onboarding** (`OnboardingView`)
 - Fond plein écran food photo (3 slides) + Ken Burns scale 1.0→1.08 sur 8s
@@ -327,7 +327,7 @@ enum MenuCategory: String, CaseIterable {
 - Bouton dashed "+ Ajouter un autre établissement"
 - CTA sticky bas : "Continuer avec {restoName}" + chevron
 
-### Section 02 — Cœur du produit
+### Section 02: Cœur du produit
 
 **S04 · Home / Dashboard** (`HomeView`)
 - Header : photo resto 38×38 + nom + ville + avatar user button
@@ -374,7 +374,7 @@ enum MenuCategory: String, CaseIterable {
 - Affichage : card 2 toggles (Disponible + Mis en avant orange)
 - CTA sticky bas : "Publier le plat" (disabled si form invalide)
 
-### Section 03 — Création annexe
+### Section 03: Création annexe
 
 **S09 · Nouvelle catégorie** (`NewCategorySheet`)
 - `.sheet` medium sur `DishFormView` (fond faded 35% opacity derrière)
@@ -393,7 +393,7 @@ enum MenuCategory: String, CaseIterable {
 - Multi-select : dim non-sélectionnés + circle checkbox top-left + outline accent
 - Action bar sticky bas (si sélection > 0) : "{n} sélectionné(s) · Rattacher · Supprimer"
 
-### Section 04 — Module IA (V2)
+### Section 04: Module IA (V2)
 
 **S11 · Retouche IA** (`AIRetouchView`)
 - Header : "Fermer" + "Retouche" + credits pill
@@ -417,7 +417,7 @@ enum MenuCategory: String, CaseIterable {
 - Bouton outline "+ Acheter des crédits"
 - Historique : list rows avec icon circle (plus success / sparkles accent) + montant mono
 
-### Section 05 — Compte & monétisation
+### Section 05: Compte & monétisation
 
 **S14 · Profil** (`ProfileView`)
 - Header display-sm "Profil." + settings button
@@ -434,7 +434,7 @@ enum MenuCategory: String, CaseIterable {
 - Price card fond sombre : "79 000 FCFA / mois" mono 22pt + Pro badge
 - "Découvrir Pro" primary + "Plus tard" ghost
 
-### Section 06 — États transverses
+### Section 06: États transverses
 
 **S16 · Hors-ligne** (`OfflineView`)
 - Centré vertical : icon wifi-slash 42pt dans box 88×88 radius 26
@@ -505,7 +505,7 @@ Fonts : `InstrumentSerif-Regular.ttf` + `InstrumentSerif-Italic.ttf` → bundle 
 ## 10. CLAUDE.md règles projet
 
 ```markdown
-# ATFood iOS — CLAUDE.md
+# ATFood iOS: CLAUDE.md
 
 ## Stack
 Swift 6 (strict concurrency), SwiftUI, iOS 17+, @Observable, SPM + Tuist, Supabase
@@ -513,8 +513,8 @@ Swift 6 (strict concurrency), SwiftUI, iOS 17+, @Observable, SPM + Tuist, Supaba
 ## Règles
 - SWIFT_STRICT_CONCURRENCY = complete
 - MV pattern : @Observable store, pas de ObservableObject/MVVM
-- Après chaque modification : xcodebuild -scheme ATFood build — corriger toutes erreurs
-- UI/UX : pixel-perfect au prototype PDF — vérifier avec Preview SwiftUI avant commit
+- Après chaque modification : xcodebuild -scheme ATFood build: corriger toutes erreurs
+- UI/UX : pixel-perfect au prototype PDF: vérifier avec Preview SwiftUI avant commit
 - Couleurs : jamais hardcodées hors de ATFColors.swift
 - SF Symbols : utiliser ATFIcon enum uniquement
 - Commentaires : uniquement si comportement non-évident

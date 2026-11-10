@@ -10,7 +10,7 @@ import Form
 import Drafts
 import Profile
 
-// MARK: — Navigation state
+// MARK: - Navigation state
 
 // Class-backed navigator: mutations from any captured closure reach the same instance,
 // bypassing the @State struct-copy issue in navigationDestination closures.
@@ -23,7 +23,7 @@ import Profile
     var profileStore: ProfileStore?
 }
 
-// MARK: — Route
+// MARK: - Route
 
 public enum ATFRoute: Hashable {
     case restaurantPicker
@@ -48,7 +48,7 @@ private enum StorageKey {
     static let lastRestaurantID = "lastRestaurantID"
 }
 
-// MARK: — Root
+// MARK: - Root
 
 @MainActor
 struct RootView: View {
@@ -67,7 +67,7 @@ struct RootView: View {
     }()
 
     @State private var authStore = AuthStore()
-    // AppNavigator is a class — mutations from captured closures always reach the same instance
+    // AppNavigator is a class: mutations from captured closures always reach the same instance
     @State private var nav = AppNavigator()
 
     init() {
@@ -117,7 +117,7 @@ struct RootView: View {
         .background(Color.atfBg.ignoresSafeArea())
     }
 
-    // MARK: — Session
+    // MARK: - Session
 
     /// Reopens the app where the user left it: same account, same restaurant.
     private func restoreSession() async {
@@ -164,7 +164,7 @@ struct RootView: View {
         path = []
     }
 
-    // MARK: — Route destinations
+    // MARK: - Route destinations
 
     @ViewBuilder
     private func routeView(_ route: ATFRoute) -> some View {
@@ -378,7 +378,7 @@ struct RootView: View {
         }
     }
 
-    // MARK: — Helpers
+    // MARK: - Helpers
 
     private func showToast(_ message: String) {
         toast = ATFToastData(message)

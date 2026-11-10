@@ -17,28 +17,29 @@ extension Color {
 // MARK: - ATF Design Tokens
 
 public extension Color {
-    // Accent
-    static let atfAccent      = Color(hex: "F97316")
-    static let atfAccentHover = Color(hex: "EA6E0A")
-    static let atfAccentMuted = Color(hex: "F97316").opacity(0.12)
-    static let atfAccentOn    = Color.white
+    // Palette from the Claude color system (Ivory, Slate, warm greys): actions are Slate, no coloured buttons.
+    static let atfAccent      = Color(hex: "141413")   // Slate: primary buttons, selection, toggles
+    static let atfAccentHover = Color(hex: "30302E")
+    static let atfAccentMuted = Color(hex: "F0EEE6")   // secondary button / soft fill
+    static let atfAccentOn    = Color(hex: "FAF9F5")
+    static let atfClay        = Color(hex: "D97757")   // Claude accent: tiny indicators only (badge dot)
 
-    // Surfaces — light (default)
-    static let atfBg          = Color(hex: "FFFFFF")
-    static let atfSurface     = Color(hex: "F7F7F7")
-    static let atfSurface2    = Color(hex: "EFEFEF")
-    static let atfBorder      = Color.black.opacity(0.08)
-    static let atfBorderStr   = Color.black.opacity(0.14)
-    static let atfText1       = Color(hex: "0A0A0A")
-    static let atfText2       = Color(hex: "535353")
-    static let atfText3       = Color(hex: "9A9A9A")
+    // Surfaces (light only: Info.plist pins the light appearance)
+    static let atfBg          = Color(hex: "FAF9F5")   // Ivory
+    static let atfSurface     = Color(hex: "F5F4ED")
+    static let atfSurface2    = Color(hex: "F0EEE6")
+    static let atfBorder      = Color(hex: "1F1E1D").opacity(0.15)
+    static let atfBorderStr   = Color(hex: "1F1E1D").opacity(0.30)
+    static let atfText1       = Color(hex: "141413")
+    static let atfText2       = Color(hex: "5E5D59")
+    static let atfText3       = Color(hex: "73726C")
     static let atfOverlay     = Color.black.opacity(0.32)
 
     // Semantic
-    static let atfSuccess     = Color(hex: "16A34A")
-    static let atfSuccessBg   = Color(hex: "16A34A").opacity(0.12)
-    static let atfWarning     = Color(hex: "EAB308")
-    static let atfWarningBg   = Color(hex: "EAB308").opacity(0.14)
-    static let atfDanger      = Color(hex: "DC2626")
-    static let atfDangerBg    = Color(hex: "DC2626").opacity(0.12)
+    static let atfSuccess     = Color(hex: "558A42")
+    static let atfSuccessBg   = Color(hex: "558A42").opacity(0.12)
+    static let atfWarning     = Color(hex: "C9A82D")
+    static let atfWarningBg   = Color(hex: "C9A82D").opacity(0.14)
+    static let atfDanger      = Color(hex: "B3261E")
+    static let atfDangerBg    = Color(hex: "B3261E").opacity(0.10)
 }

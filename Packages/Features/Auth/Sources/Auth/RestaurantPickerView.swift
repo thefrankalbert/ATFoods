@@ -35,7 +35,7 @@ public struct RestaurantPickerView: View {
                     .padding(.bottom, 8)
                 }
                 if let user = store.currentUser {
-                    Text(user.name.isEmpty ? "Bonjour 👋" : "Bonjour, \(user.name) 👋")
+                    Text(user.name.isEmpty ? "Bonjour" : "Bonjour, \(user.name)")
                         .font(.atfSubhead)
                         .foregroundStyle(Color.atfText2)
                 }

@@ -1,5 +1,5 @@
 // DesignSystem.swift
-// Public API du package — importer DesignSystem donne accès à tout.
+// Public API du package: importer DesignSystem donne accès à tout.
 //
 // Tokens:
 //   ATFColors   → Color.atf*  (extension Color)
@@ -18,7 +18,6 @@
 //   ATFToast / ATFToastOverlay, ATFFoodCard, ATFSkeleton
 //   ATFAsyncImage
 //
-// Fonts:
-//   registerDesignSystemFonts() — call once in App.init()
+// Fonts: system only (SF Pro, New York), nothing to register.
 //
 // All types are public in their own source files; no re-exports needed.

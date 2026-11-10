@@ -6,7 +6,6 @@ import Sentry
 @main
 struct ATFoodApp: App {
     init() {
-        registerDesignSystemFonts()
         startCrashReporting()
     }
 

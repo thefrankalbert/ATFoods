@@ -89,7 +89,7 @@ public struct ATFButton: View {
     }
 }
 
-// Scale press animation — matches prototype `.atf-btn:active { transform: scale(.96) }`
+// Scale press animation: matches prototype `.atf-btn:active { transform: scale(.96) }`
 public struct ATFScaleButtonStyle: ButtonStyle {
     public init() {}
     public func makeBody(configuration: Configuration) -> some View {

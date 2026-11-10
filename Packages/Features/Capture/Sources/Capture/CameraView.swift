@@ -245,7 +245,7 @@ public struct CameraView: View {
 
                     Spacer()
 
-                    // Shutter button — ring turns green when guidance is satisfied (never blocks).
+                    // Shutter button: ring turns green when guidance is satisfied (never blocks).
                     Button(action: { capturePhoto() }) {
                         Circle()
                             .fill(Color.white)

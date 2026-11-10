@@ -1,4 +1,4 @@
-# At Food iOS — Plan 1: Foundation + DesignSystem
+# At Food iOS: Plan 1: Foundation + DesignSystem
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
@@ -76,7 +76,7 @@ cd "/Users/a.g.i.c/Documents/SAAS Ressources 26/Project App-Saas/ATFoods"
 tuist init --name ATFood --platform ios
 ```
 
-Génère `Tuist/`, `Project.swift`, `ATFood/` — structure sera modifiée.
+Génère `Tuist/`, `Project.swift`, `ATFood/`: structure sera modifiée.
 
 - [ ] **Remplacer `Project.swift`**
 
@@ -148,7 +148,7 @@ struct ContentView: View {
         ZStack {
             Color(red: 0.98, green: 0.93, blue: 0.91)
                 .ignoresSafeArea()
-            Text("ATFood — Plan 2 pending")
+            Text("ATFood: Plan 2 pending")
                 .font(.system(size: 17, weight: .medium))
                 .foregroundStyle(.secondary)
         }
@@ -266,7 +266,7 @@ git commit -m "chore: add DesignSystem SPM package skeleton + Instrument Serif f
 
 ---
 
-## Task 3: Tokens — Couleurs
+## Task 3: Tokens: Couleurs
 
 **Files:**
 - Create: `Packages/Core/DesignSystem/Sources/DesignSystem/Tokens/ATFColors.swift`
@@ -298,7 +298,7 @@ public extension Color {
     static let atfAccentMuted = Color(hex: "F97316").opacity(0.12)
     static let atfAccentOn    = Color.white
 
-    // Surfaces — light (default)
+    // Surfaces: light (default)
     static let atfBg          = Color(hex: "FFFFFF")
     static let atfSurface     = Color(hex: "F7F7F7")
     static let atfSurface2    = Color(hex: "EFEFEF")
@@ -324,7 +324,7 @@ public extension ShapeStyle where Self == Color {
     // Used as: .foregroundStyle(.atfAdaptive(.atfText1, dark: .atfText1Dark))
 }
 
-// Adaptive color helper — usage: Color.atfAdaptive(light: .atfBg, dark: .atfBgDark)
+// Adaptive color helper: usage: Color.atfAdaptive(light: .atfBg, dark: .atfBgDark)
 public extension Color {
     static func atfAdaptive(light: Color, dark: Color) -> Color {
         Color(UIColor { trait in
@@ -397,7 +397,7 @@ git commit -m "feat(design-system): ATFColors tokens + hex initializer"
 
 ---
 
-## Task 4: Tokens — Typographie + Radius
+## Task 4: Tokens: Typographie + Radius
 
 **Files:**
 - Create: `Packages/Core/DesignSystem/Sources/DesignSystem/Tokens/ATFTypography.swift`
@@ -410,7 +410,7 @@ git commit -m "feat(design-system): ATFColors tokens + hex initializer"
 import SwiftUI
 
 public extension Font {
-    // Display — Instrument Serif
+    // Display: Instrument Serif
     static let atfDisplay: Font = {
         if let _ = UIFont(name: "InstrumentSerif-Regular", size: 34) {
             return .custom("InstrumentSerif-Regular", size: 34)
@@ -446,7 +446,7 @@ public extension Font {
         return .system(size: 28, weight: .light, design: .serif).italic()
     }()
 
-    // System — Inter via -apple-system
+    // System: Inter via -apple-system
     static let atfHeadline  = Font.system(size: 20, weight: .semibold)
     static let atfBody      = Font.system(size: 17, weight: .regular)
     static let atfBodyStr   = Font.system(size: 17, weight: .semibold)
@@ -800,7 +800,7 @@ public struct ATFButton: View {
     }
 }
 
-// Scale press animation — matches prototype `.atf-btn:active { transform: scale(.96) }`
+// Scale press animation: matches prototype `.atf-btn:active { transform: scale(.96) }`
 struct ATFScaleButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
@@ -1383,7 +1383,7 @@ public struct ATFToastData: Equatable, Sendable {
     }
 }
 
-/// Overlay global — placer dans le ZStack racine.
+/// Overlay global: placer dans le ZStack racine.
 /// Usage: .atfToast(toast: $toastData)
 public struct ATFToastOverlay: View {
     let toast: ATFToastData?
@@ -1535,18 +1535,18 @@ git commit -m "feat(design-system): ATFToast + ATFAsyncImage"
 
 ```swift
 // Packages/Core/DesignSystem/Sources/DesignSystem/DesignSystem.swift
-// Public API du package — importer DesignSystem donne accès à tout.
+// Public API du package: importer DesignSystem donne accès à tout.
 @_exported import SwiftUI
 
 // Tokens
-public typealias ATFColors = Color  // extensions on Color — already public
-// ATFTypography: Font extensions — already public
-// ATFRadius: enum — already public
+public typealias ATFColors = Color  // extensions on Color: already public
+// ATFTypography: Font extensions: already public
+// ATFRadius: enum: already public
 
-// Pas d'autres re-exports nécessaires — tout est public directement.
+// Pas d'autres re-exports nécessaires: tout est public directement.
 ```
 
-- [ ] **Smoke test — Preview utilisant tous composants**
+- [ ] **Smoke test: Preview utilisant tous composants**
 
 ```swift
 // Packages/Core/DesignSystem/Sources/DesignSystem/Components/DesignSystemGallery.swift
@@ -1643,7 +1643,7 @@ Expected: `** BUILD SUCCEEDED **`
 
 ```bash
 git add .
-git commit -m "feat(design-system): DesignSystem package complet — tous composants + gallery preview"
+git commit -m "feat(design-system): DesignSystem package complet: tous composants + gallery preview"
 ```
 
 ---

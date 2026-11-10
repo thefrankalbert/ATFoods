@@ -1,7 +1,7 @@
 // Packages/Core/DesignSystem/Sources/DesignSystem/Components/ATFFoodCard.swift
 import SwiftUI
 
-/// Food item card: photo on top, name and price below (fills its grid column). Takes raw values — no dependency on Models.
+/// Food item card: photo on top, name and price below (fills its grid column). Takes raw values: no dependency on Models.
 public struct ATFFoodCard: View {
     let name: String
     let priceFormatted: String

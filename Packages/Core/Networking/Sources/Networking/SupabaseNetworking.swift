@@ -335,6 +335,22 @@ public struct SupabaseNetworking: ATFNetworking {
         return item
     }
 
+    public func setAvailability(dishID: UUID, isAvailable: Bool, restaurantID: UUID) async throws {
+        struct Payload: Encodable { let is_available: Bool }
+        struct UpdatedRow: Decodable, Sendable { let id: UUID }
+        let updated: [UpdatedRow] = try await client
+            .from("menu_items")
+            .update(Payload(is_available: isAvailable))
+            .eq("id", value: dishID.uuidString)
+            .eq("tenant_id", value: restaurantID.uuidString)
+            .is("deleted_at", value: nil)
+            .select("id")
+            .execute()
+            .value
+        // 0 rows: dish deleted on the web meanwhile, or rights revoked.
+        guard !updated.isEmpty else { throw SupabaseNetworkingError.notAllowed }
+    }
+
     // MARK: - Photos
 
     public func attachPhoto(imageData: Data, toDishID dishID: UUID, restaurantID: UUID) async throws -> URL {

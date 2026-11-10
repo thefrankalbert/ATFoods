@@ -15,7 +15,7 @@ public struct ATFToggle: View {
     public var body: some View {
         Toggle("", isOn: $isOn)
             .labelsHidden()
-            .tint(isOrange ? Color.atfAccent : Color.atfSuccess)
+            .tint(Color.atfAccent)   // Slate in both cases: no coloured toggles
     }
 }
 

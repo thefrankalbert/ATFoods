@@ -59,6 +59,10 @@ public final class MockNetworking: ATFNetworking {
         return item
     }
 
+    public func setAvailability(dishID: UUID, isAvailable: Bool, restaurantID: UUID) async throws {
+        try await Task.sleep(for: .milliseconds(200))
+    }
+
     public func attachPhoto(imageData: Data, toDishID dishID: UUID, restaurantID: UUID) async throws -> URL {
         try await Task.sleep(for: .milliseconds(400))
         return Self.mockPhotoURL
