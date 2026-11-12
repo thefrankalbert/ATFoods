@@ -10,7 +10,6 @@ public struct DishFormView: View {
     @Bindable var store: FormStore
     let networking: any ATFNetworking
     let onSaved: () -> Void
-    let onBack: () -> Void
     /// Edit mode only: open the guided camera to replace this dish's photo.
     let onChangePhoto: (@MainActor () -> Void)?
 
@@ -19,27 +18,22 @@ public struct DishFormView: View {
     @State private var pickedGalleryItem: PhotosPickerItem?
     @State private var showTranslation = false
     @FocusState private var fieldFocused: Bool
+    @Environment(\.dismiss) private var dismiss
 
     public init(
         store: FormStore,
         networking: any ATFNetworking,
         onSaved: @escaping () -> Void,
-        onBack: @escaping () -> Void,
         onChangePhoto: (@MainActor () -> Void)? = nil
     ) {
         self.store = store
         self.networking = networking
         self.onSaved = onSaved
-        self.onBack = onBack
         self.onChangePhoto = onChangePhoto
     }
 
     public var body: some View {
         VStack(spacing: 0) {
-            // Leaving mid-save would pop the screen and then jump elsewhere when the save ends.
-            ATFHeader(store.isEditing ? "Fiche plat" : "Nouveau plat", backDisabled: store.isLoading) {
-                if store.hasUnsavedChanges { confirmDiscard = true } else { onBack() }
-            }
             ScrollView {
                 VStack(spacing: 24) {
                     photoSection
@@ -66,7 +60,18 @@ public struct DishFormView: View {
             if !fieldFocused { saveBar }
         }
         .background(Color.atfBg.ignoresSafeArea())
+        .atfScreen(store.isEditing ? "Fiche plat" : "Nouveau plat")
+        // Unsaved input: the system back button and swipe give way to a button that asks first.
+        // Mid-save: no way out, the save pops the screen itself.
+        .navigationBarBackButtonHidden(store.hasUnsavedChanges || store.isLoading)
         .toolbar {
+            if store.hasUnsavedChanges && !store.isLoading {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button { confirmDiscard = true } label: { Image(systemName: "chevron.left") }
+                        .tint(Color.atfText1)
+                        .accessibilityLabel("Retour")
+                }
+            }
             ToolbarItemGroup(placement: .keyboard) {
                 Spacer()
                 Button("Terminé") { fieldFocused = false }
@@ -74,7 +79,7 @@ public struct DishFormView: View {
         }
         .task { await store.loadCategories(networking: networking) }
         .confirmationDialog("Abandonner les modifications ?", isPresented: $confirmDiscard, titleVisibility: .visible) {
-            Button("Abandonner", role: .destructive, action: onBack)
+            Button("Abandonner", role: .destructive) { dismiss() }
             Button("Continuer la modification", role: .cancel) {}
         }
         .sheet(isPresented: $showCategorySheet) {
@@ -402,8 +407,7 @@ public struct DishFormView: View {
     DishFormView(
         store: FormStore(restaurant: Restaurant.mocks[0]),
         networking: MockNetworking(),
-        onSaved: {},
-        onBack: {}
+        onSaved: {}
     )
 }
 #endif

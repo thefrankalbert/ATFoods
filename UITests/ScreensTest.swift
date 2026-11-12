@@ -33,7 +33,7 @@ final class ScreensTest: XCTestCase {
         shot("03_dish_card")
         app.swipeUp()
         shot("04_dish_card_details")
-        app.buttons["Retour"].tap()
+        app.navigationBars.buttons.firstMatch.tap()
 
         // Drafts, then a draft's "who is this photo for" screen
         app.buttons["draftsButton"].tap()
@@ -53,9 +53,9 @@ final class ScreensTest: XCTestCase {
         XCTAssertTrue(app.staticTexts["Ajoutez un nom et un prix pour enregistrer."].waitForExistence(timeout: 4),
                       "Missing-fields hint not shown")
         shot("07_new_dish")
-        app.buttons["Retour"].tap()
-        app.buttons["Retour"].tap()
-        app.buttons["Retour"].tap()
+        app.navigationBars.buttons.firstMatch.tap()
+        app.navigationBars.buttons.firstMatch.tap()
+        app.navigationBars.buttons.firstMatch.tap()
 
         // Profile
         XCTAssertTrue(app.buttons["profileButton"].waitForExistence(timeout: 4))

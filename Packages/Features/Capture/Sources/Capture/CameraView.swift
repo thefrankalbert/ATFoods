@@ -116,7 +116,6 @@ final class PhotoCaptureCoordinator: NSObject, AVCapturePhotoCaptureDelegate {
 public struct CameraView: View {
     @Bindable var store: CaptureStore
     let onCapture: () -> Void
-    let onClose: () -> Void
 
     @State private var holder = CaptureSessionHolder()
     @State private var coordinator = PhotoCaptureCoordinator()
@@ -132,12 +131,10 @@ public struct CameraView: View {
 
     public init(
         store: CaptureStore,
-        onCapture: @escaping () -> Void,
-        onClose: @escaping () -> Void
+        onCapture: @escaping () -> Void
     ) {
         self.store = store
         self.onCapture = onCapture
-        self.onClose = onClose
     }
 
     public var body: some View {
@@ -184,27 +181,6 @@ public struct CameraView: View {
 
             // Overlay controls
             VStack(spacing: 12) {
-                // Top bar
-                HStack {
-                    Button(action: { onClose() }) {
-                        Image(systemName: "xmark")
-                            .font(.system(size: 20, weight: .semibold))
-                            .foregroundColor(.white)
-                            .frame(width: 44, height: 44)
-                    }
-                    .accessibilityLabel("Fermer")
-                    Spacer()
-                    Button(action: { flashEnabled.toggle() }) {
-                        Image(systemName: flashEnabled ? "bolt.fill" : "bolt.slash.fill")
-                            .font(.system(size: 20, weight: .semibold))
-                            .foregroundColor(.white)
-                            .frame(width: 44, height: 44)
-                    }
-                    .accessibilityLabel("Flash")
-                }
-                .padding(.horizontal, 16)
-                .padding(.top, 12)
-
                 if let error = store.error {
                     Label(error, systemImage: "exclamationmark.triangle.fill")
                         .font(.atfCaption)
@@ -270,7 +246,19 @@ public struct CameraView: View {
                 .padding(.bottom, 40)
             }
         }
-        .statusBarHidden()
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbarRole(.editor)
+        .toolbarBackground(.hidden, for: .navigationBar)
+        .toolbarColorScheme(.dark, for: .navigationBar)   // white back chevron on the black screen
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button { flashEnabled.toggle() } label: {
+                    Image(systemName: flashEnabled ? "bolt.fill" : "bolt.slash.fill")
+                }
+                .tint(.white)
+                .accessibilityLabel(flashEnabled ? "Flash activé" : "Flash désactivé")
+            }
+        }
         .sensoryFeedback(.success, trigger: guidance.isReady) { _, ready in ready }
         .task {
             await setupSession()
@@ -384,8 +372,7 @@ public struct CameraView: View {
 #Preview("CameraView") {
     CameraView(
         store: CaptureStore(restaurant: Restaurant.mocks[0]),
-        onCapture: {},
-        onClose: {}
+        onCapture: {}
     )
 }
 #endif

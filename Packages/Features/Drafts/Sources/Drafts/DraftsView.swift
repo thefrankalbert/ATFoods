@@ -8,16 +8,14 @@ public struct DraftsView: View {
     let networking: any ATFNetworking
     /// Tap on a draft: pick the dish to attach it to.
     let onSelect: (Draft) -> Void
-    let onBack: () -> Void
 
     public init(
         store: DraftsStore,
         networking: any ATFNetworking,
-        onSelect: @escaping (Draft) -> Void,
-        onBack: @escaping () -> Void
+        onSelect: @escaping (Draft) -> Void
     ) {
         self.store = store; self.networking = networking
-        self.onSelect = onSelect; self.onBack = onBack
+        self.onSelect = onSelect
     }
 
     @State private var confirmDelete = false
@@ -26,7 +24,6 @@ public struct DraftsView: View {
 
     public var body: some View {
         VStack(spacing: 0) {
-            topBar
             if let error = store.error, !store.drafts.isEmpty {
                 Text(error)
                     .font(.atfCaption)
@@ -61,6 +58,8 @@ public struct DraftsView: View {
             }
         }
         .background(Color.atfBg.ignoresSafeArea())
+        .atfScreen("Brouillons")
+        .toolbar { ToolbarItem(placement: .topBarTrailing) { selectButton } }
         .task { await store.load(networking: networking) }
         .refreshable { await store.load(networking: networking) }
         .confirmationDialog(
@@ -78,21 +77,14 @@ public struct DraftsView: View {
 
     // MARK: - Top Bar
 
-    private var topBar: some View {
-        ATFHeader("Brouillons", onBack: onBack) {
-            Button {
-                withAnimation(.easeInOut(duration: 0.2)) {
-                    store.isMultiSelect.toggle()
-                    store.selectedIDs.removeAll()
-                }
-            } label: {
-                Text(store.isMultiSelect ? "Annuler" : "Sélectionner")
-                    .font(.body.weight(.medium))
-                    .foregroundStyle(Color.atfText1)
-                    .frame(minHeight: 44)
-                    .padding(.horizontal, 8)
+    private var selectButton: some View {
+        Button(store.isMultiSelect ? "Annuler" : "Sélectionner") {
+            withAnimation(.easeInOut(duration: 0.2)) {
+                store.isMultiSelect.toggle()
+                store.selectedIDs.removeAll()
             }
         }
+        .tint(Color.atfText1)
     }
 
     // MARK: - Grid
@@ -230,6 +222,6 @@ private struct DraftCard: View {
 #Preview("DraftsView") {
     let store = DraftsStore(restaurantID: UUID())
     store.drafts = Draft.mocks
-    return DraftsView(store: store, networking: MockNetworking(), onSelect: { _ in }, onBack: {})
+    return DraftsView(store: store, networking: MockNetworking(), onSelect: { _ in })
 }
 #endif

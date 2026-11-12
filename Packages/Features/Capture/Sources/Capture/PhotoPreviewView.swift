@@ -42,32 +42,6 @@ public struct PhotoPreviewView: View {
 
             // Overlay
             VStack(spacing: 12) {
-                // Top bar
-                HStack {
-                    Button(action: { onRetake() }) {
-                        Image(systemName: "chevron.left")
-                            .font(.system(size: 20, weight: .semibold))
-                            .foregroundStyle(.white)
-                            .frame(width: 44, height: 44)
-                    }
-                    .accessibilityLabel("Retour")
-                    Spacer()
-                    Text("Aperçu")
-                        .font(.headline)
-                        .foregroundStyle(.white)
-                    Spacer()
-                    Button(action: { showCropper = true }) {
-                        Image(systemName: "crop.rotate")
-                            .font(.system(size: 20, weight: .semibold))
-                            .foregroundStyle(.white)
-                            .frame(width: 44, height: 44)
-                    }
-                    .accessibilityLabel("Recadrer")
-                    .disabled(isRemovingBackground)
-                }
-                .padding(.horizontal, 16)
-                .padding(.top, 12)
-
                 if let qualityWarning {
                     Label(qualityWarning, systemImage: "exclamationmark.circle")
                         .font(.footnote.weight(.medium))
@@ -100,7 +74,20 @@ public struct PhotoPreviewView: View {
                 .padding(.bottom, 32)
             }
         }
-        .statusBarHidden()
+        .navigationTitle("Aperçu")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbarRole(.editor)
+        .toolbarBackground(.hidden, for: .navigationBar)
+        .toolbarColorScheme(.dark, for: .navigationBar)   // white back chevron on the black screen
+        .navigationBarBackButtonHidden(isRemovingBackground)   // the cutout must not land after the user left
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button { showCropper = true } label: { Image(systemName: "crop.rotate") }
+                    .tint(.white)
+                    .disabled(isRemovingBackground)
+                    .accessibilityLabel("Recadrer")
+            }
+        }
         .onDisappear {
             backgroundTask?.cancel()
             isRemovingBackground = false

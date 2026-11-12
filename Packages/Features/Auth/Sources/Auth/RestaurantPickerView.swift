@@ -9,33 +9,25 @@ public struct RestaurantPickerView: View {
     let onRetry: () async -> Void
     let onSignOut: () -> Void
     /// Set when opened from the profile ("Changer de restaurant"): lets the user go back unchanged.
-    let onCancel: (() -> Void)?
+    /// Opened from the profile: the system back button returns there. From login there is nothing to go back to.
+    let canGoBack: Bool
     @State private var isRetrying = false
     @State private var confirmSignOut = false
 
     public init(store: AuthStore, onContinue: @escaping () -> Void,
                 onRetry: @escaping () async -> Void, onSignOut: @escaping () -> Void,
-                onCancel: (() -> Void)? = nil) {
+                canGoBack: Bool = false) {
         self.store = store
         self.onContinue = onContinue
         self.onRetry = onRetry
         self.onSignOut = onSignOut
-        self.onCancel = onCancel
+        self.canGoBack = canGoBack
     }
 
     public var body: some View {
         VStack(spacing: 0) {
             // Header
             VStack(alignment: .leading, spacing: 4) {
-                if let onCancel {
-                    Button(action: onCancel) {
-                        Label("Annuler", systemImage: "chevron.left")
-                            .font(.body)
-                            .foregroundStyle(Color.atfText1)
-                            .frame(minHeight: 44)
-                    }
-                    .padding(.bottom, 8)
-                }
                 if let user = store.currentUser {
                     Text(user.name.isEmpty ? "Bonjour" : "Bonjour, \(user.name)")
                         .font(.atfSubhead)
@@ -111,9 +103,11 @@ public struct RestaurantPickerView: View {
                 .padding(.horizontal, 24)
                 .padding(.vertical, 20)
             }
-            .background(Color.atfSurface)
+            .background(Color.atfBg)
         }
-        .background(Color.atfSurface.ignoresSafeArea())
+        .background(Color.atfBg.ignoresSafeArea())
+        .atfScreen("")
+        .navigationBarBackButtonHidden(!canGoBack)
         .confirmationDialog("Se déconnecter de ce compte ?", isPresented: $confirmSignOut, titleVisibility: .visible) {
             Button("Se déconnecter", role: .destructive, action: onSignOut)
             Button("Annuler", role: .cancel) {}

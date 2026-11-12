@@ -106,6 +106,18 @@ struct RootView: View {
         }
         .animation(.spring(response: 0.35, dampingFraction: 0.8), value: toast != nil)
         .task { await restoreSession() }
+        // Native back button and back swipe change `path` without calling us: clean up here, once.
+        .onChange(of: path) { old, new in leftScreens(old: old, new: new) }
+    }
+
+    private func leftScreens(old: [ATFRoute], new: [ATFRoute]) {
+        if old.contains(.photoPreview), !new.contains(.photoPreview) {
+            nav.captureStore?.reset()   // rejected photo must not come back on the next shot
+            nav.formStore = nil
+        }
+        if old.last == .restaurantPicker, new.last == .profile {
+            authStore.selectedRestaurant = nav.homeStore?.restaurant   // picker left without switching
+        }
     }
 
     private var splash: some View {
@@ -181,12 +193,8 @@ struct RootView: View {
                     }
                 },
                 // Opened from the profile: allow going back without switching.
-                onCancel: path.count > 1 ? {
-                    authStore.selectedRestaurant = nav.homeStore?.restaurant
-                    path.removeLast()
-                } : nil
+                canGoBack: path.count > 1
             )
-            .navigationBarHidden(true)
 
         case .home:
             if let store = nav.homeStore {
@@ -220,22 +228,16 @@ struct RootView: View {
             if let store = nav.captureStore {
                 CameraView(store: store, onCapture: {
                     path.append(.photoPreview)
-                }, onClose: {
-                    path.removeLast()
                 })
-                .navigationBarHidden(true)
             }
 
         case .photoPreview:
             if let store = nav.captureStore {
                 PhotoPreviewView(store: store, onRetake: {
-                    store.reset()   // rejected photo must not linger as the camera thumbnail
-                    nav.formStore = nil
-                    path.removeLast()
+                    path.removeLast()   // cleanup happens in leftScreen(_:), shared with the back swipe
                 }, onUse: {
                     path.append(.attachDish)
                 })
-                .navigationBarHidden(true)
             }
 
         case .attachDish:
@@ -282,10 +284,8 @@ struct RootView: View {
                             popTo(.home)
                         }
                     },
-                    onBack: { path.removeLast() },
                     fixedDish: store.targetDish
                 )
-                .navigationBarHidden(true)
             }
 
         case .attachDraft(let draft):
@@ -307,10 +307,8 @@ struct RootView: View {
                     onAttached: {
                         showToast("Photo attachée")
                         popTo(.drafts)
-                    },
-                    onBack: { path.removeLast() }
+                    }
                 )
-                .navigationBarHidden(true)
             }
 
         case .dishForm:
@@ -322,10 +320,8 @@ struct RootView: View {
                         showToast("Plat enregistré")
                         nav.formStore = nil
                         if case .draft = store.photo { popTo(.drafts) } else { popTo(.home) }
-                    },
-                    onBack: { path.removeLast() }
+                    }
                 )
-                .navigationBarHidden(true)
             }
 
         case .dishEdit:
@@ -338,14 +334,12 @@ struct RootView: View {
                         nav.dishEditStore = nil
                         popTo(.home)
                     },
-                    onBack: { path.removeLast() },
                     onChangePhoto: {
                         guard let dish = store.editing else { return }
                         nav.captureStore = CaptureStore(restaurant: store.restaurant, targetDish: dish)
                         path.append(.camera)
                     }
                 )
-                .navigationBarHidden(true)
             }
 
         case .drafts:
@@ -356,10 +350,8 @@ struct RootView: View {
                     onSelect: { draft in
                         nav.formStore = nil
                         path.append(.attachDraft(draft))
-                    },
-                    onBack: { path.removeLast() }
+                    }
                 )
-                .navigationBarHidden(true)
             }
 
         case .profile:
@@ -370,10 +362,8 @@ struct RootView: View {
                     onSwitchRestaurant: authStore.restaurants.count > 1 ? {
                         path.append(.restaurantPicker)
                     } : nil,
-                    onSignOut: { clearSession() },
-                    onBack: { path.removeLast() }
+                    onSignOut: { clearSession() }
                 )
-                .navigationBarHidden(true)
             }
         }
     }

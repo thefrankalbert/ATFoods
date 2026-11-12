@@ -77,7 +77,7 @@ final class LiveJourney: XCTestCase {
         keep.tap()
         // Batch shooting: back to the camera for the next dish.
         XCTAssertTrue(app.buttons["galleryButton"].waitForExistence(timeout: 20), "Draft save failed")
-        pause(); app.buttons["Fermer"].tap()
+        pause(); app.navigationBars.buttons.firstMatch.tap()
         XCTAssertTrue(home.waitForExistence(timeout: 10)); pause()
 
         // 6. Drafts: turn the draft into a new dish
@@ -101,7 +101,7 @@ final class LiveJourney: XCTestCase {
         XCTAssertTrue(app.staticTexts["Brouillons"].waitForExistence(timeout: 20), "Create failed")
         let gone = expectation(for: NSPredicate(format: "exists == false"), evaluatedWith: usedDraft)
         wait(for: [gone], timeout: 10)
-        pause(); app.buttons["Retour"].tap()
+        pause(); app.navigationBars.buttons.firstMatch.tap()
         let created = app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Parcours live'")).firstMatch
         XCTAssertTrue(created.waitForExistence(timeout: 10), "New dish not on Home")
         created.swipeUp(); pause(); app.swipeDown(); pause()

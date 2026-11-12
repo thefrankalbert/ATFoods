@@ -14,7 +14,6 @@ public struct AttachDishView: View {
     /// Only for a fresh capture: keep the photo as a draft and go on shooting.
     let saveDraft: (() async throws -> Void)?
     let onAttached: () -> Void
-    let onBack: () -> Void
     /// Photo taken from a dish card: no list, the photo goes to this dish.
     let fixedDish: MenuItem?
 
@@ -37,7 +36,6 @@ public struct AttachDishView: View {
         attach: @escaping (MenuItem) async throws -> Void,
         saveDraft: (() async throws -> Void)? = nil,
         onAttached: @escaping () -> Void,
-        onBack: @escaping () -> Void,
         fixedDish: MenuItem? = nil
     ) {
         self.fixedDish = fixedDish
@@ -47,13 +45,10 @@ public struct AttachDishView: View {
         self.attach = attach
         self.saveDraft = saveDraft
         self.onAttached = onAttached
-        self.onBack = onBack
     }
 
     public var body: some View {
         VStack(spacing: 0) {
-            ATFHeader(fixedDish == nil ? "Cette photo, c'est pour…" : "Remplacer la photo", backDisabled: isBusy, onBack: onBack)
-
             ScrollView {
                 VStack(spacing: 24) {
                     if fixedDish == nil {
@@ -97,6 +92,8 @@ public struct AttachDishView: View {
             .background(Color.atfBg)
         }
         .background(Color.atfBg.ignoresSafeArea())
+        .atfScreen(fixedDish == nil ? "Cette photo, c'est pour…" : "Remplacer la photo")
+        .navigationBarBackButtonHidden(isBusy)   // attach and draft pop the stack themselves
         .sensoryFeedback(.selection, trigger: selectedItem?.id)
         .sensoryFeedback(.error, trigger: error) { _, new in new != nil }
         .task {
@@ -291,8 +288,7 @@ private struct DishRow: View {
         onNewDish: {},
         attach: { _ in },
         saveDraft: {},
-        onAttached: {},
-        onBack: {}
+        onAttached: {}
     )
 }
 #endif

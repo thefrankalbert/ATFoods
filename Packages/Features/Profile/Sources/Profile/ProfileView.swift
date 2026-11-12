@@ -12,24 +12,21 @@ public struct ProfileView: View {
     /// nil when the user has a single restaurant (row hidden).
     let onSwitchRestaurant: (() -> Void)?
     let onSignOut: () -> Void
-    let onBack: () -> Void
 
     public init(
         store: ProfileStore,
         networking: any ATFNetworking,
         onSwitchRestaurant: (() -> Void)? = nil,
-        onSignOut: @escaping () -> Void,
-        onBack: @escaping () -> Void
+        onSignOut: @escaping () -> Void
     ) {
         self.onSwitchRestaurant = onSwitchRestaurant
         self.store = store; self.networking = networking
-        self.onSignOut = onSignOut; self.onBack = onBack
+        self.onSignOut = onSignOut
     }
 
     public var body: some View {
         ScrollView {
             VStack(spacing: 0) {
-                topBar
                 avatarSection
                 restaurantCard
                 settingsList
@@ -40,6 +37,7 @@ public struct ProfileView: View {
             }
         }
         .background(Color.atfBg.ignoresSafeArea())
+        .atfScreen("Profil")
         // Opaque status bar area: scrolled content no longer shows under the clock.
         .safeAreaInset(edge: .top, spacing: 0) {
             Color.atfBg.frame(height: 0).background(Color.atfBg.ignoresSafeArea(edges: .top))
@@ -67,12 +65,6 @@ public struct ProfileView: View {
         } message: {
             Text("Aucune app de messagerie n'est configurée. Écrivez à \(AttablWeb.supportEmail).")
         }
-    }
-
-    // MARK: - Top Bar
-
-    private var topBar: some View {
-        ATFHeader("Profil", onBack: onBack)
     }
 
     // MARK: - Avatar
@@ -280,6 +272,6 @@ private struct SettingsCard: ViewModifier {
 #Preview("ProfileView") {
     let store = ProfileStore(user: AppUser.mock, restaurant: Restaurant.mocks[0])
     return ProfileView(store: store, networking: MockNetworking(),
-                       onSignOut: {}, onBack: {})
+                       onSignOut: {})
 }
 #endif

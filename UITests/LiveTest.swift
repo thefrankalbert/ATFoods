@@ -54,7 +54,7 @@ final class LiveTest: XCTestCase {
         // After a draft, the app goes back to the drafts list to illustrate the next one.
         XCTAssertTrue(app.staticTexts["Brouillons"].waitForExistence(timeout: 20), "Create failed: \(errorText())")
         XCTAssertTrue(app.staticTexts["Aucun brouillon"].waitForExistence(timeout: 10), "Used draft still listed")
-        app.buttons["Retour"].tap()
+        app.navigationBars.buttons.firstMatch.tap()
         XCTAssertTrue(app.buttons["cameraButton"].waitForExistence(timeout: 10))
         let created = app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Plat test Atfood'")).firstMatch
         XCTAssertTrue(created.waitForExistence(timeout: 10), "New dish not on Home")
@@ -83,8 +83,8 @@ final class LiveTest: XCTestCase {
     /// Leave Home and come back: HomeView reloads the menu from the server on appear.
     private func reloadHome() {
         app.buttons["profileButton"].tap()
-        XCTAssertTrue(app.buttons["Retour"].waitForExistence(timeout: 5))
-        app.buttons["Retour"].tap()
+        XCTAssertTrue(app.navigationBars.buttons.firstMatch.waitForExistence(timeout: 5))
+        app.navigationBars.buttons.firstMatch.tap()
         XCTAssertTrue(app.switches["Poulet DG disponible"].waitForExistence(timeout: 15))
         sleep(2)   // fetch finished
     }

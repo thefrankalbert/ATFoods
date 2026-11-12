@@ -85,7 +85,10 @@ public enum DishPhotoSource {
 
     /// Edit mode: unsaved changes (Back asks before discarding them).
     public var hasUnsavedChanges: Bool {
-        guard let item = editing else { return false }
+        guard let item = editing else {
+            // New dish: typed text would be lost on back (nothing once the dish row exists).
+            return !isDishCreated && !(name + priceText + descriptionText).trimmingCharacters(in: .whitespaces).isEmpty
+        }
         return name.trimmingCharacters(in: .whitespaces) != item.name
             || price != item.price.roundedForCurrency(restaurant.currency)
             || isAvailable != item.isAvailable

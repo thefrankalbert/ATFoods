@@ -84,7 +84,7 @@ final class DemoJourney: XCTestCase {
         pause(2)
         app.swipeDown(velocity: .slow)
         pause(1)
-        app.buttons["Retour"].tap()
+        app.navigationBars.buttons.firstMatch.tap()
         pause(1.5)
 
         // 6. From a photo to a new dish on the menu: drafts, "who is this photo for", new dish, save.
@@ -118,7 +118,7 @@ final class DemoJourney: XCTestCase {
         pause(3)
 
         // 7. Back to the menu, then the profile.
-        app.buttons["Retour"].tap()
+        app.navigationBars.buttons.firstMatch.tap()
         XCTAssertTrue(app.buttons["profileButton"].waitForExistence(timeout: 4))
         pause(2)
         app.buttons["profileButton"].tap()

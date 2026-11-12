@@ -58,7 +58,7 @@ final class NewOwnerJourney: XCTestCase {
         XCTAssertTrue(keep.waitForExistence(timeout: 15)); pause()
         keep.tap()
         XCTAssertTrue(app.buttons["galleryButton"].waitForExistence(timeout: 20), "Draft save failed")
-        pause(); app.buttons["Fermer"].tap()
+        pause(); app.navigationBars.buttons.firstMatch.tap()
         app.buttons["draftsButton"].tap()
         let draft = app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Brouillon du'")).firstMatch
         XCTAssertTrue(draft.waitForExistence(timeout: 15)); pause()
@@ -70,7 +70,7 @@ final class NewOwnerJourney: XCTestCase {
         app.buttons["Plats"].tap(); pause()
         save(app.buttons["Enregistrer"])
         XCTAssertTrue(app.staticTexts["Aucun brouillon"].waitForExistence(timeout: 20), "Draft dish failed")
-        pause(); app.buttons["Retour"].tap()
+        pause(); app.navigationBars.buttons.firstMatch.tap()
         XCTAssertTrue(dishCard("Alloco").waitForExistence(timeout: 15), "Second dish not on Home")
         pause()
 
@@ -114,7 +114,7 @@ final class NewOwnerJourney: XCTestCase {
         app.coordinate(withNormalizedOffset: CGVector(dx: 0.49, dy: 0.72)).tap()
         XCTAssertTrue(app.buttons["Retirer cette photo"].waitForExistence(timeout: 20), "Extra photo not added")
         pause(); shot("extra_photo")
-        app.buttons["Retour"].tap()
+        app.navigationBars.buttons.firstMatch.tap()
         XCTAssertTrue(home.waitForExistence(timeout: 10), "Back asked to discard though everything was saved")
         pause()
 
@@ -174,7 +174,7 @@ final class NewOwnerJourney: XCTestCase {
         let description = (textInput("Description").value as? String) ?? ""
         XCTAssertTrue(description.contains("modifié depuis le web"), "Web description not shown: \(description)")
         pause(); shot("web_edits_sheet")
-        app.buttons["Retour"].tap()
+        app.navigationBars.buttons.firstMatch.tap()
         XCTAssertTrue(app.buttons["cameraButton"].waitForExistence(timeout: 10))
         pause()
     }

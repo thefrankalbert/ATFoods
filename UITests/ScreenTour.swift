@@ -47,7 +47,7 @@ final class ScreenTour: XCTestCase {
         sleep(2); shot("08_dish_card")
         app.textFields.element(boundBy: 1).tap(); sleep(1); shot("09_dish_card_keyboard")
         app.buttons["Terminé"].tap()
-        app.buttons["Retour"].tap(); sleep(1)
+        app.navigationBars.buttons.firstMatch.tap(); sleep(1)
 
         // Camera + gallery
         app.buttons["cameraButton"].tap(); sleep(2); shot("10_camera")
@@ -67,7 +67,7 @@ final class ScreenTour: XCTestCase {
 
         // Drafts (empty state)
         app.buttons["draftsButton"].tap(); sleep(2); shot("15_drafts")
-        app.buttons["Retour"].tap(); sleep(1)
+        app.navigationBars.buttons.firstMatch.tap(); sleep(1)
 
         // Profile
         app.buttons["profileButton"].tap(); sleep(2); shot("16_profile")

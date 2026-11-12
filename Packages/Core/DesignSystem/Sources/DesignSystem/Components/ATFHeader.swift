@@ -1,51 +1,12 @@
 import SwiftUI
 
-/// Screen header shared by every pushed screen: back chevron, centered title, optional trailing control.
-public struct ATFHeader<Trailing: View>: View {
-    let title: String
-    let backDisabled: Bool
-    let onBack: () -> Void
-    let trailing: Trailing
-
-    public init(_ title: String, backDisabled: Bool = false, onBack: @escaping () -> Void,
-                @ViewBuilder trailing: () -> Trailing) {
-        self.title = title
-        self.backDisabled = backDisabled
-        self.onBack = onBack
-        self.trailing = trailing()
-    }
-
-    public var body: some View {
-        ZStack {
-            Text(title)
-                .font(.headline)
-                .foregroundStyle(Color.atfText1)
-                .lineLimit(1)
-                .padding(.horizontal, 56)
-                .accessibilityAddTraits(.isHeader)
-            HStack {
-                Button(action: onBack) {
-                    Image(systemName: "chevron.left")
-                        .font(.body.weight(.semibold))
-                        .foregroundStyle(Color.atfText1)
-                        .frame(width: 44, height: 44)
-                        .contentShape(Rectangle())
-                }
-                .disabled(backDisabled)
-                .accessibilityLabel("Retour")
-                Spacer()
-                trailing
-            }
-        }
-        .padding(.horizontal, 8)
-        .frame(height: 52)
-        .background(Color.atfBg)
-    }
-}
-
-public extension ATFHeader where Trailing == EmptyView {
-    init(_ title: String, backDisabled: Bool = false, onBack: @escaping () -> Void) {
-        self.init(title, backDisabled: backDisabled, onBack: onBack) { EmptyView() }
+public extension View {
+    /// Native navigation bar for a pushed screen: system back button and back swipe, inline title, Ivory bar.
+    func atfScreen(_ title: String) -> some View {
+        navigationTitle(title)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbarBackground(Color.atfBg, for: .navigationBar)
+            .toolbarRole(.editor)   // back chevron without the previous screen's title
     }
 }
 
