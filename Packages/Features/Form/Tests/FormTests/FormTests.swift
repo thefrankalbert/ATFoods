@@ -29,8 +29,9 @@ private final class FlakyNetworking: ATFNetworking, @unchecked Sendable {
         lock.withLock { _created += 1 }
         return item
     }
+    func requestAccountDeletion() async throws {}
     func setAvailability(dishID: UUID, isAvailable: Bool, restaurantID: UUID) async throws {}
-    func updateMenuItem(_ item: MenuItem, restaurantID: UUID) async throws -> MenuItem {
+    func updateMenuItem(_ item: MenuItem, from original: MenuItem, restaurantID: UUID) async throws -> MenuItem {
         lock.withLock { _updated = item }
         return item
     }

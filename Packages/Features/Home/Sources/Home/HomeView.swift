@@ -30,7 +30,7 @@ public struct HomeView: View {
 
     public var body: some View {
         content
-            .safeAreaInset(edge: .bottom) { cameraButton }
+            .safeAreaInset(edge: .bottom) { CameraBar(button: cameraButton) }
             .background(Color.atfBg.ignoresSafeArea())
             .navigationTitle(store.restaurant.name)
             .navigationBarTitleDisplayMode(.large)
@@ -58,6 +58,7 @@ public struct HomeView: View {
             } actions: {
                 Button("Réessayer") { Task { await store.load(networking: networking) } }
                     .buttonStyle(.borderedProminent)
+                    .controlSize(.large)
                     .tint(Color.atfAccent)
             }
         } else if store.menuItems.isEmpty {
@@ -193,14 +194,26 @@ public struct HomeView: View {
             Label("Prendre une photo", systemImage: "camera")
                 .font(.headline)
                 .padding(.horizontal, 8)
-                .frame(height: 44)
+                .frame(minHeight: 44)
         }
         .buttonStyle(.borderedProminent)
         .buttonBorderShape(.capsule)
         .tint(Color.atfAccent)
         .foregroundStyle(Color.atfAccentOn)
-        .padding(.bottom, 8)
         .accessibilityIdentifier("cameraButton")
+        // Full-width opaque bar: rows never show beside the button and the scroll indicator ends above it.
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 8)
+        .background(Color.atfBg)
+    }
+}
+
+/// The camera button leaves the screen while the user searches: it would float above the keyboard.
+private struct CameraBar<Content: View>: View {
+    @Environment(\.isSearching) private var isSearching
+    let button: Content
+    var body: some View {
+        if !isSearching { button }
     }
 }
 
@@ -252,15 +265,11 @@ private struct DishRow: View {
     }
 
     private var thumbnail: some View {
-        AsyncImage(url: Thumbnail.url(item.photoURL, points: 56)) { phase in
-            if let image = phase.image {
-                image.resizable().scaledToFill()
-            } else {
-                ZStack {
-                    Color.atfSurface2
-                    Image(systemName: item.photoURL == nil ? "camera" : "photo")
-                        .foregroundStyle(Color.atfText3)
-                }
+        ATFRemoteImage(Thumbnail.url(item.photoURL, points: 56), fallback: item.photoURL) {
+            ZStack {
+                Color.atfSurface2
+                Image(systemName: item.photoURL == nil ? "camera" : "photo")
+                    .foregroundStyle(Color.atfText3)
             }
         }
         .frame(width: 56, height: 56)
@@ -275,9 +284,10 @@ private extension View {
         font(.subheadline)
             .foregroundStyle(isOn ? Color.atfAccentOn : Color.atfText1)
             .padding(.horizontal, 14)
-            .frame(height: 36)
+            .frame(minHeight: 36)
             .background(isOn ? Color.atfAccent : Color.atfSurface2, in: Capsule())
             .frame(minHeight: 44)
+            .contentShape(Rectangle())
     }
 }
 

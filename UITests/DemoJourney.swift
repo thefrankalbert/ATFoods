@@ -46,10 +46,17 @@ final class DemoJourney: XCTestCase {
             pause(1)
         }
         pause(1.5)
-        cta.tap()
+        if app.buttons["Plus tard"].exists { app.buttons["Plus tard"].tap() }   // iOS "Save password?" can cover the button
+        cta.coordinate(withNormalizedOffset: .init(dx: 0.5, dy: 0.5)).tap()
 
         // 4. Home: browse, search, mark a dish sold out, find it in the sold-out queue.
-        XCTAssertTrue(app.buttons["cameraButton"].waitForExistence(timeout: 6))
+        for _ in 0..<5 where !app.buttons["cameraButton"].exists {   // late "Save password?" prompt swallowed the tap
+            if app.buttons["Plus tard"].exists { app.buttons["Plus tard"].tap(); pause(1) }
+            if cta.exists { cta.coordinate(withNormalizedOffset: .init(dx: 0.5, dy: 0.5)).tap() }
+            _ = app.buttons["cameraButton"].waitForExistence(timeout: 3)
+        }
+        XCTAssertTrue(app.buttons["cameraButton"].exists)
+        if app.buttons["Plus tard"].waitForExistence(timeout: 4) { app.buttons["Plus tard"].tap() }
         pause(3)
         app.swipeUp(velocity: .slow)
         pause(1.5)

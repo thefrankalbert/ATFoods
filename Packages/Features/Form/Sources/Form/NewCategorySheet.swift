@@ -26,16 +26,14 @@ public struct NewCategorySheet: View {
     private var isValid: Bool { store.menusLoaded && !trimmed.isEmpty && (!needsMenu || menuID != nil) }
 
     public var body: some View {
-        ZStack {
-            Color.atfSurface.ignoresSafeArea()
-
+        ScrollView {
             VStack(spacing: 20) {
                 Text("Nouvelle catégorie")
                     .font(.atfHeadline)
                     .foregroundStyle(Color.atfText1)
                     .padding(.top, 24)
 
-                ATFTextField("Nom de la catégorie", text: $name, placeholder: "Ex: Grillades", error: error)
+                ATFTextField("Nom de la catégorie", text: $name, placeholder: "Ex. : Grillades", error: error)
                     .padding(.horizontal, 20)
 
                 if !store.menusLoaded {
@@ -75,6 +73,10 @@ public struct NewCategorySheet: View {
                     .padding(.bottom, 24)
             }
         }
+        // Scrolls when the keyboard or a short window leaves less room than the content needs.
+        .scrollBounceBehavior(.basedOnSize)
+        .scrollDismissesKeyboard(.interactively)
+        .background(Color.atfBg.ignoresSafeArea())
         .presentationDetents([.medium, .large])
         .onAppear {
             if store.menus.count == 1 { menuID = store.menus.first?.id }

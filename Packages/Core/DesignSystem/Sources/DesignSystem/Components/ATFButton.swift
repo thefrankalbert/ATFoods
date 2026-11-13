@@ -57,6 +57,7 @@ public struct ATFButton: View {
             .background(isDisabled ? AnyShapeStyle(Color.atfSurface2) : background)
             .foregroundStyle(isDisabled ? Color.atfText3 : foregroundColor)
             .clipShape(Capsule())
+            .contentShape(Capsule())   // clear kinds (ghost, outline) are tappable on the whole pill
             .overlay(
                 Capsule()
                     .strokeBorder(borderColor, lineWidth: kind == .outline ? 1 : 0)

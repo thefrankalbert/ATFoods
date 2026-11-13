@@ -33,13 +33,6 @@ public struct PhotoPreviewView: View {
         ZStack {
             Color.black.ignoresSafeArea()
 
-            // Full photo (fit, so the user sees exactly what will be uploaded)
-            if let image = store.capturedImage {
-                Image(uiImage: image)
-                    .resizable()
-                    .scaledToFit()
-            }
-
             // Overlay
             VStack(spacing: 12) {
                 if let qualityWarning {
@@ -52,7 +45,16 @@ public struct PhotoPreviewView: View {
                         .padding(.horizontal, 20)
                 }
 
-                Spacer()
+                // Full photo (fit, so the user sees exactly what will be uploaded), above the controls: never under them.
+                if let image = store.capturedImage {
+                    Image(uiImage: image)
+                        .resizable()
+                        .scaledToFit()
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .accessibilityLabel("Photo du plat")
+                } else {
+                    Spacer()
+                }
 
                 if let backgroundError {
                     Text(backgroundError)
@@ -68,7 +70,7 @@ public struct PhotoPreviewView: View {
                 HStack(spacing: 12) {
                     // Locked while the cutout runs, so it can't swap the photo after the user moved on.
                     ATFDarkButton("Reprendre", prominent: false, disabled: isRemovingBackground, action: { onRetake() })
-                    ATFDarkButton("Utiliser cette photo", disabled: isRemovingBackground, action: { onUse() })
+                    ATFDarkButton("Utiliser", disabled: isRemovingBackground, action: { onUse() })
                 }
                 .padding(.horizontal, 20)
                 .padding(.bottom, 32)
@@ -77,8 +79,11 @@ public struct PhotoPreviewView: View {
         .navigationTitle("Aperçu")
         .navigationBarTitleDisplayMode(.inline)
         .toolbarRole(.editor)
-        .toolbarBackground(.hidden, for: .navigationBar)
-        .toolbarColorScheme(.dark, for: .navigationBar)   // white back chevron on the black screen
+        // The dark scheme only applies to a visible bar: black bar, white title, chevron and status bar.
+        .toolbarBackground(Color.black, for: .navigationBar)
+        .toolbarBackground(.visible, for: .navigationBar)
+        .toolbarColorScheme(.dark, for: .navigationBar)
+        .tint(.white)
         .navigationBarBackButtonHidden(isRemovingBackground)   // the cutout must not land after the user left
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {

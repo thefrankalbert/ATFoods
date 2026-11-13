@@ -53,54 +53,20 @@ public struct OnboardingView: View {
 
     @State private var currentIndex = 0
     @State private var kenBurnsScale: CGFloat = 1.0
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     public init(onFinish: @escaping () -> Void) {
         self.onFinish = onFinish
     }
 
     public var body: some View {
-        GeometryReader { geo in
-            ZStack {
-                // Background photo + Ken Burns
-                Group {
-                    if let path = Bundle.module.path(forResource: slides[currentIndex].imageName, ofType: "jpg"),
-                       let image = UIImage(contentsOfFile: path) {
-                        Image(uiImage: image).resizable().scaledToFill()
-                    } else {
-                        Color(red: 0.102, green: 0.059, blue: 0.039)
-                    }
-                }
-                .frame(width: geo.size.width, height: geo.size.height)
-                .clipped()
-                .accessibilityHidden(true)
-                .scaleEffect(kenBurnsScale)
-                .animation(.linear(duration: 8).repeatForever(autoreverses: true), value: kenBurnsScale)
-                .ignoresSafeArea()
-                .id(currentIndex)
-                .onAppear { kenBurnsScale = 1.08 }
-
-                // Gradient overlays
-                VStack(spacing: 0) {
-                    LinearGradient(colors: [.black.opacity(0.55), .clear],
-                                   startPoint: .top, endPoint: .bottom)
-                        .frame(height: 180)
-                    Spacer()
-                    // Tall, dark scrim: the text sits on busy food photos and must stay readable.
-                    LinearGradient(colors: [.clear, .black.opacity(0.65), .black.opacity(0.92)],
-                                   startPoint: .top, endPoint: .bottom)
-                        .frame(height: 520)
-                }
-                .ignoresSafeArea()
-
-                // Content overlay
-                VStack(spacing: 0) {
-                    topBar
-                    Spacer()
-                    slideContent
-                }
-            }
+        // Content respects the safe area (status bar, iPad window controls); only the photo bleeds to the edges.
+        VStack(spacing: 0) {
+            topBar
+            Spacer(minLength: 0)
+            slideContent
         }
-        .ignoresSafeArea()
+        .background { backdrop.ignoresSafeArea() }
         // Swipe between slides, like any onboarding.
         .gesture(DragGesture(minimumDistance: 30).onEnded { value in
             if value.translation.width < -50 { advanceSlide() }
@@ -111,6 +77,32 @@ public struct OnboardingView: View {
         .statusBarHidden()
     }
 
+    private var backdrop: some View {
+        ZStack {
+            Color.black
+                .overlay {
+                    if let path = Bundle.module.path(forResource: slides[currentIndex].imageName, ofType: "jpg"),
+                       let image = UIImage(contentsOfFile: path) {
+                        Image(uiImage: image).resizable().scaledToFill()
+                    }
+                }
+                .clipped()
+                .scaleEffect(kenBurnsScale)
+                .animation(reduceMotion ? nil : .linear(duration: 8).repeatForever(autoreverses: true), value: kenBurnsScale)
+                .id(currentIndex)
+                .onAppear { if !reduceMotion { kenBurnsScale = 1.08 } }
+
+            // Scrims sized to the screen: the text sits on busy food photos and must stay readable.
+            LinearGradient(stops: [.init(color: .black.opacity(0.55), location: 0),
+                                   .init(color: .clear, location: 0.22),
+                                   .init(color: .clear, location: 0.42),
+                                   .init(color: .black.opacity(0.65), location: 0.72),
+                                   .init(color: .black.opacity(0.92), location: 1)],
+                           startPoint: .top, endPoint: .bottom)
+        }
+        .accessibilityHidden(true)
+    }
+
     // MARK: - Top bar
 
     private var topBar: some View {
@@ -118,10 +110,14 @@ public struct OnboardingView: View {
             HStack {
                 ATFWordmark(size: 22, color: .white)
                 Spacer()
-                Button("Passer") { onFinish() }
-                    .font(.atfSubhead)
-                    .foregroundStyle(.white.opacity(0.75))
-                    .buttonStyle(.plain)
+                Button { onFinish() } label: {
+                    Text("Passer")
+                        .font(.atfSubhead)
+                        .foregroundStyle(.white.opacity(0.85))
+                        .frame(minWidth: 44, minHeight: 44)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
             }
             .padding(.horizontal, 24)
             .padding(.top, 16)
@@ -156,16 +152,16 @@ public struct OnboardingView: View {
             // Title with italic accent (system serif: New York)
             Group {
                 Text(slides[currentIndex].title + " ")
-                    .font(.system(size: 38, weight: .medium, design: .serif))
+                    .font(.system(.largeTitle, design: .serif, weight: .medium))
                 + Text(slides[currentIndex].titleItalic)
-                    .font(.system(size: 38, weight: .medium, design: .serif).italic())
+                    .font(.system(.largeTitle, design: .serif, weight: .medium).italic())
                     .foregroundColor(Color.white.opacity(0.75))
             }
             .foregroundStyle(.white)
 
             // Body
             Text(slides[currentIndex].body)
-                .font(.system(size: 16))
+                .font(.callout)
                 .foregroundStyle(Color.white.opacity(0.8))
                 .lineSpacing(4)
 

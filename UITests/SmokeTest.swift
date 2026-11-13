@@ -121,9 +121,11 @@ final class SmokeTest: XCTestCase {
         let confirm = app.buttons["Supprimer mon compte"].firstMatch
         XCTAssertTrue(confirm.waitForExistence(timeout: 3), "Deletion confirmation missing")
         app.sheets.buttons["Supprimer mon compte"].exists ? app.sheets.buttons["Supprimer mon compte"].tap() : confirm.tap()
-        // Mock answers "sole owner of Chez Flora": the app must explain, not fail silently.
-        XCTAssertTrue(app.alerts["Compte non supprimé"].waitForExistence(timeout: 5), "Refusal not explained")
-        XCTAssertTrue(app.alerts.buttons["Contacter le support"].exists)
+        // Mock answers "sole owner of Chez Flora": the owner can still start the deletion in the app (Apple 5.1.1(v)).
+        XCTAssertTrue(app.alerts["Supprimer aussi l'établissement ?"].waitForExistence(timeout: 5), "Owner case not explained")
+        app.alerts.buttons["Demander la suppression"].tap()
+        XCTAssertTrue(app.alerts["Demande enregistrée"].waitForExistence(timeout: 5), "Deletion request not confirmed")
+        app.alerts.buttons["OK"].tap()
     }
 
     func testDishCardEditsPrice() throws {
@@ -183,7 +185,13 @@ final class SmokeTest: XCTestCase {
         }
         XCTAssertTrue(cta.isEnabled, "Restaurant could not be selected")
         cta.coordinate(withNormalizedOffset: .init(dx: 0.5, dy: 0.5)).tap()
-        XCTAssertTrue(app.buttons["cameraButton"].waitForExistence(timeout: 6), "Home not reached")
+        for _ in 0..<5 where !app.buttons["cameraButton"].exists {   // late "Save password?" prompt swallowed the tap
+            if app.buttons["Plus tard"].exists { app.buttons["Plus tard"].tap(); sleep(1) }
+            if cta.exists { cta.coordinate(withNormalizedOffset: .init(dx: 0.5, dy: 0.5)).tap() }
+            _ = app.buttons["cameraButton"].waitForExistence(timeout: 3)
+        }
+        XCTAssertTrue(app.buttons["cameraButton"].exists, "Home not reached")
+        if app.buttons["Plus tard"].waitForExistence(timeout: 3) { app.buttons["Plus tard"].tap() }
         sleep(1)   // menu load (mock: 500 ms)
     }
 

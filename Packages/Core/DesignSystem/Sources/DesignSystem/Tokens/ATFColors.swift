@@ -37,8 +37,8 @@ public extension Color {
     static let atfOverlay     = Color.black.opacity(0.32)
 
     // Semantic
-    static let atfSuccess     = Color(hex: "558A42")
-    static let atfSuccessBg   = Color(hex: "558A42").opacity(0.12)
+    static let atfSuccess     = Color(hex: "4A7A39")
+    static let atfSuccessBg   = Color(hex: "4A7A39").opacity(0.12)
     static let atfWarning     = Color(hex: "C9A82D")
     static let atfWarningBg   = Color(hex: "C9A82D").opacity(0.14)
     static let atfDanger      = Color(hex: "B3261E")

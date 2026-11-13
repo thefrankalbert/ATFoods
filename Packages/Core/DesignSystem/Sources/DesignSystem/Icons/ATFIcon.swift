@@ -71,6 +71,7 @@ public struct ATFIconView: View {
             .scaledToFit()
             .frame(width: size, height: size)
             .foregroundStyle(color ?? Color.primary)
+            .accessibilityHidden(true)
     }
 }
 

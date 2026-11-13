@@ -51,6 +51,8 @@ final class CaptureSessionHolder: @unchecked Sendable {
 
         let input = try AVCaptureDeviceInput(device: device)
         session.beginConfiguration()
+        // iPad: keep the camera running when the app is in a resizable window or Split View.
+        if session.isMultitaskingCameraAccessSupported { session.isMultitaskingCameraAccessEnabled = true }
         defer { session.commitConfiguration() }
         session.sessionPreset = .photo
         guard session.canAddInput(input) else { return false }
@@ -179,8 +181,9 @@ public struct CameraView: View {
                 ProgressView().tint(.white)
             }
 
-            // Overlay controls
+            // Overlay controls (inside the safe area: below the navigation bar, above the home indicator)
             VStack(spacing: 12) {
+                Color.clear.frame(height: 4)   // breathing room under the navigation bar
                 if let error = store.error {
                     Label(error, systemImage: "exclamationmark.triangle.fill")
                         .font(.atfCaption)
@@ -214,7 +217,7 @@ public struct CameraView: View {
                         }
                         .foregroundStyle(.white)
                         .frame(width: 56, height: 56)
-                        .background(Color.white.opacity(0.18), in: Circle())
+                        .background(Color.black.opacity(0.45), in: Circle())   // readable over a white tablecloth
                     }
                     .disabled(isLoadingPick || store.isCapturing)
                     .accessibilityLabel("Choisir dans la galerie")
@@ -248,15 +251,21 @@ public struct CameraView: View {
         }
         .navigationBarTitleDisplayMode(.inline)
         .toolbarRole(.editor)
-        .toolbarBackground(.hidden, for: .navigationBar)
-        .toolbarColorScheme(.dark, for: .navigationBar)   // white back chevron on the black screen
+        // The dark scheme only applies to a visible bar: black bar, white title, chevron and status bar.
+        .toolbarBackground(Color.black, for: .navigationBar)
+        .toolbarBackground(.visible, for: .navigationBar)
+        .toolbarColorScheme(.dark, for: .navigationBar)
+        .tint(.white)
         .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
+            // No flash on this device (most iPads) or no camera: no button that would do nothing.
+            if isCameraAvailable, holder.device?.hasFlash == true {
+              ToolbarItem(placement: .topBarTrailing) {
                 Button { flashEnabled.toggle() } label: {
                     Image(systemName: flashEnabled ? "bolt.fill" : "bolt.slash.fill")
                 }
                 .tint(.white)
                 .accessibilityLabel(flashEnabled ? "Flash activé" : "Flash désactivé")
+              }
             }
         }
         .sensoryFeedback(.success, trigger: guidance.isReady) { _, ready in ready }
@@ -299,6 +308,15 @@ public struct CameraView: View {
     // MARK: - Session Setup
 
     private func setupSession() async {
+        #if DEBUG
+        // The simulator has no camera: this launch argument shows the camera controls so UI tests can check their layout.
+        if ProcessInfo.processInfo.arguments.contains("UI_TESTING_CAMERA") {
+            isCameraAvailable = true
+            didSetUp = true
+            guidance.start(device: nil)
+            return
+        }
+        #endif
         let status = AVCaptureDevice.authorizationStatus(for: .video)
 
         defer { didSetUp = true }
@@ -341,8 +359,11 @@ public struct CameraView: View {
 
     private func capturePhoto() {
         // Capturing on an inactive connection raises an NSException (e.g. tap right after a retake).
-        guard isCameraAvailable,
-              holder.photoOutput.connection(with: .video)?.isActive == true else { return }
+        guard isCameraAvailable else { return }
+        guard holder.photoOutput.connection(with: .video)?.isActive == true else {
+            store.error = "L'appareil photo démarre. Réessayez dans un instant."   // never a shutter that does nothing
+            return
+        }
         store.error = nil
         store.isCapturing = true
 

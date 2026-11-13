@@ -19,6 +19,10 @@ public final class MockNetworking: ATFNetworking {
         return .soleOwner(restaurant: "Chez Flora")
     }
 
+    public func requestAccountDeletion() async throws {
+        try await Task.sleep(for: .milliseconds(300))
+    }
+
     public func signOut() async throws {
         try await Task.sleep(for: .milliseconds(200))
     }
@@ -54,7 +58,7 @@ public final class MockNetworking: ATFNetworking {
         return created
     }
 
-    public func updateMenuItem(_ item: MenuItem, restaurantID: UUID) async throws -> MenuItem {
+    public func updateMenuItem(_ item: MenuItem, from original: MenuItem, restaurantID: UUID) async throws -> MenuItem {
         try await Task.sleep(for: .milliseconds(300))
         return item
     }

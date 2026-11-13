@@ -30,6 +30,8 @@ public struct ATFWordmark: View {
                     .padding(.leading, 2)
             }
         }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Atfood")
     }
 }
 

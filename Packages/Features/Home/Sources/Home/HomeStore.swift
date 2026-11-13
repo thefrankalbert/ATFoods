@@ -31,7 +31,9 @@ import Networking
     public var selectedCategoryID: UUID? = nil
     public var filter: Filter = .all
     public var searchText = ""
-    public private(set) var updatingIDs: Set<UUID> = []
+    /// Availability writes in flight (dish id → value sent).
+    private var pending: [UUID: Bool] = [:]
+    public var updatingIDs: Set<UUID> { Set(pending.keys) }
 
     public init(restaurant: Restaurant) { self.restaurant = restaurant }
 
@@ -43,9 +45,12 @@ import Networking
             async let cats = networking.fetchCategories(restaurantID: restaurant.id)
             let loadedCategories = try await cats
             categories = loadedCategories
-            menuItems = MenuOrder.items(try await items, categories: loadedCategories)
+            var loaded = MenuOrder.items(try await items, categories: loadedCategories)
+            // A reload that read the row before an in-flight switch landed must not put the old value back.
+            for index in loaded.indices { if let value = pending[loaded[index].id] { loaded[index].isAvailable = value } }
+            menuItems = loaded
         } catch {
-            self.error = UserMessage.from(error)
+            if !Task.isCancelled { self.error = UserMessage.from(error) }   // screen left mid-load: nothing to report
         }
         isLoading = false
     }
@@ -83,8 +88,8 @@ import Networking
               let index = menuItems.firstIndex(where: { $0.id == itemID }),
               menuItems[index].isAvailable != isAvailable else { return }
         menuItems[index].isAvailable = isAvailable
-        updatingIDs.insert(itemID)
-        defer { updatingIDs.remove(itemID) }
+        pending[itemID] = isAvailable
+        defer { pending[itemID] = nil }
         do {
             try await networking.setAvailability(dishID: itemID, isAvailable: isAvailable, restaurantID: restaurant.id)
             actionError = nil

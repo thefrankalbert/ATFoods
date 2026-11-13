@@ -20,7 +20,7 @@ public struct DraftsView: View {
 
     @State private var confirmDelete = false
 
-    private let columns = Array(repeating: GridItem(.flexible(), spacing: 8), count: 3)
+    private let columns = [GridItem(.adaptive(minimum: 100, maximum: 170), spacing: 8)]   // 3 columns on a phone, more in a wide window
 
     public var body: some View {
         VStack(spacing: 0) {
@@ -159,7 +159,7 @@ public struct DraftsView: View {
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
-        .background(Color.atfSurface)
+        .background(Color.atfBg)
         .overlay(Divider(), alignment: .top)
     }
 }
@@ -182,6 +182,7 @@ private struct DraftCard: View {
                 .overlay {
                     ATFAsyncImage(
                         url: Thumbnail.url(draft.photoURL, points: 120),
+                        fallbackURL: draft.photoURL,
                         fallback: Color.atfSurface2,
                         radius: 0,
                         height: 104,

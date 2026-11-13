@@ -189,7 +189,7 @@ public struct AttachDishView: View {
         do {
             menuItems = try await networking.fetchMenuItems(restaurantID: restaurant.id)
         } catch {
-            loadFailed = true
+            loadFailed = !Task.isCancelled
         }
         isLoading = false
     }
@@ -234,14 +234,10 @@ private struct DishRow: View {
     var body: some View {
         Button(action: onTap) {
             HStack(spacing: 12) {
-                AsyncImage(url: Thumbnail.url(item.photoURL, points: 44)) { phase in
-                    if let image = phase.image {
-                        image.resizable().scaledToFill()
-                    } else {
-                        Color.atfSurface2.overlay(
-                            Image(systemName: item.photoURL == nil ? "camera" : "photo").foregroundStyle(Color.atfText3)
-                        )
-                    }
+                ATFRemoteImage(Thumbnail.url(item.photoURL, points: 44), fallback: item.photoURL) {
+                    Color.atfSurface2.overlay(
+                        Image(systemName: item.photoURL == nil ? "camera" : "photo").foregroundStyle(Color.atfText3)
+                    )
                 }
                 .frame(width: 44, height: 44)
                 .clipShape(RoundedRectangle(cornerRadius: 8))

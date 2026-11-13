@@ -72,10 +72,12 @@ struct RootView: View {
 
     init() {
         // UI tests always start from a fresh install state.
+        #if DEBUG
         if Env.isUITesting {
             UserDefaults.standard.removeObject(forKey: StorageKey.hasSeenOnboarding)
             UserDefaults.standard.removeObject(forKey: StorageKey.lastRestaurantID)
         }
+        #endif
     }
 
     var body: some View {
@@ -106,6 +108,10 @@ struct RootView: View {
         }
         .animation(.spring(response: 0.35, dampingFraction: 0.8), value: toast != nil)
         .task { await restoreSession() }
+        // Session revoked elsewhere (password changed on the web, account removed): back to login.
+        .task {
+            for await _ in networking.signedOutEvents() where authStore.currentUser != nil { clearSession() }
+        }
         // Native back button and back swipe change `path` without calling us: clean up here, once.
         .onChange(of: path) { old, new in leftScreens(old: old, new: new) }
     }
@@ -165,6 +171,7 @@ struct RootView: View {
         authStore.currentUser = nil
         authStore.selectedRestaurant = nil
         authStore.restaurants = []
+        authStore.email = ""       // shared device: the next person does not see the previous account
         authStore.password = ""
         lastRestaurantID = ""
         nav.homeStore = nil
@@ -185,7 +192,13 @@ struct RootView: View {
             RestaurantPickerView(
                 store: authStore,
                 onContinue: { openRestaurant() },
-                onRetry: { await authStore.loadRestaurants(networking: networking) },
+                onRetry: {
+                    await authStore.loadRestaurants(networking: networking)
+                    // Restore after an offline start: go straight back to the last restaurant.
+                    guard path == [.restaurantPicker], authStore.restaurantsError == nil else { return }
+                    authStore.selectedRestaurant = authStore.restaurants.first { $0.id.uuidString == lastRestaurantID }
+                    if authStore.selectedRestaurant != nil || authStore.restaurants.count == 1 { openRestaurant() }
+                },
                 onSignOut: {
                     Task {
                         try? await networking.signOut()
@@ -227,6 +240,7 @@ struct RootView: View {
         case .camera:
             if let store = nav.captureStore {
                 CameraView(store: store, onCapture: {
+                    guard path.last == .camera else { return }   // capture finished after the user left the camera
                     path.append(.photoPreview)
                 })
             }
@@ -318,7 +332,6 @@ struct RootView: View {
                     networking: networking,
                     onSaved: {
                         showToast("Plat enregistré")
-                        nav.formStore = nil
                         if case .draft = store.photo { popTo(.drafts) } else { popTo(.home) }
                     }
                 )
@@ -331,7 +344,6 @@ struct RootView: View {
                     networking: networking,
                     onSaved: {
                         showToast("Plat mis à jour")
-                        nav.dishEditStore = nil
                         popTo(.home)
                     },
                     onChangePhoto: {
@@ -348,7 +360,9 @@ struct RootView: View {
                     store: store,
                     networking: networking,
                     onSelect: { draft in
-                        nav.formStore = nil
+                        // Keep the form of a dish already created from this draft (photo attach failed): no duplicate.
+                        if case .draft(let previous) = nav.formStore?.photo, previous.id == draft.id,
+                           nav.formStore?.isDishCreated == true {} else { nav.formStore = nil }
                         path.append(.attachDraft(draft))
                     }
                 )
@@ -372,6 +386,7 @@ struct RootView: View {
 
     private func showToast(_ message: String) {
         toast = ATFToastData(message)
+        AccessibilityNotification.Announcement(message).post()   // VoiceOver hears confirmations too
         toastTask?.cancel()   // a newer toast restarts the timer instead of being cleared early
         toastTask = Task {
             try? await Task.sleep(for: .seconds(3))

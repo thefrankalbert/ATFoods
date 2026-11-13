@@ -34,7 +34,7 @@ public enum Money {
         return f.maximumFractionDigits
     }
 
-    /// Parses user input ("3 800", "12,50", "12.5"). nil if empty, invalid, ≤ 0 or too many decimals.
+    /// Parses user input ("3 800", "12,50", "12.5"). nil if empty, invalid, negative or too many decimals.
     public static func parse(_ text: String, currency: String) -> Decimal? {
         let cleaned = text
             .filter { !$0.isWhitespace && $0 != "\u{202F}" && $0 != "\u{00A0}" }
@@ -43,7 +43,7 @@ public enum Money {
               cleaned.allSatisfy({ $0.isNumber || $0 == "." }),
               cleaned.filter({ $0 == "." }).count <= 1,
               let value = Decimal(string: cleaned, locale: Locale(identifier: "en_US_POSIX")),
-              value > 0 else { return nil }
+              value >= 0 else { return nil }   // 0 is a real price on existing menus (free items)
         let decimals = cleaned.split(separator: ".", omittingEmptySubsequences: false).dropFirst().first?.count ?? 0
         guard decimals <= fractionDigits(currency) else { return nil }
         return value

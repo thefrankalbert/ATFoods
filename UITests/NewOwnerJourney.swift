@@ -204,7 +204,7 @@ final class NewOwnerJourney: XCTestCase {
         gallery.tap(); sleep(3)
         // System photo picker runs out of process: tap a thumbnail by position.
         app.coordinate(withNormalizedOffset: CGVector(dx: 0.16 + 0.33 * Double(index), dy: 0.72)).tap()
-        let use = app.buttons["Utiliser cette photo"]
+        let use = app.buttons["Utiliser"]
         XCTAssertTrue(use.waitForExistence(timeout: 15), "Preview not shown")
         pause(); use.tap()
     }

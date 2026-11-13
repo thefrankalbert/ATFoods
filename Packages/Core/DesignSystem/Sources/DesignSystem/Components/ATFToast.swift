@@ -35,7 +35,6 @@ public struct ATFToastOverlay: View {
             .padding(.vertical, 10)
             .background(Color.atfText1)
             .clipShape(Capsule())
-            .shadow(color: .black.opacity(0.2), radius: 16, y: 6)
             .transition(.move(edge: .top).combined(with: .opacity))
         }
     }

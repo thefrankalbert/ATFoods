@@ -42,13 +42,6 @@ public struct DishFormView: View {
                     visibilitySection
                     if store.isEditing { gallerySection }
                     detailsSection
-                    if let errorMsg = store.error {
-                        Label(errorMsg, systemImage: "exclamationmark.circle")
-                            .font(.footnote)
-                            .foregroundStyle(Color.atfDanger)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(.horizontal, 16)
-                    }
                 }
                 .padding(.horizontal, 16)
                 .padding(.top, 8)
@@ -113,7 +106,7 @@ public struct DishFormView: View {
                         .font(.subheadline.weight(.semibold))
                         .foregroundStyle(Color.atfText1)
                         .padding(.horizontal, 14)
-                        .frame(height: 40)
+                        .frame(minHeight: 44)
                         .background(Color.atfBg, in: Capsule())
                 }
                 .buttonStyle(ATFScaleButtonStyle())
@@ -243,7 +236,7 @@ public struct DishFormView: View {
         }
         .tint(Color.atfAccent)
         .accessibilityLabel(title)
-        .accessibilityValue(subtitle)
+        .accessibilityHint(subtitle)   // keep the switch's own on/off value
         .padding(.horizontal, 16)
         .padding(.vertical, 10)
     }
@@ -291,7 +284,7 @@ public struct DishFormView: View {
                             .focused($fieldFocused)
                         Divider()
                         TextField("Description (traduction)", text: $store.descriptionEn,
-                                  prompt: Text("Shown to customers who read the menu in English"), axis: .vertical)
+                                  prompt: Text("Affichée aux clients qui lisent le menu en anglais"), axis: .vertical)
                             .lineLimit(2...5)
                             .focused($fieldFocused)
                     }
@@ -314,9 +307,7 @@ public struct DishFormView: View {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 10) {
                     ForEach(store.gallery, id: \.self) { url in
-                        AsyncImage(url: Thumbnail.url(url, points: 76)) { phase in
-                            if let image = phase.image { image.resizable().scaledToFill() } else { Color.atfSurface2 }
-                        }
+                        ATFRemoteImage(Thumbnail.url(url, points: 76), fallback: url) { Color.atfSurface2 }
                         .frame(width: 76, height: 76)
                         .clipShape(RoundedRectangle(cornerRadius: 8))
                         .overlay(alignment: .topTrailing) {
@@ -370,6 +361,12 @@ public struct DishFormView: View {
 
     private var saveBar: some View {
         VStack(spacing: 8) {
+            if let errorMsg = store.error {
+                Label(errorMsg, systemImage: "exclamationmark.circle")
+                    .font(.footnote)
+                    .foregroundStyle(Color.atfDanger)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
             if let missing = store.missingFieldsHint, !store.isLoading {
                 Text(missing)
                     .font(.footnote)

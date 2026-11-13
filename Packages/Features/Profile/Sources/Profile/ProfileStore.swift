@@ -26,6 +26,19 @@ import Networking
         }
     }
 
+    /// Owner flow: the account cannot go alone, so the deletion is requested and confirmed on screen.
+    public func requestDeletion(networking: any ATFNetworking) async {
+        isDeleting = true
+        defer { isDeleting = false }
+        do {
+            try await networking.requestAccountDeletion()
+            deletionOutcome = .requested
+        } catch {
+            deletionOutcome = nil
+            deletionError = UserMessage.from(error)
+        }
+    }
+
     public func signOut(networking: any ATFNetworking) async {
         isSigningOut = true
         defer { isSigningOut = false }

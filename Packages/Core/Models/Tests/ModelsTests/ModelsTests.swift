@@ -14,7 +14,8 @@ import Foundation
     #expect(Money.parse("12,50", currency: "EUR") == Decimal(string: "12.5"))
     #expect(Money.parse("12.5", currency: "EUR") == Decimal(string: "12.5"))
     #expect(Money.parse("12,50", currency: "XAF") == nil)   // FCFA has no cents
-    #expect(Money.parse("0", currency: "XAF") == nil)
+    #expect(Money.parse("0", currency: "XAF") == 0)      // free items exist on real menus and must stay editable
+    #expect(Money.parse("-5", currency: "XAF") == nil)
     #expect(Money.parse("", currency: "XAF") == nil)
     #expect(Money.parse("12,5,0", currency: "EUR") == nil)
     #expect(Money.parse("abc", currency: "EUR") == nil)

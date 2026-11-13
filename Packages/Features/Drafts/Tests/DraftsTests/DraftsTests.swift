@@ -15,8 +15,9 @@ private final class FailingDelete: ATFNetworking, @unchecked Sendable {
     func fetchMenus(restaurantID: UUID) async throws -> [MenuRef] { [] }
     func createCategory(name: String, menuID: UUID?, restaurantID: UUID) async throws -> MenuCategory { MenuCategory(name: name) }
     func createMenuItem(_ item: MenuItem, categoryID: UUID, restaurantID: UUID) async throws -> MenuItem { item }
+    func requestAccountDeletion() async throws {}
     func setAvailability(dishID: UUID, isAvailable: Bool, restaurantID: UUID) async throws {}
-    func updateMenuItem(_ item: MenuItem, restaurantID: UUID) async throws -> MenuItem { item }
+    func updateMenuItem(_ item: MenuItem, from original: MenuItem, restaurantID: UUID) async throws -> MenuItem { item }
     func attachPhoto(imageData: Data, toDishID dishID: UUID, restaurantID: UUID) async throws -> URL { URL(string: "https://x")! }
     func saveDraft(imageData: Data, restaurantID: UUID) async throws -> Draft { Draft.mocks[0] }
     func fetchDrafts(restaurantID: UUID) async throws -> [Draft] { Draft.mocks }

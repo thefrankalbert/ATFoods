@@ -7,7 +7,9 @@ public enum Thumbnail {
     public static func url(_ url: URL?, points: Int) -> URL? {
         guard let url else { return nil }
         let full = url.absoluteString
-        guard full.contains(objectPath), var parts = URLComponents(string: full.replacingOccurrences(of: objectPath, with: renderPath)) else {
+        // Only real Storage objects: the marker must start the path, not merely appear in a query string.
+        guard url.path.hasPrefix(objectPath), let range = full.range(of: objectPath),
+              var parts = URLComponents(string: full.replacingCharacters(in: range, with: renderPath)) else {
             return url
         }
         let px = String(points * 3)

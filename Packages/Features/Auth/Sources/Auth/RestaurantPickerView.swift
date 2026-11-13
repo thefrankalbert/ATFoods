@@ -36,11 +36,14 @@ public struct RestaurantPickerView: View {
                 Text("Quel établissement ?")
                     .font(.system(.largeTitle, design: .serif, weight: .medium))
                     .foregroundStyle(Color.atfText1)
-                Button("Changer de compte") { confirmSignOut = true }
-                    .font(.subheadline.weight(.medium))
-                    .foregroundStyle(Color.atfText1)
-                    .underline()
-                    .frame(minHeight: 44)
+                Button { confirmSignOut = true } label: {
+                    Text("Changer de compte")
+                        .font(.subheadline.weight(.medium))
+                        .foregroundStyle(Color.atfText1)
+                        .underline()
+                        .frame(minHeight: 44)
+                        .contentShape(Rectangle())
+                }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, 24)
@@ -89,8 +92,6 @@ public struct RestaurantPickerView: View {
                 .padding(.bottom, 16)
             }
 
-            Spacer(minLength: 0)
-
             // Bottom button
             VStack(spacing: 0) {
                 Divider()
@@ -126,6 +127,7 @@ private struct RestaurantRow: View {
             // Thumbnail
             ATFAsyncImage(
                 url: Thumbnail.url(restaurant.photoURL, points: 48),
+                fallbackURL: restaurant.photoURL,
                 fallback: Color.atfSurface2,
                 radius: 10,
                 height: 48,
@@ -160,7 +162,7 @@ private struct RestaurantRow: View {
             } else {
                 Image(systemName: "circle")
                     .font(.title2)
-                    .foregroundStyle(Color.atfBorderStr)
+                    .foregroundStyle(Color.atfText3)
             }
         }
         .padding(14)

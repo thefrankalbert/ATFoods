@@ -55,7 +55,7 @@ final class ScreenTour: XCTestCase {
         // The system photo picker runs out of process: tap the first thumbnail by position.
         app.coordinate(withNormalizedOffset: CGVector(dx: 0.16, dy: 0.72)).tap()
         sleep(5); shot("12_photo_preview")
-        app.buttons["Utiliser cette photo"].tap()
+        app.buttons["Utiliser"].tap()
         sleep(3); shot("13_attach_dish")
         app.buttons["Créer un nouveau plat"].tap(); sleep(2); shot("14_new_dish_form")
 

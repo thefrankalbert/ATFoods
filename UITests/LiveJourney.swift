@@ -69,7 +69,7 @@ final class LiveJourney: XCTestCase {
         home.tap(); pause()
         app.buttons["galleryButton"].tap(); sleep(3)
         app.coordinate(withNormalizedOffset: CGVector(dx: 0.16, dy: 0.72)).tap()   // first photo (system picker)
-        let use = app.buttons["Utiliser cette photo"]
+        let use = app.buttons["Utiliser"]
         XCTAssertTrue(use.waitForExistence(timeout: 15), "Preview not shown")
         pause(); use.tap()
         let keep = app.buttons["saveDraftButton"]
@@ -110,8 +110,8 @@ final class LiveJourney: XCTestCase {
         home.tap(); pause()
         app.buttons["galleryButton"].tap(); sleep(3)
         app.coordinate(withNormalizedOffset: CGVector(dx: 0.16, dy: 0.72)).tap()
-        XCTAssertTrue(app.buttons["Utiliser cette photo"].waitForExistence(timeout: 15), "Preview not shown")
-        pause(); app.buttons["Utiliser cette photo"].tap()
+        XCTAssertTrue(app.buttons["Utiliser"].waitForExistence(timeout: 15), "Preview not shown")
+        pause(); app.buttons["Utiliser"].tap()
         let row = app.staticTexts["Parcours live"]
         XCTAssertTrue(row.waitForExistence(timeout: 15), "Dish list not loaded"); pause()
         row.tap(); pause()

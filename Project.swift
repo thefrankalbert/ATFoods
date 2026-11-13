@@ -48,7 +48,6 @@ let project = Project(
                 "CFBundleVersion": .string("$(CURRENT_PROJECT_VERSION)"),
                 "UILaunchScreen": .dictionary(["UIColorName": .string("LaunchBackground")]),
                 "UISupportedInterfaceOrientations": .array([.string("UIInterfaceOrientationPortrait")]),
-                "UIRequiresFullScreen": .boolean(true),
                 // Tokens are light-only (Home and camera are dark by design): no white-on-white in dark mode.
                 "UIUserInterfaceStyle": .string("Light"),
                 "ITSAppUsesNonExemptEncryption": .boolean(false),

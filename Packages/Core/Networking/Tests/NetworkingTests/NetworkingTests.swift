@@ -63,3 +63,26 @@ private let newPath = "tenant/dish-2.jpg"
     #expect(json["is_featured"] as? Bool == true)
     #expect(json["id"] == nil && json["tenant_id"] == nil)   // update never rewrites ownership
 }
+
+@Test func updateSendsOnlyWhatChanged() throws {
+    var original = MenuItem(name: "Ndolé", price: 4500, categoryID: UUID(), description: "Feuilles, arachides")
+    original.allergens = ["peanuts"]
+    var edited = original
+    edited.description = "Feuilles, arachides, crevettes"
+    var fields = DishFields(edited, categoryID: original.categoryID!)
+    fields.original = original
+    let json = try JSONSerialization.jsonObject(with: JSONEncoder().encode(fields)) as! [String: Any]
+    // Price, availability, allergens... untouched on the phone are not sent: a web edit made meanwhile survives.
+    #expect(Array(json.keys) == ["description"])
+    #expect(!fields.isEmpty)
+
+    var same = DishFields(original, categoryID: original.categoryID!)
+    same.original = original
+    #expect(same.isEmpty)
+}
+
+@Test func malformedImagesNeverBreakTheMenu() throws {
+    struct Row: Decodable { let images: StringList? }
+    let rows = try JSONDecoder().decode([Row].self, from: Data(#"[{"images":{}},{"images":["a"]},{"images":null}]"#.utf8))
+    #expect(rows.map { $0.images?.values ?? [] } == [[], ["a"], []])
+}

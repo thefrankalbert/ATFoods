@@ -38,7 +38,7 @@ public struct ATFChip: View {
                     .font(.subheadline)
             }
             .padding(.horizontal, isTap ? 12 : 14)
-            .frame(height: isTap ? 32 : 36)
+            .frame(minHeight: isTap ? 32 : 36)
             .background(chipBackground)
             .foregroundStyle(chipForeground)
             .clipShape(Capsule())
@@ -46,10 +46,12 @@ public struct ATFChip: View {
                 Capsule()
                     .strokeBorder(chipBorder, lineWidth: 1)
             )
+            .frame(minHeight: 44)   // hit area even when the chip is drawn smaller
+            .contentShape(Rectangle())
         }
         .buttonStyle(ATFScaleButtonStyle())
-        .frame(minHeight: 44)   // hit area even when the chip is drawn smaller
         .fixedSize()
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 
     private var chipBackground: Color {

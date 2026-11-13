@@ -64,9 +64,14 @@ public struct LoginView: View {
                     HStack {
                         Spacer()
                         // The web flow handles the reset email and the new-password page.
-                        Button("Mot de passe oublié ?") { openURL(AttablWeb.forgotPassword) }
-                            .font(.atfSubhead)
-                            .foregroundStyle(Color.atfAccent)
+                        Button { openURL(AttablWeb.forgotPassword) } label: {
+                            Text("Mot de passe oublié ?")
+                                .font(.atfSubhead)
+                                .foregroundStyle(Color.atfText1)
+                                .underline()
+                                .frame(minHeight: 44)
+                                .contentShape(Rectangle())
+                        }
                     }
 
                     ATFButton("Se connecter", kind: .primary, fullWidth: true,
@@ -79,6 +84,12 @@ public struct LoginView: View {
                     .font(.atfCaption)
                     .foregroundStyle(Color.atfText3)
                     .multilineTextAlignment(.center)
+
+                // Legal links reachable before sign-in (App Store guideline 5.1.1).
+                HStack(spacing: 20) {
+                    legalLink("Conditions d'utilisation", AttablWeb.legal)
+                    legalLink("Confidentialité", AttablWeb.privacy)
+                }
 
                 Spacer().frame(height: 32)
             }
@@ -97,6 +108,17 @@ public struct LoginView: View {
         Task {
             await store.signIn(networking: networking)
             if store.currentUser != nil { onSuccess() }
+        }
+    }
+
+    private func legalLink(_ title: String, _ url: URL) -> some View {
+        Button { openURL(url) } label: {
+            Text(title)
+                .font(.footnote)
+                .foregroundStyle(Color.atfText2)
+                .underline()
+                .frame(minHeight: 44)
+                .contentShape(Rectangle())
         }
     }
 }
