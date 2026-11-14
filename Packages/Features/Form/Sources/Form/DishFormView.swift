@@ -71,6 +71,14 @@ public struct DishFormView: View {
             }
         }
         .task { await store.loadCategories(networking: networking) }
+        // Values are right-aligned: a tap left of the text would put the cursor before it ("6900" typed on "6500"
+        // gave "69006500"). Start editing at the end, like the Settings app.
+        .onReceive(NotificationCenter.default.publisher(for: UITextField.textDidBeginEditingNotification)) { note in
+            guard let field = note.object as? UITextField else { return }
+            DispatchQueue.main.async {
+                field.selectedTextRange = field.textRange(from: field.endOfDocument, to: field.endOfDocument)
+            }
+        }
         .confirmationDialog("Abandonner les modifications ?", isPresented: $confirmDiscard, titleVisibility: .visible) {
             Button("Abandonner", role: .destructive) { dismiss() }
             Button("Continuer la modification", role: .cancel) {}

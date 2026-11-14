@@ -89,6 +89,28 @@ final class LiveTest: XCTestCase {
         sleep(2)   // fetch finished
     }
 
+    /// Owner account (set ATF_LIVE_OWNER=1): deletion cannot be immediate, the app records a request instead.
+    func testLive05_ownerDeletionRequest() throws {
+        guard ProcessInfo.processInfo.environment["ATF_LIVE_OWNER"] == "1" else {
+            throw XCTSkip("Set ATF_LIVE_OWNER=1 with a throwaway owner account")
+        }
+        app.buttons["profileButton"].tap()
+        let row = app.staticTexts["Supprimer mon compte"]
+        XCTAssertTrue(row.waitForExistence(timeout: 5))
+        row.tap()
+        let confirm = app.sheets.buttons["Supprimer mon compte"].exists
+            ? app.sheets.buttons["Supprimer mon compte"] : app.buttons["Supprimer mon compte"].firstMatch
+        XCTAssertTrue(confirm.waitForExistence(timeout: 5))
+        confirm.tap()
+        XCTAssertTrue(app.alerts["Supprimer aussi l'établissement ?"].waitForExistence(timeout: 15), "Owner case not explained: \(errorText())")
+        shot("live05_owner_explained")
+        app.alerts.buttons["Demander la suppression"].tap()
+        XCTAssertTrue(app.alerts["Demande enregistrée"].waitForExistence(timeout: 15), "Request not recorded: \(errorText())")
+        shot("live05_request_recorded")
+        app.alerts.buttons["OK"].tap()
+        XCTAssertTrue(app.buttons["Se déconnecter"].exists, "Owner should stay signed in until the request is processed")
+    }
+
     func testLive03_deleteThrowawayAccount() throws {
         guard ProcessInfo.processInfo.environment["ATF_LIVE_ALLOW_DELETE"] == "1" else {
             throw XCTSkip("Set ATF_LIVE_ALLOW_DELETE=1 with a throwaway account")

@@ -38,7 +38,9 @@ final class LiveJourney: XCTestCase {
         dismissPasswordPrompt(); pause()
 
         // 3. Home filters
-        app.buttons["Plats"].tap(); pause()
+        let noPhoto = app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Sans photo'")).firstMatch
+        XCTAssertTrue(noPhoto.waitForExistence(timeout: 10), "Home filters missing")
+        noPhoto.tap(); pause()
         app.buttons["Tous"].tap(); pause()
 
         // 4. Edit a dish: price + sold out, then put it back
@@ -89,7 +91,7 @@ final class LiveJourney: XCTestCase {
         let newDish = app.buttons["Créer un nouveau plat"]
         XCTAssertTrue(newDish.waitForExistence(timeout: 10)); pause()
         newDish.tap()
-        XCTAssertTrue(app.staticTexts["Nouveau plat"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.navigationBars["Nouveau plat"].waitForExistence(timeout: 5))
         let name = app.textFields.element(boundBy: 0)
         name.tap(); name.typeText("Parcours live")
         let newPrice = app.textFields.element(boundBy: 1)
@@ -98,7 +100,7 @@ final class LiveJourney: XCTestCase {
         let save = app.buttons["Enregistrer"]
         for _ in 0..<10 where !save.isEnabled { sleep(1) }
         save.tap()
-        XCTAssertTrue(app.staticTexts["Brouillons"].waitForExistence(timeout: 20), "Create failed")
+        XCTAssertTrue(app.navigationBars["Brouillons"].waitForExistence(timeout: 20), "Create failed")
         let gone = expectation(for: NSPredicate(format: "exists == false"), evaluatedWith: usedDraft)
         wait(for: [gone], timeout: 10)
         pause(); app.navigationBars.buttons.firstMatch.tap()
@@ -137,7 +139,7 @@ final class LiveJourney: XCTestCase {
         let dish = app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", prefix)).firstMatch
         XCTAssertTrue(dish.waitForExistence(timeout: 15), "\(prefix) not loaded")
         dish.tap()
-        XCTAssertTrue(app.staticTexts["Fiche plat"].waitForExistence(timeout: 5)); pause()
+        XCTAssertTrue(app.navigationBars["Fiche plat"].waitForExistence(timeout: 5)); pause()
     }
 
     private func dismissPasswordPrompt() {
