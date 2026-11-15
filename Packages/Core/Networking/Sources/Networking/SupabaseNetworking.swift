@@ -21,12 +21,15 @@ public struct SupabaseNetworking: ATFNetworking {
 
     /// Storage sometimes answers a one-off 5xx (seen: 520): try once more before showing an error.
     private func uploadPhoto(_ data: Data, to path: String) async throws {
-        let options = FileOptions(contentType: "image/jpeg")
         do {
-            try await client.storage.from(Self.bucket).upload(path, data: data, options: options)
+            try await client.storage.from(Self.bucket).upload(path, data: data, options: FileOptions(contentType: "image/jpeg"))
         } catch {
+            // Refused for good (rights, size): a retry cannot help.
+            if let storage = error as? StorageError, ["403", "413"].contains(storage.statusCode ?? "") { throw error }
             try await Task.sleep(for: .seconds(1))
-            try await client.storage.from(Self.bucket).upload(path, data: data, options: options)
+            // upsert: the first attempt may have stored the file although its answer was lost.
+            try await client.storage.from(Self.bucket)
+                .upload(path, data: data, options: FileOptions(contentType: "image/jpeg", upsert: true))
         }
     }
 
@@ -63,6 +66,15 @@ public struct SupabaseNetworking: ATFNetworking {
         }
     }
 
+    public func signedOutEvents() -> AsyncStream<Void> {
+        AsyncStream { continuation in
+            let task = Task {
+                for await (event, _) in client.auth.authStateChanges where event == .signedOut { continuation.yield() }
+            }
+            continuation.onTermination = { _ in task.cancel() }
+        }
+    }
+
     public func signOut() async throws {
         // .local: leaving the app must not sign the owner out of the web dashboard (default is .global).
         // The SDK forgets the session on this device before calling the server, so a network error changes nothing.
@@ -73,15 +85,22 @@ public struct SupabaseNetworking: ATFNetworking {
         guard let userID = client.auth.currentUser?.id else { throw SupabaseNetworkingError.notAllowed }
         // Remove this user's drafts through the API first so their photo files go too
         // (the database function only deletes rows).
+        // Owners and platform accounts are refused by delete_my_account: never wipe their drafts for nothing.
+        struct RoleRow: Decodable, Sendable { let role: String }
+        let roles: [RoleRow] = try await client
+            .from("admin_users").select("role").eq("user_id", value: userID.uuidString).execute().value
+        let isPlatform: Bool = (try? await client.rpc("is_super_admin").execute().value) ?? false
+        let willBeRefused = isPlatform || roles.contains { $0.role == "owner" }
         struct DraftRow: Decodable, Sendable { let id: UUID; let storage_path: String; let public_url: String? }
-        let rows: [DraftRow] = try await client
-            .from("dish_photo_drafts").select("id, storage_path, public_url")
-            .eq("created_by", value: userID.uuidString)
-            .execute().value
-        let drafts = rows.compactMap { row in
-            row.public_url.flatMap(URL.init).map { Draft(id: row.id, photoURL: $0, storagePath: row.storage_path) }
+        if !willBeRefused {
+            let rows: [DraftRow] = try await client
+                .from("dish_photo_drafts").select("id, storage_path, public_url")
+                .eq("created_by", value: userID.uuidString)
+                .execute().value
+            // Only id and storagePath matter for deletion: a draft without a URL still has a file to remove.
+            let drafts = rows.map { Draft(id: $0.id, photoURL: URL(string: $0.public_url ?? "") ?? URL(fileURLWithPath: "/"), storagePath: $0.storage_path) }
+            try? await deleteDrafts(drafts)
         }
-        try? await deleteDrafts(drafts)
 
         let status: String = try await client.rpc("delete_my_account").execute().value
         switch status {
@@ -95,6 +114,11 @@ public struct SupabaseNetworking: ATFNetworking {
         default:
             return .needsSupport
         }
+    }
+
+    public func requestAccountDeletion() async throws {
+        let status: String = try await client.rpc("request_account_deletion").execute().value
+        guard status == "requested" else { throw SupabaseNetworkingError.notAllowed }
     }
 
     // MARK: - Restaurants (= Tenants in À Table SaaS)
@@ -125,14 +149,14 @@ public struct SupabaseNetworking: ATFNetworking {
             .value
 
         let validLinks = links.filter { link in
-            let roleOK = ["owner", "admin", "manager"].contains(link.role)
             // RLS on drafts/categories requires is_active = true exactly (NULL is rejected).
             let userActive = link.is_active == true
             let status = link.tenants.subscription_status
             let tenantActive = link.tenants.is_active ?? true
             let statusOK = status == nil || ["trial", "active", "past_due"].contains(status)
             let atFoodOK = link.tenants.at_food_enabled ?? true   // tenants.at_food_enabled (default true)
-            return roleOK && userActive && tenantActive && statusOK && atFoodOK
+            // No role list here: has_tenant_write_permission (below) is the single rule, custom permissions included.
+            return userActive && tenantActive && statusOK && atFoodOK
         }
 
         // Per tenant, in parallel: can this user edit the menu (same rule as the database policies)?
@@ -193,20 +217,28 @@ public struct SupabaseNetworking: ATFNetworking {
             let description_en: String?
             let allergens: [String]?
             let calories: Int?
-            let images: [String]?
+            let images: StringList?
             let created_at: Date?
             let categories: CategoryRow?
             struct CategoryRow: Decodable, Sendable { let name: String }
         }
 
-        let rows: [ItemRow] = try await client
-            .from("menu_items")
-            .select("id, name, price, description, image_url, is_available, is_featured, category_id, name_en, description_en, allergens, calories, images, created_at, categories(name)")
-            .eq("tenant_id", value: restaurantID.uuidString)
-            .is("deleted_at", value: nil)
-            .order("created_at", ascending: true)   // web storefront order inside a category
-            .execute()
-            .value
+        // PostgREST returns at most 1000 rows per request: page until a short page.
+        var rows: [ItemRow] = []
+        while true {
+            let page: [ItemRow] = try await client
+                .from("menu_items")
+                .select("id, name, price, description, image_url, is_available, is_featured, category_id, name_en, description_en, allergens, calories, images, created_at, categories(name)")
+                .eq("tenant_id", value: restaurantID.uuidString)
+                .is("deleted_at", value: nil)
+                .order("created_at", ascending: true)   // web storefront order inside a category
+                .order("id", ascending: true)           // stable across pages
+                .range(from: rows.count, to: rows.count + 999)
+                .execute()
+                .value
+            rows += page
+            if page.count < 1000 { break }
+        }
 
         return rows.map { row in
             var item = MenuItem(
@@ -225,7 +257,7 @@ public struct SupabaseNetworking: ATFNetworking {
             item.descriptionEn = row.description_en ?? ""
             item.allergens = row.allergens ?? []
             item.calories = row.calories
-            item.gallery = (row.images ?? []).filter { $0 != row.image_url }.compactMap(URL.init)
+            item.gallery = (row.images?.values ?? []).filter { $0 != row.image_url }.compactMap(URL.init)
             return item
         }
     }
@@ -308,22 +340,29 @@ public struct SupabaseNetworking: ATFNetworking {
     }
 
     public func createMenuItem(_ item: MenuItem, categoryID: UUID, restaurantID: UUID) async throws -> MenuItem {
-        try await client
-            .from("menu_items")
-            .insert(DishFields(item, categoryID: categoryID, id: item.id, tenantID: restaurantID))
-            .execute()
+        do {
+            try await client
+                .from("menu_items")
+                .insert(DishFields(item, categoryID: categoryID, id: item.id, tenantID: restaurantID))
+                .execute()
+        } catch let error as PostgrestError where error.code == "23505" && error.message.contains("menu_items_pkey") {
+            // Same id already stored: an earlier attempt succeeded and only its answer was lost.
+        }
 
         var created = item
         created.categoryID = categoryID
         return created
     }
 
-    public func updateMenuItem(_ item: MenuItem, restaurantID: UUID) async throws -> MenuItem {
+    public func updateMenuItem(_ item: MenuItem, from original: MenuItem, restaurantID: UUID) async throws -> MenuItem {
         guard let categoryID = item.categoryID else { throw SupabaseNetworkingError.notFound }
+        var fields = DishFields(item, categoryID: categoryID)
+        fields.original = original
+        guard !fields.isEmpty else { return item }
         struct UpdatedRow: Decodable, Sendable { let id: UUID }
         let updated: [UpdatedRow] = try await client
             .from("menu_items")
-            .update(DishFields(item, categoryID: categoryID))
+            .update(fields)
             .eq("id", value: item.id.uuidString)
             .eq("tenant_id", value: restaurantID.uuidString)
             .is("deleted_at", value: nil)
@@ -335,12 +374,28 @@ public struct SupabaseNetworking: ATFNetworking {
         return item
     }
 
+    public func setAvailability(dishID: UUID, isAvailable: Bool, restaurantID: UUID) async throws {
+        struct Payload: Encodable { let is_available: Bool }
+        struct UpdatedRow: Decodable, Sendable { let id: UUID }
+        let updated: [UpdatedRow] = try await client
+            .from("menu_items")
+            .update(Payload(is_available: isAvailable))
+            .eq("id", value: dishID.uuidString)
+            .eq("tenant_id", value: restaurantID.uuidString)
+            .is("deleted_at", value: nil)
+            .select("id")
+            .execute()
+            .value
+        // 0 rows: dish deleted on the web meanwhile, or rights revoked.
+        guard !updated.isEmpty else { throw SupabaseNetworkingError.notAllowed }
+    }
+
     // MARK: - Photos
 
     public func attachPhoto(imageData: Data, toDishID dishID: UUID, restaurantID: UUID) async throws -> URL {
         let path = Self.dishPhotoPath(dishID: dishID, restaurantID: restaurantID)
         try await uploadPhoto(imageData, to: path)
-        return try await setDishImage(dishID: dishID, newPath: path)
+        return try await setDishImage(dishID: dishID, restaurantID: restaurantID, newPath: path)
     }
 
     // MARK: - Drafts
@@ -373,7 +428,7 @@ public struct SupabaseNetworking: ATFNetworking {
                 ))
                 .execute()
         } catch {
-            _ = try? await client.storage.from(Self.bucket).remove(paths: [path])   // no orphan file
+            await removeUnlessAmbiguous(error, path: path)   // no orphan file
             throw error
         }
         return Draft(id: id, photoURL: publicURL, storagePath: path)
@@ -405,7 +460,7 @@ public struct SupabaseNetworking: ATFNetworking {
         // Server-side copy: no re-upload, and the dish owns its own file (draft cleanup can't break it).
         let path = Self.dishPhotoPath(dishID: dishID, restaurantID: restaurantID)
         try await client.storage.from(Self.bucket).copy(from: draft.storagePath, to: path)
-        let url = try await setDishImage(dishID: dishID, newPath: path)
+        let url = try await setDishImage(dishID: dishID, restaurantID: restaurantID, newPath: path)
         // Dish is updated: the draft is consumed. A failure here only leaves a draft to delete by hand.
         try? await deleteDrafts([draft])
         return url
@@ -441,11 +496,11 @@ public struct SupabaseNetworking: ATFNetworking {
 
     /// Points the dish at an uploaded file. On failure the new file is removed; on success the
     /// previous photo is removed if it lives in our bucket and no other dish uses it.
-    private func setDishImage(dishID: UUID, newPath: String) async throws -> URL {
+    private func setDishImage(dishID: UUID, restaurantID: UUID, newPath: String) async throws -> URL {
         let storage = client.storage.from(Self.bucket)
         let publicURL = try storage.getPublicURL(path: newPath)
 
-        struct CurrentRow: Decodable, Sendable { let image_url: String?; let images: [String]? }
+        struct CurrentRow: Decodable, Sendable { let image_url: String?; let images: StringList? }
         struct PhotoUpdate: Encodable {
             let image_url: String
             let images: [String]
@@ -460,6 +515,7 @@ public struct SupabaseNetworking: ATFNetworking {
         do {
             let current: [CurrentRow] = try await client
                 .from("menu_items").select("image_url, images").eq("id", value: dishID.uuidString)
+                .eq("tenant_id", value: restaurantID.uuidString).is("deleted_at", value: nil)
                 .execute().value
             guard let row = current.first else { throw SupabaseNetworkingError.notFound }
             previous = row.image_url
@@ -469,17 +525,19 @@ public struct SupabaseNetworking: ATFNetworking {
                 .update(PhotoUpdate(
                     image_url: publicURL.absoluteString,
                     // The storefront detail sheet shows `images` first: keep the gallery in sync.
-                    images: Self.gallery(row.images ?? [], replacing: previous, with: publicURL.absoluteString),
+                    images: Self.gallery(row.images?.values ?? [], replacing: previous, with: publicURL.absoluteString),
                     image_source: "at_food_ios",
                     image_uploaded_at: ISO8601DateFormatter().string(from: Date()),
                     image_uploaded_by: client.auth.currentUser?.id.uuidString
                 ))
                 .eq("id", value: dishID.uuidString)
+                .eq("tenant_id", value: restaurantID.uuidString)
+                .is("deleted_at", value: nil)
                 .select("id")
                 .execute()
                 .value
         } catch {
-            _ = try? await storage.remove(paths: [newPath])
+            await removeUnlessAmbiguous(error, path: newPath)
             throw error
         }
         guard !updated.isEmpty else {
@@ -491,6 +549,12 @@ public struct SupabaseNetworking: ATFNetworking {
             await removeFileIfUnused(previous)
         }
         return publicURL
+    }
+
+    /// A network error is ambiguous: the write may have been stored. An orphan file is cheaper than a broken photo link.
+    private func removeUnlessAmbiguous(_ error: Error, path: String) async {
+        guard !(error is URLError) else { return }
+        _ = try? await client.storage.from(Self.bucket).remove(paths: [path])
     }
 
     /// Deletes a photo file from our bucket once no dish references it (unsure → keep it).
@@ -521,7 +585,7 @@ public struct SupabaseNetworking: ATFNetworking {
         do {
             return try await setGallery(dishID: dishID, restaurantID: restaurantID) { $0 + [url] }
         } catch {
-            _ = try? await client.storage.from(Self.bucket).remove(paths: [path])
+            await removeUnlessAmbiguous(error, path: path)
             throw error
         }
     }
@@ -537,7 +601,7 @@ public struct SupabaseNetworking: ATFNetworking {
     /// Rewrites menu_items.images as the web does: [main photo] + extras.
     private func setGallery(dishID: UUID, restaurantID: UUID,
                             change: ([String]) -> [String]) async throws -> [URL] {
-        struct Row: Decodable, Sendable { let image_url: String?; let images: [String]? }
+        struct Row: Decodable, Sendable { let image_url: String?; let images: StringList? }
         struct Update: Encodable { let images: [String] }
         struct UpdatedRow: Decodable, Sendable { let id: UUID }
         let rows: [Row] = try await client
@@ -545,7 +609,7 @@ public struct SupabaseNetworking: ATFNetworking {
             .eq("id", value: dishID.uuidString).eq("tenant_id", value: restaurantID.uuidString)
             .execute().value
         guard let row = rows.first else { throw SupabaseNetworkingError.notFound }
-        let extras = change((row.images ?? []).filter { $0 != row.image_url })
+        let extras = change((row.images?.values ?? []).filter { $0 != row.image_url })
         let updated: [UpdatedRow] = try await client
             .from("menu_items")
             .update(Update(images: (row.image_url.map { [$0] } ?? []) + extras))
@@ -595,5 +659,14 @@ public struct SupabaseNetworking: ATFNetworking {
 
     private func localUser(_ user: User) -> AppUser {
         AppUser(id: user.id, name: "", email: user.email ?? "")
+    }
+}
+
+/// `menu_items.images` should be a JSON array of strings; any other shape (seen: `{}`) reads as empty
+/// instead of failing the whole menu.
+struct StringList: Decodable, Sendable {
+    let values: [String]
+    init(from decoder: Decoder) throws {
+        values = (try? decoder.singleValueContainer().decode([String].self)) ?? []
     }
 }

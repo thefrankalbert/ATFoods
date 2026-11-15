@@ -1,4 +1,4 @@
-# AT Food — Design Brief Complet
+# AT Food: Design Brief Complet
 ## Pour refonte UI/UX totale (Claude Design / Figma)
 
 ---
@@ -8,7 +8,7 @@
 **AT Food** est l'application iOS B2B destinée aux restaurateurs partenaires de **Attabl** (attabl.com), un SaaS de gestion de carte digitale pour restaurants africains (marché principal : Cameroun, Côte d'Ivoire, Sénégal).
 
 ### Proposition de valeur core
-> En 2 gestes — photo d'un plat → plat en ligne sur la carte digitale du restaurant.
+> En 2 gestes: photo d'un plat → plat en ligne sur la carte digitale du restaurant.
 
 Ce n'est **pas** une app client (type Uber Eats). C'est un outil professionnel pour le restaurateur ou son équipe :
 - photographier rapidement un plat
@@ -43,7 +43,7 @@ AT Food est un module satellite d'Attabl. L'authentification, les tenants, le me
 - Professionnel mais chaleureux
 - Confiant, efficace, sans friction
 - Français (toute l'UI est en français)
-- Pas trop corporate — c'est pour des gens de terrain
+- Pas trop corporate: c'est pour des gens de terrain
 
 ### Couleur accent actuelle
 - Orange : `#F97316` (Tailwind orange-500)
@@ -71,7 +71,7 @@ L'app actuelle est **fonctionnelle mais visuellement basique** :
 
 ### Couleurs
 ```
-Accent:        #F97316  (orange — à conserver)
+Accent:        #F97316  (orange: à conserver)
 AccentHover:   #EA6E0A
 AccentMuted:   #F97316 @ 12% opacity
 
@@ -97,7 +97,7 @@ Surface2Dark:  #252525
 
 ### Typographie actuelle (à remplacer)
 - Headings onboarding : `InstrumentSerif` (Regular + Italic)
-- Corps : SF Pro (system) — **trop générique**
+- Corps : SF Pro (system): **trop générique**
 - **Recommandation brief** : garder une serif élégante pour les grandes accroches + une sans-serif premium pour le reste (ex: Plus Jakarta Sans, DM Sans, ou Geist)
 
 ### Radius
@@ -106,15 +106,15 @@ Surface2Dark:  #252525
 - Boutons : Capsule
 
 ### Composants existants à redesigner
-- `ATFButton` (primary, secondary, danger) — OK structurellement, esthétique à revoir
-- `ATFTextField` — fonctionnel, style à améliorer
-- `ATFBadge` (soft, pro, success, warning) — trop petit/fade
-- `ATFFoodCard` — carte plat dans la grille home — priorité haute
-- `ATFChip` — chip catégorie — à rendre plus premium
-- `ATFSkeleton` — loading placeholder — à améliorer
-- `ATFToast` — notification — à refaire (bottom sheet style)
-- `ATFToggle` — switch disponibilité
-- `ATFSheet` — sheet modale
+- `ATFButton` (primary, secondary, danger): OK structurellement, esthétique à revoir
+- `ATFTextField`: fonctionnel, style à améliorer
+- `ATFBadge` (soft, pro, success, warning): trop petit/fade
+- `ATFFoodCard`: carte plat dans la grille home: priorité haute
+- `ATFChip`: chip catégorie: à rendre plus premium
+- `ATFSkeleton`: loading placeholder: à améliorer
+- `ATFToast`: notification: à refaire (bottom sheet style)
+- `ATFToggle`: switch disponibilité
+- `ATFSheet`: sheet modale
 
 ---
 
@@ -145,18 +145,18 @@ App Launch
 
 ---
 
-## 6. Inventaire Écrans — Description Détaillée
+## 6. Inventaire Écrans: Description Détaillée
 
 ---
 
-### S01 — Onboarding (3 slides)
+### S01: Onboarding (3 slides)
 
 **But :** Première impression. Expliquer la valeur en 3 étapes avant le login.
 
 **Contenu actuel des slides :**
-1. *"Publiez vos plats en 2 gestes."* — photo plat, tag "Pour les restaurateurs"
-2. *"Photographiez comme un pro."* — cadrage automatique, shoot rapide
-3. *"Votre menu, toujours à jour."* — activer/désactiver en un tap
+1. *"Publiez vos plats en 2 gestes."*: photo plat, tag "Pour les restaurateurs"
+2. *"Photographiez comme un pro."*: cadrage automatique, shoot rapide
+3. *"Votre menu, toujours à jour."*: activer/désactiver en un tap
 
 **Architecture actuelle :**
 - Fullscreen photo background (Unsplash)
@@ -181,7 +181,7 @@ App Launch
 
 ---
 
-### S02 — Login
+### S02: Login
 
 **But :** Authentification email/password.
 
@@ -195,7 +195,7 @@ App Launch
 - Lien "Pas encore À Table ? Découvrir"
 
 **Logique :**
-- Pas d'inscription dans l'app — le compte est créé sur attabl.com
+- Pas d'inscription dans l'app: le compte est créé sur attabl.com
 - Erreurs affichées inline sous le champ password
 - Erreurs mappées : credentials invalides / réseau / autre
 
@@ -206,7 +206,7 @@ App Launch
 
 ---
 
-### S03 — Restaurant Picker
+### S03: Restaurant Picker
 
 **But :** Si l'utilisateur gère plusieurs restaurants, il choisit lequel utiliser.
 
@@ -230,7 +230,7 @@ App Launch
 
 ---
 
-### S04 — Home (Menu Board)
+### S04: Home (Menu Board)
 
 **But :** Vue principale. Affiche tous les plats du restaurant avec filtres catégorie.
 
@@ -256,7 +256,7 @@ App Launch
 
 **States à designer :**
 - Loading (skeleton grid 2 colonnes)
-- Vide (aucun plat — CTA d'ajout)
+- Vide (aucun plat: CTA d'ajout)
 - Liste normale
 - Liste filtrée par catégorie
 
@@ -268,7 +268,7 @@ App Launch
 
 ---
 
-### S05 — Camera
+### S05: Camera
 
 **But :** Capturer une photo d'un plat avec la caméra arrière.
 
@@ -291,14 +291,14 @@ App Launch
 
 ---
 
-### S06 — Photo Preview
+### S06: Photo Preview
 
 **But :** Voir la photo capturée avant de l'utiliser.
 
 **Layout actuel :**
 - Photo plein écran
-- Bouton "Reprendre" (secondary) — retour caméra
-- Bouton "Utiliser" (primary) — avancer vers Attach Dish
+- Bouton "Reprendre" (secondary): retour caméra
+- Bouton "Utiliser" (primary): avancer vers Attach Dish
 
 **Objectif redesign :**
 - Preview plus immersif
@@ -308,7 +308,7 @@ App Launch
 
 ---
 
-### S07 — Attach Dish
+### S07: Attach Dish
 
 **But :** Après la photo, choisir : rattacher à un plat existant OU créer un nouveau plat.
 
@@ -327,7 +327,7 @@ App Launch
 
 **États :**
 - Loading (fetch liste)
-- Vide (aucun plat — forcer création nouveau)
+- Vide (aucun plat: forcer création nouveau)
 - Liste normale
 - Uploading (bouton Attacher en loading)
 - Erreur inline
@@ -339,7 +339,7 @@ App Launch
 
 ---
 
-### S08 — Dish Form (Nouveau Plat)
+### S08: Dish Form (Nouveau Plat)
 
 **But :** Créer un nouveau plat avec photo, nom, prix, catégorie, disponibilité.
 
@@ -349,7 +349,7 @@ App Launch
 - Prix en FCFA (TextField numérique, suffix "FCFA")
 - Catégorie (chips scrollables dynamiques depuis Supabase + bouton "+" pour nouvelle catégorie)
 - Disponible (toggle on/off)
-- Description (non visible dans le form actuel — à ajouter ?)
+- Description (non visible dans le form actuel: à ajouter ?)
 
 **Validation :**
 - Nom non vide + prix valide → bouton "Enregistrer" actif
@@ -369,7 +369,7 @@ App Launch
 
 ---
 
-### S09 — New Category Sheet
+### S09: New Category Sheet
 
 **But :** Ajouter une nouvelle catégorie directement depuis le formulaire plat.
 
@@ -389,7 +389,7 @@ App Launch
 
 ---
 
-### S10 — Drafts
+### S10: Drafts
 
 **But :** Liste des photos en attente d'attachement ou déjà attachées.
 
@@ -410,7 +410,7 @@ App Launch
 
 ---
 
-### S11 — AI Retouch
+### S11: AI Retouch
 
 **But :** Appliquer un effet IA à la photo d'un plat (améliorer rendu visuel).
 
@@ -422,10 +422,10 @@ App Launch
 - Si 0 crédits → prompt upgrade
 
 **Effets disponibles (enum `AIRetouchEffect`) :**
-- `.enhance` — amélioration générale
-- `.background` — suppression fond
-- `.lighting` — optimisation lumière
-- `.colorBoost` — saturation couleurs
+- `.enhance`: amélioration générale
+- `.background`: suppression fond
+- `.lighting`: optimisation lumière
+- `.colorBoost`: saturation couleurs
 
 **Crédits :** compteur depuis `ai_photo_credits` table Supabase (non encore fonctionnel)
 
@@ -437,7 +437,7 @@ App Launch
 
 ---
 
-### S12 — Backgrounds
+### S12: Backgrounds
 
 **But :** Choisir un fond de remplacement pour la photo du plat.
 
@@ -451,7 +451,7 @@ App Launch
 
 ---
 
-### S13 — Profile
+### S13: Profile
 
 **But :** Profil utilisateur, gestion du compte et settings.
 
@@ -486,7 +486,7 @@ App Launch
 
 ---
 
-### S14 — Credits
+### S14: Credits
 
 **But :** Voir l'historique et le solde de crédits IA.
 
@@ -501,7 +501,7 @@ App Launch
 
 ---
 
-### S15 — Upgrade Sheet
+### S15: Upgrade Sheet
 
 **But :** Paywall pour passer au plan Pro.
 
@@ -517,7 +517,7 @@ App Launch
 
 ---
 
-### S16 — Offline Mode
+### S16: Offline Mode
 
 **But :** Gérer les actions en mode hors connexion.
 
@@ -541,7 +541,7 @@ name: String          // "Thieboudienne"
 price: Int            // 4500 (FCFA)
 category: String      // "Plat" (nom de catégorie depuis Supabase)
 photoURL: URL?        // https://...supabase.co/storage/v1/object/public/menu-items/...
-isAvailable: Bool     // true/false — toggle temps réel
+isAvailable: Bool     // true/false: toggle temps réel
 isFeatured: Bool      // plat vedette (pas encore affiché dans UI)
 description: String   // texte libre
 createdAt: Date
@@ -578,7 +578,7 @@ status: DraftStatus   // pending / attached
 
 ## 8. Flux Utilisateur Principaux
 
-### Flux A — Ajouter un nouveau plat (flow principal)
+### Flux A: Ajouter un nouveau plat (flow principal)
 ```
 Home (tap caméra)
   → Camera (cadre + capture)
@@ -588,7 +588,7 @@ Home (tap caméra)
   → [Save] → toast "Plat enregistré !" → retour Home
 ```
 
-### Flux B — Rattacher une photo à un plat existant
+### Flux B: Rattacher une photo à un plat existant
 ```
 Home (tap caméra)
   → Camera → Photo Preview
@@ -596,7 +596,7 @@ Home (tap caméra)
   → [tap Attacher] → toast "Photo attachée !" → retour Home
 ```
 
-### Flux C — Retouche IA d'une photo
+### Flux C: Retouche IA d'une photo
 ```
 Home (tap Drafts)
   → Drafts (liste des photos)
@@ -606,7 +606,7 @@ Home (tap Drafts)
   → [Appliquer] → photo mise à jour
 ```
 
-### Flux D — Gestion du profil
+### Flux D: Gestion du profil
 ```
 Home (tap avatar)
   → Profile
@@ -672,7 +672,7 @@ Ces fonctionnalités sont définies dans le code mais n'ont pas d'écran abouti 
 
 ### Style général
 - **Dark-first** : le contexte restaurant (cuisine, service du soir) favorise les interfaces sombres
-- **Food photography dominant** : les photos des plats sont le contenu héros — l'UI doit les mettre en valeur sans les écraser
+- **Food photography dominant** : les photos des plats sont le contenu héros: l'UI doit les mettre en valeur sans les écraser
 - **Premium africain** : ancré dans le contexte (cuisine africaine, FCFA, noms en français) mais avec une qualité visuelle internationale
 - **Ultra-fluide** : chaque action a une réponse immédiate (haptique + animation)
 
@@ -691,11 +691,11 @@ Ces fonctionnalités sont définies dans le code mais n'ont pas d'écran abouti 
 - Labels UI : Medium 13-14pt
 
 ### Références visuelles (à ne pas copier mais s'inspirer)
-- Uber Eats food cards — photos plein-bleed, gradient bottom, nom clair
-- Toast POS — efficacité, lisibilité en cuisine
-- Pitch app — cartes slides premium
-- Blackbird (app restaurant manager US) — dark UI pro
-- Opal app — animations fluides et onboarding soigné
+- Uber Eats food cards: photos plein-bleed, gradient bottom, nom clair
+- Toast POS: efficacité, lisibilité en cuisine
+- Pitch app: cartes slides premium
+- Blackbird (app restaurant manager US): dark UI pro
+- Opal app: animations fluides et onboarding soigné
 
 ---
 
@@ -703,23 +703,23 @@ Ces fonctionnalités sont définies dans le code mais n'ont pas d'écran abouti 
 
 | Priorité | Écran | Raison |
 |----------|-------|--------|
-| 🔴 P0 | Home (S04) | Écran le plus utilisé — FoodCards à refaire |
-| 🔴 P0 | Onboarding (S01) | Première impression — actuellement trop générique |
+| 🔴 P0 | Home (S04) | Écran le plus utilisé: FoodCards à refaire |
+| 🔴 P0 | Onboarding (S01) | Première impression: actuellement trop générique |
 | 🔴 P0 | Camera + Photo Preview (S05-S06) | Flow principal de valeur |
-| 🟠 P1 | Attach Dish (S07) | Friction actuelle — pas de thumbnails |
-| 🟠 P1 | Dish Form (S08) | Créer un plat — expérience trop basique |
+| 🟠 P1 | Attach Dish (S07) | Friction actuelle: pas de thumbnails |
+| 🟠 P1 | Dish Form (S08) | Créer un plat: expérience trop basique |
 | 🟠 P1 | Login (S02) | Impression de marque |
 | 🟡 P2 | Profile (S13) | Fonctionnel mais générique |
-| 🟡 P2 | AI Retouch (S11) | Feature premium — doit paraître premium |
-| 🟡 P2 | Upgrade Sheet (S15) | Conversion — actuellement trop basique |
-| 🟢 P3 | Drafts, Credits, Offline | Utilitaires — redesign après les prioritaires |
+| 🟡 P2 | AI Retouch (S11) | Feature premium: doit paraître premium |
+| 🟡 P2 | Upgrade Sheet (S15) | Conversion: actuellement trop basique |
+| 🟢 P3 | Drafts, Credits, Offline | Utilitaires: redesign après les prioritaires |
 
 ---
 
 ## 13. Assets & Ressources
 
 ### Logos / Wordmarks
-- Wordmark "ATFood" : composant SwiftUI `ATFWordmark` — à refaire en vrai SVG/asset
+- Wordmark "ATFood" : composant SwiftUI `ATFWordmark`: à refaire en vrai SVG/asset
 - Icône app : fourchette stylisée dans carré orange arrondi (72×72)
 - À créer : version dark mode du wordmark
 
@@ -751,6 +751,6 @@ Pour chaque écran livré :
 
 ---
 
-*Brief rédigé à partir du code source ATFood — Mai 2025*
+*Brief rédigé à partir du code source ATFood: Mai 2025*
 *Version app : basée sur commit `d1a5168` (branche main)*
 *Architecture : iOS 17+ / SwiftUI / Supabase / Swift 6 strict concurrency*

@@ -3,6 +3,7 @@ import Models
 import Networking
 import DesignSystem
 
+/// Menu board: native list with search, work-queue filters and an availability switch on every dish.
 public struct HomeView: View {
     @Bindable var store: HomeStore
     let networking: any ATFNetworking
@@ -27,214 +28,278 @@ public struct HomeView: View {
         self.onProfile = onProfile
     }
 
-    // Same light surface as every other screen (login, dish card, drafts, profile).
-    private let bgColor = Color.atfBg
-
     public var body: some View {
-        ZStack {
-            bgColor.ignoresSafeArea()
-
-            VStack(spacing: 0) {
-                categoryFilter
-                if let error = store.error, !store.menuItems.isEmpty {
-                    // Refresh failed: keep the menu visible, say it may be outdated.
-                    Label("Menu non actualisé : \(error)", systemImage: "wifi.exclamationmark")
-                        .font(.atfCaption)
-                        .foregroundStyle(.white)
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 8)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(Color.atfDanger.opacity(0.85))
-                }
-                mainContent
-            }
-        }
-        .toolbar { toolbarContent }
-        .navigationBarTitleDisplayMode(.inline)
-        .toolbarBackground(bgColor, for: .navigationBar)
-        .toolbarBackground(.visible, for: .navigationBar)
-        .task { await store.load(networking: networking) }   // runs on every return to Home
-        .refreshable { await store.load(networking: networking) }
+        content
+            .safeAreaInset(edge: .bottom) { CameraBar(button: cameraButton) }
+            .background(Color.atfBg.ignoresSafeArea())
+            .navigationTitle(store.restaurant.name)
+            .navigationBarTitleDisplayMode(.large)
+            .toolbarBackground(Color.atfBg, for: .navigationBar)
+            .toolbar { toolbarContent }
+            .searchable(text: $store.searchText, placement: .navigationBarDrawer(displayMode: .always),
+                        prompt: "Rechercher un plat")
+            .task { await store.load(networking: networking) }   // runs on every return to Home
+            .refreshable { await store.load(networking: networking) }
+            .sensoryFeedback(.error, trigger: store.actionError) { _, new in new != nil }
     }
 
-    // MARK: - Toolbar
+    // MARK: - Content
+
+    @ViewBuilder
+    private var content: some View {
+        if store.isLoading {
+            ProgressView().tint(Color.atfText2)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+        } else if let error = store.error, store.menuItems.isEmpty {
+            ContentUnavailableView {
+                Label("Menu non chargé", systemImage: "wifi.exclamationmark")
+            } description: {
+                Text(error)
+            } actions: {
+                Button("Réessayer") { Task { await store.load(networking: networking) } }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.large)
+                    .tint(Color.atfAccent)
+            }
+        } else if store.menuItems.isEmpty {
+            ContentUnavailableView("Aucun plat pour l'instant", systemImage: "fork.knife",
+                                   description: Text("Prenez une photo pour ajouter votre premier plat."))
+        } else {
+            list
+        }
+    }
+
+    private var list: some View {
+        List {
+            Section {
+                filterBar
+                    .listRowInsets(EdgeInsets(top: 4, leading: 0, bottom: 4, trailing: 0))
+                    .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
+                if let message = store.error ?? store.actionError {
+                    Label(message, systemImage: "exclamationmark.circle")
+                        .font(.footnote)
+                        .foregroundStyle(Color.atfText1)
+                        .listRowBackground(Color.atfSurface2)
+                        .onTapGesture { store.actionError = nil }
+                }
+            }
+
+            if store.sections.isEmpty {
+                Text(emptyFilterMessage)
+                    .font(.subheadline)
+                    .foregroundStyle(Color.atfText2)
+                    .listRowBackground(Color.clear)
+            }
+
+            ForEach(store.sections) { section in
+                Section {
+                    ForEach(section.items) { item in
+                        DishRow(
+                            item: item,
+                            price: item.formattedPrice(currency: store.restaurant.currency),
+                            isUpdating: store.updatingIDs.contains(item.id),
+                            onOpen: { onDish(item) },
+                            onToggle: { on in Task { await store.setAvailable(item.id, on, networking: networking) } }
+                        )
+                        .listRowBackground(Color.atfBg)
+                    }
+                } header: {
+                    Text(section.title)
+                        .font(.footnote)
+                        .foregroundStyle(Color.atfText2)
+                        .textCase(nil)
+                }
+            }
+        }
+        .listStyle(.plain)
+        .scrollContentBackground(.hidden)
+        .animation(.default, value: store.filter)
+        .animation(.default, value: store.selectedCategoryID)
+    }
+
+    private var emptyFilterMessage: String {
+        if !store.searchText.trimmingCharacters(in: .whitespaces).isEmpty { return "Aucun plat ne correspond à « \(store.searchText) »." }
+        switch store.filter {
+        case .noPhoto: return "Tous les plats ont une photo."
+        case .soldOut: return "Aucun plat épuisé."
+        case .all: return "Aucun plat dans cette catégorie."
+        }
+    }
+
+    // MARK: - Filters
+
+    private var filterBar: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                ForEach(HomeStore.Filter.allCases, id: \.self) { filter in
+                    chip(filter == .all ? filter.label : "\(filter.label) · \(store.count(filter))",
+                         isOn: store.filter == filter) { store.filter = filter }
+                }
+                if store.categories.count > 1 { categoryMenu }
+            }
+            .padding(.horizontal, 16)
+        }
+        .sensoryFeedback(.selection, trigger: store.filter)
+    }
+
+    private var categoryMenu: some View {
+        Menu {
+            Picker("Catégorie", selection: $store.selectedCategoryID) {
+                Text("Toutes les catégories").tag(UUID?.none)
+                ForEach(store.categories) { category in
+                    Text(category.name).tag(UUID?.some(category.id))
+                }
+            }
+        } label: {
+            let name = store.categories.first { $0.id == store.selectedCategoryID }?.name
+            HStack(spacing: 4) {
+                Text(name ?? "Catégories")
+                Image(systemName: "chevron.down").font(.caption.weight(.semibold))
+            }
+            .chipStyle(isOn: name != nil)
+        }
+        .accessibilityLabel("Catégorie")
+    }
+
+    private func chip(_ label: String, isOn: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(label).chipStyle(isOn: isOn)
+        }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(isOn ? .isSelected : [])
+    }
+
+    // MARK: - Toolbar & camera
 
     @ToolbarContentBuilder
     private var toolbarContent: some ToolbarContent {
-        ToolbarItem(placement: .topBarLeading) {
-            Button(action: onProfile) {
-                Image(systemName: "person.circle")
-                    .font(.system(size: 22))
-                    .foregroundStyle(Color.atfText1)
-            }
-            .accessibilityLabel("Profil")
-            .accessibilityIdentifier("profileButton")
-        }
-        ToolbarItem(placement: .principal) {
-            VStack(spacing: 2) {
-                ATFWordmark(size: 18)
-                Text(store.restaurant.name)
-                    .font(.atfCaption)
-                    .foregroundStyle(Color.atfText2)
-                    .lineLimit(1)
-            }
-            .accessibilityElement(children: .combine)
-        }
         ToolbarItemGroup(placement: .topBarTrailing) {
             Button(action: onDrafts) {
-                Image(systemName: "rectangle.stack")
-                    .font(.system(size: 18))
-                    .foregroundStyle(Color.atfText1)
+                Image(systemName: "square.stack")
             }
             .accessibilityLabel("Brouillons")
             .accessibilityIdentifier("draftsButton")
 
-            Button(action: onCamera) {
-                Image(systemName: "camera.fill")
-                    .font(.system(size: 18))
-                    .foregroundStyle(Color.atfAccent)
+            Button(action: onProfile) {
+                Image(systemName: "person.crop.circle")
             }
-            .accessibilityLabel("Prendre une photo")
-            .accessibilityIdentifier("cameraButton")
+            .accessibilityLabel("Profil")
+            .accessibilityIdentifier("profileButton")
         }
     }
 
-    // MARK: - Category Filter
-
-    private var categoryFilter: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 8) {
-                categoryChip(label: "Tous", isSelected: store.selectedCategoryID == nil) {
-                    store.selectedCategoryID = nil
-                }
-
-                ForEach(store.categories) { category in
-                    categoryChip(
-                        label: category.name,
-                        isSelected: store.selectedCategoryID == category.id
-                    ) {
-                        store.selectedCategoryID = category.id
-                    }
-                }
-            }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 10)
+    private var cameraButton: some View {
+        Button(action: onCamera) {
+            Label("Prendre une photo", systemImage: "camera")
+                .font(.headline)
+                .padding(.horizontal, 8)
+                .frame(minHeight: 44)
         }
-    }
-
-    private func categoryChip(label: String, isSelected: Bool, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            Text(label)
-                .font(.atfCaption)
-                .foregroundStyle(isSelected ? Color.white : Color.atfText2)
-                .padding(.horizontal, 14)
-                .padding(.vertical, 7)
-                .background(
-                    isSelected
-                        ? Color.atfAccent
-                        : Color.atfSurface2
-                )
-                .clipShape(Capsule())
-        }
-    }
-
-    // MARK: - Main Content
-
-    @ViewBuilder
-    private var mainContent: some View {
-        if store.isLoading {
-            skeletonGrid
-        } else if let error = store.error, store.menuItems.isEmpty {
-            errorState(error)
-        } else if store.menuItems.isEmpty {
-            emptyState
-        } else if store.filteredItems.isEmpty {
-            Text("Aucun plat dans cette catégorie")
-                .font(.atfBody)
-                .foregroundStyle(Color.atfText2)
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-        } else {
-            foodGrid
-        }
-    }
-
-    private var skeletonGrid: some View {
-        let columns = [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)]
-        return ScrollView {
-            LazyVGrid(columns: columns, spacing: 12) {
-                ForEach(0..<4, id: \.self) { _ in
-                    ATFSkeleton(height: 180, radius: 12)
-                }
-            }
-            .padding(.horizontal, 16)
-            .padding(.top, 8)
-        }
-    }
-
-    private var foodGrid: some View {
-        let columns = [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)]
-        return ScrollView {
-            LazyVGrid(columns: columns, spacing: 20) {
-                ForEach(store.filteredItems) { item in
-                    ATFFoodCard(
-                        name: item.name,
-                        priceFormatted: item.formattedPrice(currency: store.restaurant.currency),
-                        photoURL: item.photoURL,
-                        isAvailable: item.isAvailable,
-                        onTap: { onDish(item) }
-                    )
-                }
-            }
-            .padding(.horizontal, 16)
-            .padding(.top, 8)
-        }
-    }
-
-    private func errorState(_ message: String) -> some View {
-        VStack(spacing: 16) {
-            Spacer()
-            Image(systemName: "wifi.exclamationmark")
-                .font(.system(size: 44))
-                .foregroundStyle(Color.atfText3)
-            Text("Impossible de charger le menu")
-                .font(.atfHeadline)
-                .foregroundStyle(Color.atfText1)
-            Text(message)
-                .font(.atfCaption)
-                .foregroundStyle(Color.atfText2)
-                .multilineTextAlignment(.center)
-            ATFButton("Réessayer", kind: .primary) {
-                Task { await store.load(networking: networking) }
-            }
-            Spacer()
-        }
-        .padding(.horizontal, 32)
+        .buttonStyle(.borderedProminent)
+        .buttonBorderShape(.capsule)
+        .tint(Color.atfAccent)
+        .foregroundStyle(Color.atfAccentOn)
+        .accessibilityIdentifier("cameraButton")
+        // Full-width opaque bar: rows never show beside the button and the scroll indicator ends above it.
         .frame(maxWidth: .infinity)
-    }
-
-    private var emptyState: some View {
-        VStack(spacing: 16) {
-            Spacer()
-            Image(systemName: "fork.knife")
-                .font(.system(size: 48))
-                .foregroundStyle(Color.atfText3)
-            Text("Aucun plat pour l'instant")
-                .font(.atfHeadline)
-                .foregroundStyle(Color.atfText1)
-            Text("Touchez l'appareil photo pour ajouter votre premier plat")
-                .font(.atfBody)
-                .foregroundStyle(Color.atfText2)
-                .multilineTextAlignment(.center)
-            Spacer()
-        }
-        .frame(maxWidth: .infinity)
+        .padding(.vertical, 8)
+        .background(Color.atfBg)
     }
 }
 
+/// The camera button leaves the screen while the user searches: it would float above the keyboard.
+private struct CameraBar<Content: View>: View {
+    @Environment(\.isSearching) private var isSearching
+    let button: Content
+    var body: some View {
+        if !isSearching { button }
+    }
+}
+
+// MARK: - Dish row
+
+private struct DishRow: View {
+    let item: MenuItem
+    let price: String
+    let isUpdating: Bool
+    let onOpen: () -> Void
+    let onToggle: (Bool) -> Void
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Button(action: onOpen) {
+                HStack(spacing: 12) {
+                    thumbnail
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(item.name)
+                            .font(.body)
+                            .foregroundStyle(item.isAvailable ? Color.atfText1 : Color.atfText2)
+                            .lineLimit(2)
+                        Text(subtitle)
+                            .font(.footnote)
+                            .monospacedDigit()
+                            .foregroundStyle(Color.atfText2)
+                    }
+                    Spacer(minLength: 0)
+                }
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+
+            Toggle("Disponible", isOn: Binding(get: { item.isAvailable }, set: onToggle))
+                .labelsHidden()
+                .tint(Color.atfAccent)
+                .disabled(isUpdating)
+                .accessibilityLabel("\(item.name) disponible")
+                .sensoryFeedback(.impact(weight: .light), trigger: item.isAvailable)
+        }
+        .padding(.vertical, 4)
+    }
+
+    private var subtitle: String {
+        var parts = [price]
+        if item.photoURL == nil { parts.append("Sans photo") }
+        if !item.isAvailable { parts.append("Épuisé") }
+        return parts.joined(separator: " · ")
+    }
+
+    private var thumbnail: some View {
+        ATFRemoteImage(Thumbnail.url(item.photoURL, points: 56), fallback: item.photoURL) {
+            ZStack {
+                Color.atfSurface2
+                Image(systemName: item.photoURL == nil ? "camera" : "photo")
+                    .foregroundStyle(Color.atfText3)
+            }
+        }
+        .frame(width: 56, height: 56)
+        .clipShape(RoundedRectangle(cornerRadius: 8))
+        .opacity(item.isAvailable ? 1 : 0.5)
+        .accessibilityHidden(true)
+    }
+}
+
+private extension View {
+    func chipStyle(isOn: Bool) -> some View {
+        font(.subheadline)
+            .foregroundStyle(isOn ? Color.atfAccentOn : Color.atfText1)
+            .padding(.horizontal, 14)
+            .frame(minHeight: 36)
+            .background(isOn ? Color.atfAccent : Color.atfSurface2, in: Capsule())
+            .frame(minHeight: 44)
+            .contentShape(Rectangle())
+    }
+}
+
+// Previews use DEBUG-only demo data (MockNetworking, .mocks): never compiled into Release.
+#if DEBUG
 // MARK: - Preview
 
 #Preview("HomeView") {
     let store = HomeStore(restaurant: Restaurant.mocks[0])
     store.menuItems = MenuItem.mocks
-    return HomeView(store: store, networking: MockNetworking(), onCamera: {}, onDrafts: {}, onProfile: {}, onDish: { _ in })
+    return NavigationStack {
+        HomeView(store: store, networking: MockNetworking(), onCamera: {}, onDrafts: {}, onProfile: {}, onDish: { _ in })
+    }
 }
+#endif

@@ -33,52 +33,28 @@ public struct PhotoPreviewView: View {
         ZStack {
             Color.black.ignoresSafeArea()
 
-            // Full photo (fit, so the user sees exactly what will be uploaded)
-            if let image = store.capturedImage {
-                Image(uiImage: image)
-                    .resizable()
-                    .scaledToFit()
-            }
-
             // Overlay
             VStack(spacing: 12) {
-                // Top bar
-                HStack {
-                    Button(action: { onRetake() }) {
-                        Image(systemName: "chevron.left")
-                            .font(.system(size: 20, weight: .semibold))
-                            .foregroundStyle(.white)
-                            .frame(width: 44, height: 44)
-                    }
-                    .accessibilityLabel("Retour")
-                    Spacer()
-                    Text("Aperçu")
-                        .font(.atfHeadline)
-                        .foregroundStyle(.white)
-                    Spacer()
-                    Button(action: { showCropper = true }) {
-                        Image(systemName: "crop.rotate")
-                            .font(.system(size: 20, weight: .semibold))
-                            .foregroundStyle(.white)
-                            .frame(width: 44, height: 44)
-                    }
-                    .accessibilityLabel("Recadrer")
-                    .disabled(isRemovingBackground)
-                }
-                .padding(.horizontal, 16)
-                .padding(.top, 12)
-
                 if let qualityWarning {
-                    Label(qualityWarning, systemImage: "exclamationmark.triangle.fill")
-                        .font(.atfCaption)
-                        .foregroundStyle(.black)
+                    Label(qualityWarning, systemImage: "exclamationmark.circle")
+                        .font(.footnote.weight(.medium))
+                        .foregroundStyle(Color.atfText1)
                         .padding(.horizontal, 14)
                         .padding(.vertical, 10)
-                        .background(Color.atfWarning, in: Capsule())
+                        .background(Color.atfBg, in: Capsule())
                         .padding(.horizontal, 20)
                 }
 
-                Spacer()
+                // Full photo (fit, so the user sees exactly what will be uploaded), above the controls: never under them.
+                if let image = store.capturedImage {
+                    Image(uiImage: image)
+                        .resizable()
+                        .scaledToFit()
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .accessibilityLabel("Photo du plat")
+                } else {
+                    Spacer()
+                }
 
                 if let backgroundError {
                     Text(backgroundError)
@@ -93,14 +69,30 @@ public struct PhotoPreviewView: View {
                 // Bottom bar
                 HStack(spacing: 12) {
                     // Locked while the cutout runs, so it can't swap the photo after the user moved on.
-                    ATFButton("Reprendre", kind: .ghost, disabled: isRemovingBackground, action: { onRetake() })
-                    ATFButton("Utiliser cette photo", kind: .primary, disabled: isRemovingBackground, action: { onUse() })
+                    ATFDarkButton("Reprendre", prominent: false, disabled: isRemovingBackground, action: { onRetake() })
+                    ATFDarkButton("Utiliser", disabled: isRemovingBackground, action: { onUse() })
                 }
                 .padding(.horizontal, 20)
                 .padding(.bottom, 32)
             }
         }
-        .statusBarHidden()
+        .navigationTitle("Aperçu")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbarRole(.editor)
+        // The dark scheme only applies to a visible bar: black bar, white title, chevron and status bar.
+        .toolbarBackground(Color.black, for: .navigationBar)
+        .toolbarBackground(.visible, for: .navigationBar)
+        .toolbarColorScheme(.dark, for: .navigationBar)
+        .tint(.white)
+        .navigationBarBackButtonHidden(isRemovingBackground)   // the cutout must not land after the user left
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button { showCropper = true } label: { Image(systemName: "crop.rotate") }
+                    .tint(.white)
+                    .disabled(isRemovingBackground)
+                    .accessibilityLabel("Recadrer")
+            }
+        }
         .onDisappear {
             backgroundTask?.cancel()
             isRemovingBackground = false
@@ -178,6 +170,8 @@ public struct PhotoPreviewView: View {
     }
 }
 
+// Previews use DEBUG-only demo data (MockNetworking, .mocks): never compiled into Release.
+#if DEBUG
 // MARK: - Preview
 
 #Preview("PhotoPreviewView") {
@@ -187,3 +181,4 @@ public struct PhotoPreviewView: View {
         onUse: {}
     )
 }
+#endif

@@ -32,7 +32,7 @@ let project = Project(
             // paid Apple Developer Program team ID instead.
             "DEVELOPMENT_TEAM": "XK5L7S88SQ",
             // Crash reporting (public client key). Shares the attabl-saas Sentry project, events tagged app=atfood-ios.
-            "SENTRY_DSN": "https://ec86ac417a8630c42b32897e0e57379f@o4510850246508544.ingest.de.sentry.io/4510851561816144",
+            "SENTRY_DSN": "https://45662e65d94b1ec596d839ba19a0aaeb@o4510850246508544.ingest.de.sentry.io/4512434663325776",
         ]
     ),
     targets: [
@@ -48,7 +48,6 @@ let project = Project(
                 "CFBundleVersion": .string("$(CURRENT_PROJECT_VERSION)"),
                 "UILaunchScreen": .dictionary(["UIColorName": .string("LaunchBackground")]),
                 "UISupportedInterfaceOrientations": .array([.string("UIInterfaceOrientationPortrait")]),
-                "UIRequiresFullScreen": .boolean(true),
                 // Tokens are light-only (Home and camera are dark by design): no white-on-white in dark mode.
                 "UIUserInterfaceStyle": .string("Light"),
                 "ITSAppUsesNonExemptEncryption": .boolean(false),

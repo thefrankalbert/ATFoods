@@ -71,9 +71,12 @@ public struct ATFIconView: View {
             .scaledToFit()
             .frame(width: size, height: size)
             .foregroundStyle(color ?? Color.primary)
+            .accessibilityHidden(true)
     }
 }
 
+// Previews use DEBUG-only demo data (MockNetworking, .mocks): never compiled into Release.
+#if DEBUG
 // MARK: - Preview
 
 #Preview("ATFIcon grid") {
@@ -94,3 +97,4 @@ public struct ATFIconView: View {
         .padding()
     }
 }
+#endif

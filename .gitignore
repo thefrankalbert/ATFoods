@@ -28,6 +28,8 @@ Tuist/.build/
 *.jpeg
 *.jpg
 atfood-view.*
+# App images shipped in package resources are source
+!Packages/**/Resources/*.jpg
 
 # DB
 ruvector.db

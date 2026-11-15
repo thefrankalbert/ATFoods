@@ -13,7 +13,7 @@ public struct ATFToastData: Equatable, Sendable {
     }
 }
 
-/// Overlay global — placer dans le ZStack racine.
+/// Overlay global: placer dans le ZStack racine.
 public struct ATFToastOverlay: View {
     let toast: ATFToastData?
 
@@ -35,12 +35,13 @@ public struct ATFToastOverlay: View {
             .padding(.vertical, 10)
             .background(Color.atfText1)
             .clipShape(Capsule())
-            .shadow(color: .black.opacity(0.2), radius: 16, y: 6)
             .transition(.move(edge: .top).combined(with: .opacity))
         }
     }
 }
 
+// Previews use DEBUG-only demo data (MockNetworking, .mocks): never compiled into Release.
+#if DEBUG
 #Preview("ATFToast") {
     ZStack(alignment: .top) {
         Color.gray.opacity(0.1).ignoresSafeArea()
@@ -48,3 +49,4 @@ public struct ATFToastOverlay: View {
             .padding(.top, 64)
     }
 }
+#endif

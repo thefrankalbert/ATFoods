@@ -1,6 +1,7 @@
 import SwiftUI
 import DesignSystem
 import Models
+import Networking
 
 public struct RestaurantPickerView: View {
     @Bindable var store: AuthStore
@@ -8,44 +9,41 @@ public struct RestaurantPickerView: View {
     let onRetry: () async -> Void
     let onSignOut: () -> Void
     /// Set when opened from the profile ("Changer de restaurant"): lets the user go back unchanged.
-    let onCancel: (() -> Void)?
+    /// Opened from the profile: the system back button returns there. From login there is nothing to go back to.
+    let canGoBack: Bool
     @State private var isRetrying = false
     @State private var confirmSignOut = false
 
     public init(store: AuthStore, onContinue: @escaping () -> Void,
                 onRetry: @escaping () async -> Void, onSignOut: @escaping () -> Void,
-                onCancel: (() -> Void)? = nil) {
+                canGoBack: Bool = false) {
         self.store = store
         self.onContinue = onContinue
         self.onRetry = onRetry
         self.onSignOut = onSignOut
-        self.onCancel = onCancel
+        self.canGoBack = canGoBack
     }
 
     public var body: some View {
         VStack(spacing: 0) {
             // Header
             VStack(alignment: .leading, spacing: 4) {
-                if let onCancel {
-                    Button(action: onCancel) {
-                        Label("Annuler", systemImage: "chevron.left")
-                            .font(.atfSubhead)
-                            .foregroundStyle(Color.atfAccent)
-                    }
-                    .padding(.bottom, 8)
-                }
                 if let user = store.currentUser {
-                    Text(user.name.isEmpty ? "Bonjour 👋" : "Bonjour, \(user.name) 👋")
+                    Text(user.name.isEmpty ? "Bonjour" : "Bonjour, \(user.name)")
                         .font(.atfSubhead)
                         .foregroundStyle(Color.atfText2)
                 }
                 Text("Quel établissement ?")
-                    .font(.atfTitle)
+                    .font(.system(.largeTitle, design: .serif, weight: .medium))
                     .foregroundStyle(Color.atfText1)
-                Button("Changer de compte") { confirmSignOut = true }
-                    .font(.atfCaption)
-                    .foregroundStyle(Color.atfAccent)
-                    .padding(.top, 4)
+                Button { confirmSignOut = true } label: {
+                    Text("Changer de compte")
+                        .font(.subheadline.weight(.medium))
+                        .foregroundStyle(Color.atfText1)
+                        .underline()
+                        .frame(minHeight: 44)
+                        .contentShape(Rectangle())
+                }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, 24)
@@ -94,8 +92,6 @@ public struct RestaurantPickerView: View {
                 .padding(.bottom, 16)
             }
 
-            Spacer(minLength: 0)
-
             // Bottom button
             VStack(spacing: 0) {
                 Divider()
@@ -108,9 +104,11 @@ public struct RestaurantPickerView: View {
                 .padding(.horizontal, 24)
                 .padding(.vertical, 20)
             }
-            .background(Color.atfSurface)
+            .background(Color.atfBg)
         }
-        .background(Color.atfSurface.ignoresSafeArea())
+        .background(Color.atfBg.ignoresSafeArea())
+        .atfScreen("")
+        .navigationBarBackButtonHidden(!canGoBack)
         .confirmationDialog("Se déconnecter de ce compte ?", isPresented: $confirmSignOut, titleVisibility: .visible) {
             Button("Se déconnecter", role: .destructive, action: onSignOut)
             Button("Annuler", role: .cancel) {}
@@ -128,8 +126,9 @@ private struct RestaurantRow: View {
         HStack(spacing: 14) {
             // Thumbnail
             ATFAsyncImage(
-                url: restaurant.photoURL,
-                fallback: Color.atfAccent.opacity(0.18),
+                url: Thumbnail.url(restaurant.photoURL, points: 48),
+                fallbackURL: restaurant.photoURL,
+                fallback: Color.atfSurface2,
                 radius: 10,
                 height: 48,
                 width: 48,
@@ -157,29 +156,28 @@ private struct RestaurantRow: View {
             // Selected checkmark
             if isSelected {
                 Image(systemName: "checkmark.circle.fill")
-                    .font(.system(size: 22, weight: .semibold))
+                    .font(.title2)
                     .foregroundStyle(Color.atfAccent)
                     .transition(.scale.combined(with: .opacity))
             } else {
                 Image(systemName: "circle")
-                    .font(.system(size: 22))
+                    .font(.title2)
                     .foregroundStyle(Color.atfText3)
             }
         }
         .padding(14)
-        .background(Color.atfBg)
-        .clipShape(RoundedRectangle(cornerRadius: 14))
+        .background(Color.atfField, in: RoundedRectangle(cornerRadius: 12))
         .overlay(
-            RoundedRectangle(cornerRadius: 14)
-                .strokeBorder(
-                    isSelected ? Color.atfAccent : Color.atfBorder,
-                    lineWidth: isSelected ? 2 : 1
-                )
+            RoundedRectangle(cornerRadius: 12)
+                .strokeBorder(isSelected ? Color.atfAccent : Color.clear, lineWidth: 1.5)
         )
+        .sensoryFeedback(.selection, trigger: isSelected)
         .animation(.easeInOut(duration: 0.18), value: isSelected)
     }
 }
 
+// Previews use DEBUG-only demo data (MockNetworking, .mocks): never compiled into Release.
+#if DEBUG
 // MARK: - Preview
 
 #Preview("RestaurantPickerView") {
@@ -188,3 +186,4 @@ private struct RestaurantRow: View {
     store.currentUser = AppUser.mock
     return RestaurantPickerView(store: store, onContinue: {}, onRetry: {}, onSignOut: {})
 }
+#endif

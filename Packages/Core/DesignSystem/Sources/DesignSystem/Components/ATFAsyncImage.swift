@@ -9,15 +9,17 @@ public struct ATFAsyncImage: View {
     let height: CGFloat
     let width: CGFloat?
     let showOverlay: Bool
+    let fallbackURL: URL?
     let contentMode: ContentMode
 
     public init(
         url: URL?,
-        fallback: Color = Color(hex: "1A1410"),
+        fallbackURL: URL? = nil,
+        fallback: Color = .atfSurface2,
         radius: CGFloat = 14,
         height: CGFloat = 120,
         width: CGFloat? = nil,
-        overlay: Bool = true,
+        overlay: Bool = false,
         contentMode: ContentMode = .fill
     ) {
         self.url = url
@@ -26,6 +28,7 @@ public struct ATFAsyncImage: View {
         self.height = height
         self.width = width
         self.showOverlay = overlay
+        self.fallbackURL = fallbackURL
         self.contentMode = contentMode
     }
 
@@ -33,22 +36,7 @@ public struct ATFAsyncImage: View {
         ZStack {
             fallbackColor
 
-            if let url {
-                AsyncImage(url: url) { phase in
-                    switch phase {
-                    case .success(let image):
-                        image
-                            .resizable()
-                            .aspectRatio(contentMode: contentMode)
-                    case .failure:
-                        EmptyView()
-                    case .empty:
-                        EmptyView()
-                    @unknown default:
-                        EmptyView()
-                    }
-                }
-            }
+            ATFRemoteImage(url, fallback: fallbackURL) { Color.clear }
 
             if showOverlay {
                 LinearGradient(
@@ -68,6 +56,8 @@ public struct ATFAsyncImage: View {
     }
 }
 
+// Previews use DEBUG-only demo data (MockNetworking, .mocks): never compiled into Release.
+#if DEBUG
 #Preview("ATFAsyncImage") {
     VStack(spacing: 12) {
         ATFAsyncImage(url: nil, fallback: Color(hex: "C9551E"), radius: 14, height: 160)
@@ -80,3 +70,4 @@ public struct ATFAsyncImage: View {
     }
     .padding()
 }
+#endif

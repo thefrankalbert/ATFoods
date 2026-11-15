@@ -20,8 +20,7 @@ public struct ATFBadge: View {
                 ATFIconView(icon, size: 10, color: foreground)
             }
             Text(label)
-                .font(.system(size: 11, weight: .semibold))
-                .tracking(0.3)
+                .font(.caption.weight(.medium))
         }
         .padding(.horizontal, 8)
         .padding(.vertical, 2)
@@ -32,9 +31,8 @@ public struct ATFBadge: View {
 
     private var background: AnyShapeStyle {
         switch kind {
-        case .pro:      return AnyShapeStyle(LinearGradient(colors: [Color(hex: "F5D76E"), Color(hex: "D4AF37")], startPoint: .topLeading, endPoint: .bottomTrailing))
-        case .pending:  return AnyShapeStyle(Color.atfWarningBg)
-        case .attached: return AnyShapeStyle(Color.atfSuccessBg)
+        case .pro:      return AnyShapeStyle(Color.atfAccent)
+        case .pending, .attached: return AnyShapeStyle(Color.atfSurface2)
         case .danger:   return AnyShapeStyle(Color.atfDangerBg)
         case .soft:     return AnyShapeStyle(Color.atfSurface2)
         }
@@ -42,15 +40,16 @@ public struct ATFBadge: View {
 
     private var foreground: Color {
         switch kind {
-        case .pro:      return Color(hex: "4A3500")
-        case .pending:  return Color(hex: "92660A")
-        case .attached: return .atfSuccess
+        case .pro:      return .atfAccentOn
+        case .pending, .attached: return .atfText1
         case .danger:   return .atfDanger
         case .soft:     return .atfText2
         }
     }
 }
 
+// Previews use DEBUG-only demo data (MockNetworking, .mocks): never compiled into Release.
+#if DEBUG
 #Preview("ATFBadge") {
     HStack(spacing: 8) {
         ATFBadge("Pro", kind: .pro, icon: .star)
@@ -61,3 +60,4 @@ public struct ATFBadge: View {
     }
     .padding()
 }
+#endif

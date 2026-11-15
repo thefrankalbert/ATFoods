@@ -47,7 +47,7 @@ final class ScreenTour: XCTestCase {
         sleep(2); shot("08_dish_card")
         app.textFields.element(boundBy: 1).tap(); sleep(1); shot("09_dish_card_keyboard")
         app.buttons["Terminé"].tap()
-        app.buttons["Retour"].tap(); sleep(1)
+        app.navigationBars.buttons.firstMatch.tap(); sleep(1)
 
         // Camera + gallery
         app.buttons["cameraButton"].tap(); sleep(2); shot("10_camera")
@@ -55,9 +55,9 @@ final class ScreenTour: XCTestCase {
         // The system photo picker runs out of process: tap the first thumbnail by position.
         app.coordinate(withNormalizedOffset: CGVector(dx: 0.16, dy: 0.72)).tap()
         sleep(5); shot("12_photo_preview")
-        app.buttons["Utiliser cette photo"].tap()
+        app.buttons["Utiliser"].tap()
         sleep(3); shot("13_attach_dish")
-        app.buttons["+ Nouveau plat"].tap(); sleep(2); shot("14_new_dish_form")
+        app.buttons["Créer un nouveau plat"].tap(); sleep(2); shot("14_new_dish_form")
 
         // Back to home whatever the depth
         for _ in 0..<4 where !app.buttons["cameraButton"].isHittable {
@@ -67,7 +67,7 @@ final class ScreenTour: XCTestCase {
 
         // Drafts (empty state)
         app.buttons["draftsButton"].tap(); sleep(2); shot("15_drafts")
-        app.buttons["Retour"].tap(); sleep(1)
+        app.navigationBars.buttons.firstMatch.tap(); sleep(1)
 
         // Profile
         app.buttons["profileButton"].tap(); sleep(2); shot("16_profile")

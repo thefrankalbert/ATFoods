@@ -23,7 +23,7 @@ import Networking
             drafts = try await networking.fetchDrafts(restaurantID: restaurantID)
             error = nil
         } catch {
-            self.error = UserMessage.from(error)
+            if !Task.isCancelled { self.error = UserMessage.from(error) }
         }
     }
 

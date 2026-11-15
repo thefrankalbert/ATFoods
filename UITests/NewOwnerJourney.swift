@@ -38,7 +38,7 @@ final class NewOwnerJourney: XCTestCase {
         // 3. First dish: gallery photo -> new dish -> first category
         pickGalleryPhoto()
         XCTAssertTrue(app.staticTexts["Aucun plat pour l'instant : créez-en un."].waitForExistence(timeout: 15))
-        pause(); app.buttons["+ Nouveau plat"].tap()
+        pause(); app.buttons["Créer un nouveau plat"].tap()
         XCTAssertTrue(app.staticTexts["Nouveau plat"].waitForExistence(timeout: 5))
         fillDish(name: "Attiéké poisson", price: "3000")
         app.buttons["newCategoryButton"].tap()
@@ -58,19 +58,19 @@ final class NewOwnerJourney: XCTestCase {
         XCTAssertTrue(keep.waitForExistence(timeout: 15)); pause()
         keep.tap()
         XCTAssertTrue(app.buttons["galleryButton"].waitForExistence(timeout: 20), "Draft save failed")
-        pause(); app.buttons["Fermer"].tap()
+        pause(); app.navigationBars.buttons.firstMatch.tap()
         app.buttons["draftsButton"].tap()
         let draft = app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Brouillon du'")).firstMatch
         XCTAssertTrue(draft.waitForExistence(timeout: 15)); pause()
         draft.tap()
-        XCTAssertTrue(app.buttons["+ Nouveau plat"].waitForExistence(timeout: 10)); pause()
-        app.buttons["+ Nouveau plat"].tap()
+        XCTAssertTrue(app.buttons["Créer un nouveau plat"].waitForExistence(timeout: 10)); pause()
+        app.buttons["Créer un nouveau plat"].tap()
         fillDish(name: "Alloco", price: "1500")
         XCTAssertTrue(app.buttons["Plats"].waitForExistence(timeout: 10))
         app.buttons["Plats"].tap(); pause()
         save(app.buttons["Enregistrer"])
         XCTAssertTrue(app.staticTexts["Aucun brouillon"].waitForExistence(timeout: 20), "Draft dish failed")
-        pause(); app.buttons["Retour"].tap()
+        pause(); app.navigationBars.buttons.firstMatch.tap()
         XCTAssertTrue(dishCard("Alloco").waitForExistence(timeout: 15), "Second dish not on Home")
         pause()
 
@@ -114,7 +114,7 @@ final class NewOwnerJourney: XCTestCase {
         app.coordinate(withNormalizedOffset: CGVector(dx: 0.49, dy: 0.72)).tap()
         XCTAssertTrue(app.buttons["Retirer cette photo"].waitForExistence(timeout: 20), "Extra photo not added")
         pause(); shot("extra_photo")
-        app.buttons["Retour"].tap()
+        app.navigationBars.buttons.firstMatch.tap()
         XCTAssertTrue(home.waitForExistence(timeout: 10), "Back asked to discard though everything was saved")
         pause()
 
@@ -174,7 +174,7 @@ final class NewOwnerJourney: XCTestCase {
         let description = (textInput("Description").value as? String) ?? ""
         XCTAssertTrue(description.contains("modifié depuis le web"), "Web description not shown: \(description)")
         pause(); shot("web_edits_sheet")
-        app.buttons["Retour"].tap()
+        app.navigationBars.buttons.firstMatch.tap()
         XCTAssertTrue(app.buttons["cameraButton"].waitForExistence(timeout: 10))
         pause()
     }
@@ -204,7 +204,7 @@ final class NewOwnerJourney: XCTestCase {
         gallery.tap(); sleep(3)
         // System photo picker runs out of process: tap a thumbnail by position.
         app.coordinate(withNormalizedOffset: CGVector(dx: 0.16 + 0.33 * Double(index), dy: 0.72)).tap()
-        let use = app.buttons["Utiliser cette photo"]
+        let use = app.buttons["Utiliser"]
         XCTAssertTrue(use.waitForExistence(timeout: 15), "Preview not shown")
         pause(); use.tap()
     }

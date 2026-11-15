@@ -1,8 +1,8 @@
-# At Food iOS — Plan 2: Core Flow — Auth + Home + Capture + Form
+# At Food iOS: Plan 2: Core Flow: Auth + Home + Capture + Form
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Implémenter les 9 écrans S01–S09 : navigation, stores @Observable, maquettes pixel-perfect vs prototype. Mock data partout — wiring Supabase réel en Plan 3. Zéro warning strict concurrency après chaque tâche.
+**Goal:** Implémenter les 9 écrans S01, S09 : navigation, stores @Observable, maquettes pixel-perfect vs prototype. Mock data partout: wiring Supabase réel en Plan 3. Zéro warning strict concurrency après chaque tâche.
 
 **Architecture:** App target → features [Auth, Home, Capture, Form] → core [DesignSystem, Models, Networking]. RootView (App) possède `NavigationStack<[ATFRoute]>` + toast overlay + `CaptureStore` (partagé via `.environment()`).
 
@@ -65,7 +65,7 @@ ATFood/
 
 ---
 
-## Task 1: Tuist — Project.swift + squelettes packages
+## Task 1: Tuist: Project.swift + squelettes packages
 
 **Files:**
 - Modify: `Project.swift`
@@ -365,7 +365,7 @@ git commit -m "chore: add SPM feature modules skeleton + update Tuist project"
 
 ---
 
-## Task 2: Data Models — MenuItem, Restaurant, Draft
+## Task 2: Data Models: MenuItem, Restaurant, Draft
 
 **Files:**
 - Delete: `Packages/Core/Models/Sources/Models/Placeholder.swift`
@@ -527,7 +527,7 @@ git commit -m "feat(models): MenuItem + Restaurant + Draft + mock data"
 
 ---
 
-## Task 3: Networking — ATFNetworking protocol + MockNetworking
+## Task 3: Networking: ATFNetworking protocol + MockNetworking
 
 **Files:**
 - Delete: `Packages/Core/Networking/Sources/Networking/Placeholder.swift`
@@ -619,7 +619,7 @@ git commit -m "feat(networking): ATFNetworking protocol + MockNetworking"
 
 ---
 
-## Task 4: DesignSystem — ATFFoodCard + ATFSkeleton
+## Task 4: DesignSystem: ATFFoodCard + ATFSkeleton
 
 **Files:**
 - Create: `Packages/Core/DesignSystem/Sources/DesignSystem/Components/ATFFoodCard.swift`
@@ -772,7 +772,7 @@ git commit -m "feat(design-system): ATFFoodCard + ATFSkeleton shimmer"
 
 ---
 
-## Task 5: Navigation — ATFRoute + RootView + update ATFoodApp
+## Task 5: Navigation: ATFRoute + RootView + update ATFoodApp
 
 **Files:**
 - Create: `App/RootView.swift`
@@ -946,7 +946,7 @@ xcodebuild -workspace ATFood.xcworkspace \
   build 2>&1 | grep -E "error:|BUILD"
 ```
 
-Note : des erreurs "cannot find type" sont attendues pour AuthStore, LoginView, etc. jusqu'à Tasks 6–12. Corriger seulement les erreurs liées à RootView lui-même (import manquant, syntaxe).
+Note : des erreurs "cannot find type" sont attendues pour AuthStore, LoginView, etc. jusqu'à Tasks 6-12. Corriger seulement les erreurs liées à RootView lui-même (import manquant, syntaxe).
 
 - [ ] **Commit (après que tout compile)**
 
@@ -957,7 +957,7 @@ git commit -m "feat: RootView + ATFRoute navigation skeleton + update ATFoodApp"
 
 ---
 
-## Task 6: Auth — AuthStore + LoginView (S02)
+## Task 6: Auth: AuthStore + LoginView (S02)
 
 **Files:**
 - Delete: `Packages/Features/Auth/Sources/Auth/Placeholder.swift`
@@ -1001,7 +1001,7 @@ public final class AuthStore {
 }
 ```
 
-- [ ] **Créer `LoginView.swift`** — S02
+- [ ] **Créer `LoginView.swift`**: S02
 
 ```swift
 // Packages/Features/Auth/Sources/Auth/LoginView.swift
@@ -1107,7 +1107,7 @@ git commit -m "feat(auth): AuthStore + LoginView (S02)"
 
 ---
 
-## Task 7: Auth — OnboardingView (S01)
+## Task 7: Auth: OnboardingView (S01)
 
 **Files:**
 - Create: `Packages/Features/Auth/Sources/Auth/OnboardingView.swift`
@@ -1134,7 +1134,7 @@ private let slides: [Slide] = [
           tag: "Pour les restaurateurs",
           title: "Publiez vos plats",
           titleItalic: "en 2 gestes.",
-          body: "Photo, nom, prix — votre carte en ligne en moins d'une minute."),
+          body: "Photo, nom, prix: votre carte en ligne en moins d'une minute."),
     Slide(id: 1,
           imageURL: URL(string: "https://images.unsplash.com/photo-1547592180-85f173990554?w=800"),
           tag: "Shoot rapide",
@@ -1296,7 +1296,7 @@ public struct OnboardingView: View {
 }
 ```
 
-Note: `ATFScaleButtonStyle` est interne à DesignSystem — ajouter `public` dans `ATFButton.swift` si nécessaire, ou déplacer le style dans un fichier partagé interne.
+Note: `ATFScaleButtonStyle` est interne à DesignSystem: ajouter `public` dans `ATFButton.swift` si nécessaire, ou déplacer le style dans un fichier partagé interne.
 
 - [ ] **Si erreur sur ATFScaleButtonStyle** : ouvrir `ATFButton.swift`, changer `struct ATFScaleButtonStyle` en `public struct ATFScaleButtonStyle`
 
@@ -1314,7 +1314,7 @@ git commit -m "feat(auth): OnboardingView 3 slides + Ken Burns + progress (S01)"
 
 ---
 
-## Task 8: Auth — RestaurantPickerView (S03)
+## Task 8: Auth: RestaurantPickerView (S03)
 
 **Files:**
 - Create: `Packages/Features/Auth/Sources/Auth/RestaurantPickerView.swift`
@@ -1466,12 +1466,12 @@ xcodebuild -workspace ATFood.xcworkspace \
   build 2>&1 | tail -3
 
 git add Packages/Features/Auth/Sources/Auth/RestaurantPickerView.swift
-git commit -m "feat(auth): RestaurantPickerView — sélection restaurant (S03)"
+git commit -m "feat(auth): RestaurantPickerView: sélection restaurant (S03)"
 ```
 
 ---
 
-## Task 9: Home — HomeStore + HomeView (S04)
+## Task 9: Home: HomeStore + HomeView (S04)
 
 **Files:**
 - Delete: `Packages/Features/Home/Sources/Home/Placeholder.swift`
@@ -1566,7 +1566,7 @@ public struct HomeView: View {
                                       radius: 8, height: 38, width: 38, overlay: false)
                     }
                     VStack(alignment: .leading, spacing: 0) {
-                        Text((store.restaurant?.name ?? "—").uppercased())
+                        Text((store.restaurant?.name ?? ", ").uppercased())
                             .atfOverlineStyle()
                         Text(store.restaurant?.city ?? "")
                             .font(.system(size: 12))
@@ -1605,7 +1605,7 @@ public struct HomeView: View {
 
             Spacer().frame(height: 4)
 
-            // CTA principale — orange
+            // CTA principale: orange
             Button(action: onCamera) {
                 HStack {
                     VStack(alignment: .leading, spacing: 4) {
@@ -1727,7 +1727,7 @@ public struct HomeView: View {
     }
 }
 
-// HomeStore reference fix for avatar — store is local, currentUser unavailable here.
+// HomeStore reference fix for avatar: store is local, currentUser unavailable here.
 // Use restaurant name initial as avatar placeholder.
 private extension HomeStore {
     // Workaround: expose dummy reference for avatar initial from restaurant name
@@ -1774,7 +1774,7 @@ git commit -m "feat(home): HomeStore + HomeView avec stats + FoodCards (S04)"
 
 ---
 
-## Task 10: Capture — CaptureStore + CameraPreviewLayer + CameraView (S05)
+## Task 10: Capture: CaptureStore + CameraPreviewLayer + CameraView (S05)
 
 **Files:**
 - Delete: `Packages/Features/Capture/Sources/Capture/Placeholder.swift`
@@ -1800,7 +1800,7 @@ public final class CaptureStore {
     public var isCapturing = false
     public var capturedPhotos: [UUID: UIImage] = [:]
 
-    // AVFoundation — accès nonisolated pour session queue
+    // AVFoundation: accès nonisolated pour session queue
     public nonisolated let session = AVCaptureSession()
     nonisolated let sessionQueue = DispatchQueue(label: "com.atfood.camera.session", qos: .userInitiated)
     nonisolated let photoOutput = AVCapturePhotoOutput()
@@ -1888,7 +1888,7 @@ public final class CaptureStore {
     }
 }
 
-// MARK: — Photo delegate
+// MARK:: Photo delegate
 
 final class PhotoDelegate: NSObject, AVCapturePhotoCaptureDelegate, @unchecked Sendable {
     let completion: (UIImage?) -> Void
@@ -2208,8 +2208,8 @@ public struct CameraView: View {
     }
 }
 
-#Preview("CameraView — Simulateur") {
-    // La caméra ne fonctionne pas sur simulateur — affiche l'UI sans viewfinder
+#Preview("CameraView: Simulateur") {
+    // La caméra ne fonctionne pas sur simulateur: affiche l'UI sans viewfinder
     CameraView { _ in }
         .environment(CaptureStore())
 }
@@ -2231,7 +2231,7 @@ git commit -m "feat(capture): CaptureStore + CameraPreviewLayer + CameraView (S0
 
 ---
 
-## Task 11: Capture — PhotoPreviewView (S06) + AttachDishView (S07)
+## Task 11: Capture: PhotoPreviewView (S06) + AttachDishView (S07)
 
 **Files:**
 - Create: `Packages/Features/Capture/Sources/Capture/PhotoPreviewView.swift`
@@ -2574,7 +2574,7 @@ git commit -m "feat(capture): PhotoPreviewView (S06) + AttachDishView (S07)"
 
 ---
 
-## Task 12: Form — FormStore + DishFormView (S08)
+## Task 12: Form: FormStore + DishFormView (S08)
 
 **Files:**
 - Delete: `Packages/Features/Form/Sources/Form/Placeholder.swift`
@@ -2846,7 +2846,7 @@ git commit -m "feat(form): FormStore + DishFormView publish flow (S08)"
 
 ---
 
-## Task 13: Form — NewCategorySheet (S09)
+## Task 13: Form: NewCategorySheet (S09)
 
 **Files:**
 - Create: `Packages/Features/Form/Sources/Form/NewCategorySheet.swift`
@@ -2968,12 +2968,12 @@ Expected: `** BUILD SUCCEEDED **`
 
 ```bash
 git add Packages/Features/Form/Sources/Form/NewCategorySheet.swift
-git commit -m "feat(form): NewCategorySheet — création catégorie (S09)"
+git commit -m "feat(form): NewCategorySheet: création catégorie (S09)"
 ```
 
 ---
 
-## Task 14: Validation finale — full flow build + smoke
+## Task 14: Validation finale: full flow build + smoke
 
 - [ ] **Build release propre**
 
@@ -2985,24 +2985,24 @@ xcodebuild -workspace ATFood.xcworkspace \
   build 2>&1 | tail -10
 ```
 
-Expected: `** BUILD SUCCEEDED **` — 0 error, 0 strict-concurrency warning.
+Expected: `** BUILD SUCCEEDED **`: 0 error, 0 strict-concurrency warning.
 
 - [ ] **Vérifier SwiftUI Previews** dans Xcode pour chaque écran :
-  - `OnboardingView` — 3 slides, fond photo, Ken Burns visible
-  - `LoginView` — champ email pré-rempli, bouton orange
-  - `RestaurantPickerView` — 2 cards, sélection accent
-  - `HomeView` — stats row, FoodCards horizontaux, CTA orange
-  - `CameraView` — UI caméra (viewfinder gris sur simulateur)
-  - `PhotoPreviewView` — fond sombre, panel bas 3 actions
-  - `AttachDishView` — chips filtres, liste plats
-  - `DishFormView` — photo top, champs, toggles, CTA sticky
-  - `NewCategorySheet` — grille icônes, chips, toggle
+  - `OnboardingView`: 3 slides, fond photo, Ken Burns visible
+  - `LoginView`: champ email pré-rempli, bouton orange
+  - `RestaurantPickerView`: 2 cards, sélection accent
+  - `HomeView`: stats row, FoodCards horizontaux, CTA orange
+  - `CameraView`: UI caméra (viewfinder gris sur simulateur)
+  - `PhotoPreviewView`: fond sombre, panel bas 3 actions
+  - `AttachDishView`: chips filtres, liste plats
+  - `DishFormView`: photo top, champs, toggles, CTA sticky
+  - `NewCategorySheet`: grille icônes, chips, toggle
 
 - [ ] **Commit final**
 
 ```bash
 git add .
-git commit -m "feat: Plan 2 complet — S01–S09 Auth + Home + Capture + Form"
+git commit -m "feat: Plan 2 complet: S01, S09 Auth + Home + Capture + Form"
 ```
 
 ---
@@ -3016,4 +3016,4 @@ git commit -m "feat: Plan 2 complet — S01–S09 Auth + Home + Capture + Form"
 - [ ] Toast apparaît en haut après attachement ou publication, disparaît en 3s
 - [ ] SwiftUI Previews : tous les écrans prévisualisables sans crash
 
-**Prochaine étape → Plan 3 :** `2026-05-22-atfood-plan3-drafts-ai-profile.md` — Drafts (S10) + AIRetouch (S11–S13) + Profile (S14–S16) + wiring Supabase réel
+**Prochaine étape → Plan 3 :** `2026-05-22-atfood-plan3-drafts-ai-profile.md`: Drafts (S10) + AIRetouch (S11, S13) + Profile (S14, S16) + wiring Supabase réel

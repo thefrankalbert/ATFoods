@@ -8,25 +8,22 @@ public struct DraftsView: View {
     let networking: any ATFNetworking
     /// Tap on a draft: pick the dish to attach it to.
     let onSelect: (Draft) -> Void
-    let onBack: () -> Void
 
     public init(
         store: DraftsStore,
         networking: any ATFNetworking,
-        onSelect: @escaping (Draft) -> Void,
-        onBack: @escaping () -> Void
+        onSelect: @escaping (Draft) -> Void
     ) {
         self.store = store; self.networking = networking
-        self.onSelect = onSelect; self.onBack = onBack
+        self.onSelect = onSelect
     }
 
     @State private var confirmDelete = false
 
-    private let columns = Array(repeating: GridItem(.flexible(), spacing: 4), count: 3)
+    private let columns = [GridItem(.adaptive(minimum: 100, maximum: 170), spacing: 8)]   // 3 columns on a phone, more in a wide window
 
     public var body: some View {
         VStack(spacing: 0) {
-            topBar
             if let error = store.error, !store.drafts.isEmpty {
                 Text(error)
                     .font(.atfCaption)
@@ -61,6 +58,8 @@ public struct DraftsView: View {
             }
         }
         .background(Color.atfBg.ignoresSafeArea())
+        .atfScreen("Brouillons")
+        .toolbar { ToolbarItem(placement: .topBarTrailing) { selectButton } }
         .task { await store.load(networking: networking) }
         .refreshable { await store.load(networking: networking) }
         .confirmationDialog(
@@ -78,42 +77,21 @@ public struct DraftsView: View {
 
     // MARK: - Top Bar
 
-    private var topBar: some View {
-        HStack {
-            Button(action: onBack) {
-                Image(systemName: "chevron.left")
-                    .font(.system(size: 18, weight: .semibold))
-                    .foregroundStyle(Color.atfAccent)
-                    .frame(width: 44, height: 44)
-            }
-            .accessibilityLabel("Retour")
-            Spacer()
-            Text("Brouillons")
-                .font(.atfHeadline)
-                .foregroundStyle(Color.atfText1)
-            Spacer()
-            Button {
-                withAnimation(.easeInOut(duration: 0.2)) {
-                    store.isMultiSelect.toggle()
-                    store.selectedIDs.removeAll()
-                }
-            } label: {
-                Text(store.isMultiSelect ? "Annuler" : "Sélectionner")
-                    .font(.atfCaption)
-                    .foregroundStyle(Color.atfAccent)
+    private var selectButton: some View {
+        Button(store.isMultiSelect ? "Annuler" : "Sélectionner") {
+            withAnimation(.easeInOut(duration: 0.2)) {
+                store.isMultiSelect.toggle()
+                store.selectedIDs.removeAll()
             }
         }
-        .padding(.horizontal, 16)
-        .padding(.top, 12)
-        .padding(.bottom, 14)
-        .background(Color.atfBg)
+        .tint(Color.atfText1)
     }
 
     // MARK: - Grid
 
     private var draftGrid: some View {
         ScrollView {
-            LazyVGrid(columns: columns, spacing: 4) {
+            LazyVGrid(columns: columns, spacing: 8) {
                 ForEach(store.drafts) { draft in
                     DraftCard(
                         draft: draft,
@@ -130,20 +108,22 @@ public struct DraftsView: View {
                     )
                 }
             }
-            .padding(4)
+            .padding(.horizontal, 16)
+            .padding(.top, 8)
             .padding(.bottom, 16)
         }
     }
 
     private var skeletonGrid: some View {
         ScrollView {
-            LazyVGrid(columns: columns, spacing: 4) {
+            LazyVGrid(columns: columns, spacing: 8) {
                 ForEach(0..<9, id: \.self) { _ in
                     ATFSkeleton(height: 104, radius: 8)
                         .frame(maxWidth: .infinity)
                 }
             }
-            .padding(4)
+            .padding(.horizontal, 16)
+            .padding(.top, 8)
         }
     }
 
@@ -179,7 +159,7 @@ public struct DraftsView: View {
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
-        .background(Color.atfSurface)
+        .background(Color.atfBg)
         .overlay(Divider(), alignment: .top)
     }
 }
@@ -201,7 +181,8 @@ private struct DraftCard: View {
                 .frame(height: 104)
                 .overlay {
                     ATFAsyncImage(
-                        url: draft.photoURL,
+                        url: Thumbnail.url(draft.photoURL, points: 120),
+                        fallbackURL: draft.photoURL,
                         fallback: Color.atfSurface2,
                         radius: 0,
                         height: 104,
@@ -213,16 +194,16 @@ private struct DraftCard: View {
 
             if isMultiSelect {
                 Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
-                    .font(.system(size: 22, weight: .semibold))
-                    .foregroundStyle(isSelected ? Color.atfAccent : Color.white)
-                    .shadow(color: .black.opacity(0.3), radius: 2)
+                    .font(.title3.weight(.semibold))
+                    .symbolRenderingMode(.palette)
+                    .foregroundStyle(isSelected ? Color.atfAccentOn : Color.white, isSelected ? Color.atfAccent : Color.black.opacity(0.35))
                     .padding(6)
             }
         }
         .clipShape(RoundedRectangle(cornerRadius: 8))
         .overlay(
             RoundedRectangle(cornerRadius: 8)
-                .strokeBorder(isSelected ? Color.atfAccent : Color.clear, lineWidth: 2)
+                .strokeBorder(isSelected ? Color.atfAccent : Color.clear, lineWidth: 3)
         )
         .contentShape(Rectangle())
         .onTapGesture(perform: onTap)
@@ -235,10 +216,13 @@ private struct DraftCard: View {
     }
 }
 
+// Previews use DEBUG-only demo data (MockNetworking, .mocks): never compiled into Release.
+#if DEBUG
 // MARK: - Preview
 
 #Preview("DraftsView") {
     let store = DraftsStore(restaurantID: UUID())
     store.drafts = Draft.mocks
-    return DraftsView(store: store, networking: MockNetworking(), onSelect: { _ in }, onBack: {})
+    return DraftsView(store: store, networking: MockNetworking(), onSelect: { _ in })
 }
+#endif

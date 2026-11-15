@@ -38,7 +38,9 @@ final class LiveJourney: XCTestCase {
         dismissPasswordPrompt(); pause()
 
         // 3. Home filters
-        app.buttons["Plats"].tap(); pause()
+        let noPhoto = app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Sans photo'")).firstMatch
+        XCTAssertTrue(noPhoto.waitForExistence(timeout: 10), "Home filters missing")
+        noPhoto.tap(); pause()
         app.buttons["Tous"].tap(); pause()
 
         // 4. Edit a dish: price + sold out, then put it back
@@ -69,7 +71,7 @@ final class LiveJourney: XCTestCase {
         home.tap(); pause()
         app.buttons["galleryButton"].tap(); sleep(3)
         app.coordinate(withNormalizedOffset: CGVector(dx: 0.16, dy: 0.72)).tap()   // first photo (system picker)
-        let use = app.buttons["Utiliser cette photo"]
+        let use = app.buttons["Utiliser"]
         XCTAssertTrue(use.waitForExistence(timeout: 15), "Preview not shown")
         pause(); use.tap()
         let keep = app.buttons["saveDraftButton"]
@@ -77,7 +79,7 @@ final class LiveJourney: XCTestCase {
         keep.tap()
         // Batch shooting: back to the camera for the next dish.
         XCTAssertTrue(app.buttons["galleryButton"].waitForExistence(timeout: 20), "Draft save failed")
-        pause(); app.buttons["Fermer"].tap()
+        pause(); app.navigationBars.buttons.firstMatch.tap()
         XCTAssertTrue(home.waitForExistence(timeout: 10)); pause()
 
         // 6. Drafts: turn the draft into a new dish
@@ -86,10 +88,10 @@ final class LiveJourney: XCTestCase {
         XCTAssertTrue(draft.waitForExistence(timeout: 15)); pause()
         let usedDraft = app.buttons[draft.label]   // older drafts may remain: track this one only
         draft.tap()
-        let newDish = app.buttons["+ Nouveau plat"]
+        let newDish = app.buttons["Créer un nouveau plat"]
         XCTAssertTrue(newDish.waitForExistence(timeout: 10)); pause()
         newDish.tap()
-        XCTAssertTrue(app.staticTexts["Nouveau plat"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.navigationBars["Nouveau plat"].waitForExistence(timeout: 5))
         let name = app.textFields.element(boundBy: 0)
         name.tap(); name.typeText("Parcours live")
         let newPrice = app.textFields.element(boundBy: 1)
@@ -98,10 +100,10 @@ final class LiveJourney: XCTestCase {
         let save = app.buttons["Enregistrer"]
         for _ in 0..<10 where !save.isEnabled { sleep(1) }
         save.tap()
-        XCTAssertTrue(app.staticTexts["Brouillons"].waitForExistence(timeout: 20), "Create failed")
+        XCTAssertTrue(app.navigationBars["Brouillons"].waitForExistence(timeout: 20), "Create failed")
         let gone = expectation(for: NSPredicate(format: "exists == false"), evaluatedWith: usedDraft)
         wait(for: [gone], timeout: 10)
-        pause(); app.buttons["Retour"].tap()
+        pause(); app.navigationBars.buttons.firstMatch.tap()
         let created = app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Parcours live'")).firstMatch
         XCTAssertTrue(created.waitForExistence(timeout: 10), "New dish not on Home")
         created.swipeUp(); pause(); app.swipeDown(); pause()
@@ -110,13 +112,13 @@ final class LiveJourney: XCTestCase {
         home.tap(); pause()
         app.buttons["galleryButton"].tap(); sleep(3)
         app.coordinate(withNormalizedOffset: CGVector(dx: 0.16, dy: 0.72)).tap()
-        XCTAssertTrue(app.buttons["Utiliser cette photo"].waitForExistence(timeout: 15), "Preview not shown")
-        pause(); app.buttons["Utiliser cette photo"].tap()
+        XCTAssertTrue(app.buttons["Utiliser"].waitForExistence(timeout: 15), "Preview not shown")
+        pause(); app.buttons["Utiliser"].tap()
         let row = app.staticTexts["Parcours live"]
         XCTAssertTrue(row.waitForExistence(timeout: 15), "Dish list not loaded"); pause()
         row.tap(); pause()
-        app.buttons["Attacher"].tap()
-        XCTAssertTrue(app.staticTexts["Photo attachée !"].waitForExistence(timeout: 20), "Photo not attached")
+        app.buttons["attachButton"].tap()
+        XCTAssertTrue(app.staticTexts["Photo attachée"].waitForExistence(timeout: 20), "Photo not attached")
         pause(); shot("home_photo_attached")
 
         // 8. Profile: deletion dialog (cancelled), then sign out
@@ -137,7 +139,7 @@ final class LiveJourney: XCTestCase {
         let dish = app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", prefix)).firstMatch
         XCTAssertTrue(dish.waitForExistence(timeout: 15), "\(prefix) not loaded")
         dish.tap()
-        XCTAssertTrue(app.staticTexts["Fiche plat"].waitForExistence(timeout: 5)); pause()
+        XCTAssertTrue(app.navigationBars["Fiche plat"].waitForExistence(timeout: 5)); pause()
     }
 
     private func dismissPasswordPrompt() {

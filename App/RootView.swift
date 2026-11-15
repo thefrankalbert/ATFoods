@@ -10,7 +10,7 @@ import Form
 import Drafts
 import Profile
 
-// MARK: — Navigation state
+// MARK: - Navigation state
 
 // Class-backed navigator: mutations from any captured closure reach the same instance,
 // bypassing the @State struct-copy issue in navigationDestination closures.
@@ -23,7 +23,7 @@ import Profile
     var profileStore: ProfileStore?
 }
 
-// MARK: — Route
+// MARK: - Route
 
 public enum ATFRoute: Hashable {
     case restaurantPicker
@@ -48,7 +48,7 @@ private enum StorageKey {
     static let lastRestaurantID = "lastRestaurantID"
 }
 
-// MARK: — Root
+// MARK: - Root
 
 @MainActor
 struct RootView: View {
@@ -67,15 +67,17 @@ struct RootView: View {
     }()
 
     @State private var authStore = AuthStore()
-    // AppNavigator is a class — mutations from captured closures always reach the same instance
+    // AppNavigator is a class: mutations from captured closures always reach the same instance
     @State private var nav = AppNavigator()
 
     init() {
         // UI tests always start from a fresh install state.
+        #if DEBUG
         if Env.isUITesting {
             UserDefaults.standard.removeObject(forKey: StorageKey.hasSeenOnboarding)
             UserDefaults.standard.removeObject(forKey: StorageKey.lastRestaurantID)
         }
+        #endif
     }
 
     var body: some View {
@@ -106,6 +108,22 @@ struct RootView: View {
         }
         .animation(.spring(response: 0.35, dampingFraction: 0.8), value: toast != nil)
         .task { await restoreSession() }
+        // Session revoked elsewhere (password changed on the web, account removed): back to login.
+        .task {
+            for await _ in networking.signedOutEvents() where authStore.currentUser != nil { clearSession() }
+        }
+        // Native back button and back swipe change `path` without calling us: clean up here, once.
+        .onChange(of: path) { old, new in leftScreens(old: old, new: new) }
+    }
+
+    private func leftScreens(old: [ATFRoute], new: [ATFRoute]) {
+        if old.contains(.photoPreview), !new.contains(.photoPreview) {
+            nav.captureStore?.reset()   // rejected photo must not come back on the next shot
+            nav.formStore = nil
+        }
+        if old.last == .restaurantPicker, new.last == .profile {
+            authStore.selectedRestaurant = nav.homeStore?.restaurant   // picker left without switching
+        }
     }
 
     private var splash: some View {
@@ -117,7 +135,7 @@ struct RootView: View {
         .background(Color.atfBg.ignoresSafeArea())
     }
 
-    // MARK: — Session
+    // MARK: - Session
 
     /// Reopens the app where the user left it: same account, same restaurant.
     private func restoreSession() async {
@@ -153,6 +171,7 @@ struct RootView: View {
         authStore.currentUser = nil
         authStore.selectedRestaurant = nil
         authStore.restaurants = []
+        authStore.email = ""       // shared device: the next person does not see the previous account
         authStore.password = ""
         lastRestaurantID = ""
         nav.homeStore = nil
@@ -164,7 +183,7 @@ struct RootView: View {
         path = []
     }
 
-    // MARK: — Route destinations
+    // MARK: - Route destinations
 
     @ViewBuilder
     private func routeView(_ route: ATFRoute) -> some View {
@@ -173,7 +192,13 @@ struct RootView: View {
             RestaurantPickerView(
                 store: authStore,
                 onContinue: { openRestaurant() },
-                onRetry: { await authStore.loadRestaurants(networking: networking) },
+                onRetry: {
+                    await authStore.loadRestaurants(networking: networking)
+                    // Restore after an offline start: go straight back to the last restaurant.
+                    guard path == [.restaurantPicker], authStore.restaurantsError == nil else { return }
+                    authStore.selectedRestaurant = authStore.restaurants.first { $0.id.uuidString == lastRestaurantID }
+                    if authStore.selectedRestaurant != nil || authStore.restaurants.count == 1 { openRestaurant() }
+                },
                 onSignOut: {
                     Task {
                         try? await networking.signOut()
@@ -181,12 +206,8 @@ struct RootView: View {
                     }
                 },
                 // Opened from the profile: allow going back without switching.
-                onCancel: path.count > 1 ? {
-                    authStore.selectedRestaurant = nav.homeStore?.restaurant
-                    path.removeLast()
-                } : nil
+                canGoBack: path.count > 1
             )
-            .navigationBarHidden(true)
 
         case .home:
             if let store = nav.homeStore {
@@ -219,23 +240,18 @@ struct RootView: View {
         case .camera:
             if let store = nav.captureStore {
                 CameraView(store: store, onCapture: {
+                    guard path.last == .camera else { return }   // capture finished after the user left the camera
                     path.append(.photoPreview)
-                }, onClose: {
-                    path.removeLast()
                 })
-                .navigationBarHidden(true)
             }
 
         case .photoPreview:
             if let store = nav.captureStore {
                 PhotoPreviewView(store: store, onRetake: {
-                    store.reset()   // rejected photo must not linger as the camera thumbnail
-                    nav.formStore = nil
-                    path.removeLast()
+                    path.removeLast()   // cleanup happens in leftScreen(_:), shared with the back swipe
                 }, onUse: {
                     path.append(.attachDish)
                 })
-                .navigationBarHidden(true)
             }
 
         case .attachDish:
@@ -268,24 +284,22 @@ struct RootView: View {
                             throw AppError("Photo illisible. Reprenez la photo.")
                         }
                         _ = try await networking.saveDraft(imageData: data, restaurantID: store.restaurant.id)
-                        showToast("Brouillon enregistré. Photo suivante !")
+                        showToast("Brouillon enregistré. Photo suivante.")
                         store.reset()
                         nav.formStore = nil
                         popTo(.camera)
                     },
                     onAttached: {
                         if store.targetDish != nil {
-                            showToast("Photo remplacée !")
+                            showToast("Photo remplacée")
                             popTo(.dishEdit)
                         } else {
-                            showToast("Photo attachée !")
+                            showToast("Photo attachée")
                             popTo(.home)
                         }
                     },
-                    onBack: { path.removeLast() },
                     fixedDish: store.targetDish
                 )
-                .navigationBarHidden(true)
             }
 
         case .attachDraft(let draft):
@@ -305,12 +319,10 @@ struct RootView: View {
                         _ = try await networking.attachDraft(draft, toDishID: item.id, restaurantID: restaurant.id)
                     },
                     onAttached: {
-                        showToast("Photo attachée !")
+                        showToast("Photo attachée")
                         popTo(.drafts)
-                    },
-                    onBack: { path.removeLast() }
+                    }
                 )
-                .navigationBarHidden(true)
             }
 
         case .dishForm:
@@ -319,13 +331,10 @@ struct RootView: View {
                     store: store,
                     networking: networking,
                     onSaved: {
-                        showToast("Plat enregistré !")
-                        nav.formStore = nil
+                        showToast("Plat enregistré")
                         if case .draft = store.photo { popTo(.drafts) } else { popTo(.home) }
-                    },
-                    onBack: { path.removeLast() }
+                    }
                 )
-                .navigationBarHidden(true)
             }
 
         case .dishEdit:
@@ -334,18 +343,15 @@ struct RootView: View {
                     store: store,
                     networking: networking,
                     onSaved: {
-                        showToast("Plat mis à jour !")
-                        nav.dishEditStore = nil
+                        showToast("Plat mis à jour")
                         popTo(.home)
                     },
-                    onBack: { path.removeLast() },
                     onChangePhoto: {
                         guard let dish = store.editing else { return }
                         nav.captureStore = CaptureStore(restaurant: store.restaurant, targetDish: dish)
                         path.append(.camera)
                     }
                 )
-                .navigationBarHidden(true)
             }
 
         case .drafts:
@@ -354,12 +360,12 @@ struct RootView: View {
                     store: store,
                     networking: networking,
                     onSelect: { draft in
-                        nav.formStore = nil
+                        // Keep the form of a dish already created from this draft (photo attach failed): no duplicate.
+                        if case .draft(let previous) = nav.formStore?.photo, previous.id == draft.id,
+                           nav.formStore?.isDishCreated == true {} else { nav.formStore = nil }
                         path.append(.attachDraft(draft))
-                    },
-                    onBack: { path.removeLast() }
+                    }
                 )
-                .navigationBarHidden(true)
             }
 
         case .profile:
@@ -370,18 +376,17 @@ struct RootView: View {
                     onSwitchRestaurant: authStore.restaurants.count > 1 ? {
                         path.append(.restaurantPicker)
                     } : nil,
-                    onSignOut: { clearSession() },
-                    onBack: { path.removeLast() }
+                    onSignOut: { clearSession() }
                 )
-                .navigationBarHidden(true)
             }
         }
     }
 
-    // MARK: — Helpers
+    // MARK: - Helpers
 
     private func showToast(_ message: String) {
         toast = ATFToastData(message)
+        AccessibilityNotification.Announcement(message).post()   // VoiceOver hears confirmations too
         toastTask?.cancel()   // a newer toast restarts the timer instead of being cleared early
         toastTask = Task {
             try? await Task.sleep(for: .seconds(3))

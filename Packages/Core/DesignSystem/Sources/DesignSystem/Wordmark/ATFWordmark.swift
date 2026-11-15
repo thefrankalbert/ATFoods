@@ -17,22 +17,26 @@ public struct ATFWordmark: View {
     public var body: some View {
         HStack(alignment: .firstTextBaseline, spacing: 0) {
             Text("At")
-                .font(.custom("InstrumentSerif-Regular", size: size))
+                .font(.system(size: size, weight: .medium, design: .serif))
                 .foregroundStyle(color)
             Text("food")
-                .font(.custom("InstrumentSerif-Italic", size: size * 0.95))
+                .font(.system(size: size * 0.95, weight: .medium, design: .serif).italic())
                 .foregroundStyle(color)
             if showDot {
                 Circle()
-                    .fill(Color.atfAccent)
+                    .fill(Color.atfClay)
                     .frame(width: size * 0.16, height: size * 0.16)
                     .offset(y: -size * 0.12)
                     .padding(.leading, 2)
             }
         }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Atfood")
     }
 }
 
+// Previews use DEBUG-only demo data (MockNetworking, .mocks): never compiled into Release.
+#if DEBUG
 #Preview("ATFWordmark") {
     VStack(spacing: 24) {
         ATFWordmark(size: 32)
@@ -44,3 +48,4 @@ public struct ATFWordmark: View {
     }
     .padding()
 }
+#endif

@@ -54,7 +54,7 @@ struct GuidanceBanner: View {
         let ready = engine.isReady
         HStack(spacing: 8) {
             Image(systemName: ready ? "checkmark.circle.fill" : "hand.point.up.left.fill")
-            Text(engine.hint?.message ?? "Parfait ! Prenez la photo")
+            Text(engine.hint?.message ?? "Parfait. Prenez la photo")
                 .font(.atfCaption)
             Spacer(minLength: 0)
             Text("\(Int(engine.pitch.rounded()))°")
@@ -77,12 +77,18 @@ struct CaptureModePicker: View {
     var body: some View {
         HStack(spacing: 6) {
             ForEach(CaptureMode.allCases, id: \.self) { mode in
-                Button(mode.rawValue) { engine.mode = mode }
-                    .font(.atfCaption)
-                    .foregroundStyle(engine.mode == mode ? Color.black : .white)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 6)
-                    .background(engine.mode == mode ? Color.white : Color.black.opacity(0.4), in: Capsule())
+                let isOn = engine.mode == mode
+                Button { engine.mode = mode } label: {
+                    Text(mode.rawValue)
+                        .font(.atfCaption)
+                        .foregroundStyle(isOn ? Color.black : .white)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .background(isOn ? Color.white : Color.black.opacity(0.55), in: Capsule())
+                        .frame(minHeight: 44)
+                        .contentShape(Rectangle())
+                }
+                .accessibilityAddTraits(isOn ? .isSelected : [])
             }
         }
     }

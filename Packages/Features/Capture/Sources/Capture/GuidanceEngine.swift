@@ -35,7 +35,7 @@ public enum GuidanceHint: Equatable, Sendable {
 // MARK: - Engine
 
 /// Combines device tilt (CoreMotion), exposure (AVFoundation) and subject box (Vision)
-/// into ONE prioritized hint. Advises only — never blocks the shutter.
+/// into ONE prioritized hint. Advises only: never blocks the shutter.
 @MainActor @Observable public final class GuidanceEngine {
     public var mode: CaptureMode = .topDown
     public private(set) var pitch: Double = 0   // degrees, 0 = upright, 90 = flat over table

@@ -14,7 +14,6 @@ public struct AttachDishView: View {
     /// Only for a fresh capture: keep the photo as a draft and go on shooting.
     let saveDraft: (() async throws -> Void)?
     let onAttached: () -> Void
-    let onBack: () -> Void
     /// Photo taken from a dish card: no list, the photo goes to this dish.
     let fixedDish: MenuItem?
 
@@ -37,7 +36,6 @@ public struct AttachDishView: View {
         attach: @escaping (MenuItem) async throws -> Void,
         saveDraft: (() async throws -> Void)? = nil,
         onAttached: @escaping () -> Void,
-        onBack: @escaping () -> Void,
         fixedDish: MenuItem? = nil
     ) {
         self.fixedDish = fixedDish
@@ -47,145 +45,127 @@ public struct AttachDishView: View {
         self.attach = attach
         self.saveDraft = saveDraft
         self.onAttached = onAttached
-        self.onBack = onBack
     }
 
     public var body: some View {
-        ZStack(alignment: .bottom) {
-            Color.atfSurface.ignoresSafeArea()
-
-            VStack(spacing: 0) {
-                // Header
-                HStack {
-                    Button(action: { onBack() }) {
-                        Image(systemName: "chevron.left")
-                            .font(.system(size: 18, weight: .semibold))
-                            .foregroundStyle(Color.atfAccent)
-                            .frame(width: 44, height: 44)
-                    }
-                    .disabled(isBusy)
-                    .accessibilityLabel("Retour")
-                    Spacer()
-                    Text(fixedDish == nil ? "Attacher à un plat" : "Remplacer la photo")
-                        .font(.atfHeadline)
-                        .foregroundStyle(Color.atfText1)
-                    Spacer()
-                    Color.clear
-                        .frame(width: 44, height: 44)
-                }
-                .padding(.horizontal, 16)
-                .padding(.top, 12)
-                .padding(.bottom, 8)
-
-                if fixedDish == nil {
-                // "+ Nouveau plat" button
-                ATFButton("+ Nouveau plat", kind: .secondary, fullWidth: true, disabled: isBusy, action: { onNewDish() })
-                    .padding(.horizontal, 20)
-                    .padding(.bottom, saveDraft == nil ? 16 : 8)
-
-                if saveDraft != nil {
-                    ATFButton("Garder en brouillon", kind: .ghost, fullWidth: true,
-                              loading: isSavingDraft, disabled: isAttaching, action: { keepAsDraft() })
-                        .padding(.horizontal, 20)
-                        .padding(.bottom, 16)
-                        .accessibilityIdentifier("saveDraftButton")
-                }
-
-                // Divider with label
-                HStack(spacing: 12) {
-                    Rectangle()
-                        .fill(Color.atfSurface2)
-                        .frame(height: 1)
-                    Text("ou choisir un plat existant")
-                        .font(.atfCaption)
-                        .foregroundStyle(Color.atfText3)
-                        .lineLimit(1)
-                        .fixedSize()
-                    Rectangle()
-                        .fill(Color.atfSurface2)
-                        .frame(height: 1)
-                }
-                .padding(.horizontal, 20)
-                .padding(.bottom, 8)
-
-                ATFTextField(text: $search, placeholder: "Rechercher un plat", rightIcon: .search)
-                    .autocorrectionDisabled()
-                    .padding(.horizontal, 20)
-                    .padding(.bottom, 8)
-                }
-
-                // Menu items list
-                if isLoading {
-                    Spacer()
-                    ProgressView()
-                        .tint(Color.atfAccent)
-                    Spacer()
-                } else if loadFailed {
-                    Spacer()
-                    VStack(spacing: 12) {
-                        Text("Impossible de charger vos plats.")
-                            .font(.atfBody)
-                            .foregroundStyle(Color.atfText2)
-                        ATFButton("Réessayer", kind: .secondary) { Task { await fetchMenuItems() } }
-                    }
-                    Spacer()
-                } else if filteredItems.isEmpty {
-                    Spacer()
-                    Text(menuItems.isEmpty ? "Aucun plat pour l'instant : créez-en un." : "Aucun plat ne correspond.")
-                        .font(.atfBody)
-                        .foregroundStyle(Color.atfText3)
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal, 20)
-                    Spacer()
-                } else {
-                    ScrollView {
-                        LazyVStack(spacing: 0) {
-                            ForEach(filteredItems) { item in
-                                DishRow(
-                                    item: item,
-                                    isSelected: selectedItem?.id == item.id,
-                                    onTap: { selectedItem = item }
-                                )
-                                Divider()
-                                    .padding(.leading, 20)
+        VStack(spacing: 0) {
+            ScrollView {
+                VStack(spacing: 24) {
+                    if fixedDish == nil {
+                        ATFSection {
+                            actionRow("Créer un nouveau plat", icon: "plus", action: onNewDish)
+                            if saveDraft != nil {
+                                ATFRowDivider()
+                                actionRow("Garder en brouillon", icon: "square.stack", loading: isSavingDraft, action: keepAsDraft)
+                                    .accessibilityIdentifier("saveDraftButton")
                             }
                         }
+                        searchField
                     }
+                    dishList
                 }
-
-                // Bottom padding for the fixed "Attacher" button
-                Spacer().frame(height: 100)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 8)
             }
+            .scrollDismissesKeyboard(.interactively)
 
-            // Fixed bottom button
-            VStack(spacing: 0) {
+            VStack(spacing: 8) {
                 if let errorMsg = error {
                     Text(errorMsg)
-                        .font(.atfCaption)
+                        .font(.footnote)
                         .foregroundStyle(Color.atfDanger)
-                        .padding(.horizontal, 20)
-                        .padding(.bottom, 8)
                         .multilineTextAlignment(.center)
                 }
-
                 ATFButton(
-                    fixedDish == nil ? "Attacher" : "Remplacer la photo",
+                    attachLabel,
                     kind: .primary,
                     fullWidth: true,
                     loading: isAttaching,
                     disabled: selectedItem == nil || isSavingDraft,
                     action: { attachPhoto() }
                 )
-                .padding(.horizontal, 20)
-                .padding(.bottom, 32)
+                .accessibilityIdentifier("attachButton")
             }
-            .background(
-                Color.atfSurface
-                    .shadow(color: .black.opacity(0.08), radius: 12, x: 0, y: -4)
-            )
+            .padding(.horizontal, 16)
+            .padding(.top, 12)
+            .padding(.bottom, 8)
+            .background(Color.atfBg)
         }
+        .background(Color.atfBg.ignoresSafeArea())
+        .atfScreen(fixedDish == nil ? "Cette photo, c'est pour…" : "Remplacer la photo")
+        .navigationBarBackButtonHidden(isBusy)   // attach and draft pop the stack themselves
+        .sensoryFeedback(.selection, trigger: selectedItem?.id)
+        .sensoryFeedback(.error, trigger: error) { _, new in new != nil }
         .task {
             await fetchMenuItems()
+        }
+    }
+
+    private var attachLabel: String {
+        if fixedDish != nil { return "Remplacer la photo" }
+        guard let selectedItem else { return "Attacher" }
+        return "Attacher à \(selectedItem.name)"
+    }
+
+    private func actionRow(_ title: String, icon: String, loading: Bool = false, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: 12) {
+                Group {
+                    if loading { ProgressView().tint(Color.atfText2) } else { Image(systemName: icon) }
+                }
+                .frame(width: 24)
+                Text(title)
+                Spacer()
+                Image(systemName: "chevron.right").font(.footnote.weight(.semibold)).foregroundStyle(Color.atfText3)
+            }
+            .foregroundStyle(Color.atfText1)
+            .padding(.horizontal, 16)
+            .frame(minHeight: 50)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .disabled(isBusy)
+    }
+
+    private var searchField: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "magnifyingglass").foregroundStyle(Color.atfText3)
+            TextField("Rechercher un plat", text: $search)
+                .autocorrectionDisabled()
+                .foregroundStyle(Color.atfText1)
+        }
+        .padding(.horizontal, 12)
+        .frame(height: 44)
+        .background(Color.atfField, in: RoundedRectangle(cornerRadius: 12))
+    }
+
+    @ViewBuilder
+    private var dishList: some View {
+        if isLoading {
+            ProgressView().tint(Color.atfText2).padding(.top, 32)
+        } else if loadFailed {
+            VStack(spacing: 12) {
+                Text("Impossible de charger vos plats.")
+                    .font(.subheadline)
+                    .foregroundStyle(Color.atfText2)
+                ATFButton("Réessayer", kind: .secondary) { Task { await fetchMenuItems() } }
+            }
+            .padding(.top, 32)
+        } else if filteredItems.isEmpty {
+            Text(menuItems.isEmpty ? "Aucun plat pour l'instant : créez-en un." : "Aucun plat ne correspond.")
+                .font(.subheadline)
+                .foregroundStyle(Color.atfText2)
+                .multilineTextAlignment(.center)
+                .padding(.top, 32)
+        } else {
+            ATFSection(fixedDish == nil ? "Ou un plat de votre carte" : nil) {
+                LazyVStack(spacing: 0) {
+                    ForEach(Array(filteredItems.enumerated()), id: \.element.id) { index, item in
+                        if index > 0 { ATFRowDivider() }
+                        DishRow(item: item, isSelected: selectedItem?.id == item.id) { selectedItem = item }
+                    }
+                }
+            }
         }
     }
 
@@ -209,7 +189,7 @@ public struct AttachDishView: View {
         do {
             menuItems = try await networking.fetchMenuItems(restaurantID: restaurant.id)
         } catch {
-            loadFailed = true
+            loadFailed = !Task.isCancelled
         }
         isLoading = false
     }
@@ -252,36 +232,49 @@ private struct DishRow: View {
     let onTap: () -> Void
 
     var body: some View {
-        Button(action: { onTap() }) {
+        Button(action: onTap) {
             HStack(spacing: 12) {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(item.name)
-                        .font(.atfBody)
-                        .foregroundStyle(Color.atfText1)
-                    HStack(spacing: 6) {
-                        if !item.category.isEmpty { ATFBadge(item.category, kind: .soft) }
-                        if item.photoURL != nil {
-                            Text("Remplacera la photo actuelle")
-                                .font(.atfCaption)
-                                .foregroundStyle(Color.atfText3)
-                        }
-                    }
+                ATFRemoteImage(Thumbnail.url(item.photoURL, points: 44), fallback: item.photoURL) {
+                    Color.atfSurface2.overlay(
+                        Image(systemName: item.photoURL == nil ? "camera" : "photo").foregroundStyle(Color.atfText3)
+                    )
                 }
-                Spacer()
+                .frame(width: 44, height: 44)
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+                .accessibilityHidden(true)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(item.name)
+                        .font(isSelected ? .body.weight(.semibold) : .body)
+                        .foregroundStyle(Color.atfText1)
+                    Text(subtitle)
+                        .font(.footnote)
+                        .foregroundStyle(Color.atfText2)
+                }
+                Spacer(minLength: 0)
                 if isSelected {
-                    Image(systemName: "checkmark.circle.fill")
-                        .font(.system(size: 22))
-                        .foregroundStyle(Color.atfAccent)
+                    Image(systemName: "checkmark")
+                        .font(.body.weight(.semibold))
+                        .foregroundStyle(Color.atfText1)
                 }
             }
-            .padding(.horizontal, 20)
-            .padding(.vertical, 14)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 10)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
+    }
+
+    private var subtitle: String {
+        [item.category.isEmpty ? nil : item.category,
+         item.photoURL == nil ? "Sans photo" : "Remplacera la photo actuelle"]
+            .compactMap { $0 }.joined(separator: " · ")
     }
 }
 
+// Previews use DEBUG-only demo data (MockNetworking, .mocks): never compiled into Release.
+#if DEBUG
 // MARK: - Preview
 
 #Preview("AttachDishView") {
@@ -291,7 +284,7 @@ private struct DishRow: View {
         onNewDish: {},
         attach: { _ in },
         saveDraft: {},
-        onAttached: {},
-        onBack: {}
+        onAttached: {}
     )
 }
+#endif

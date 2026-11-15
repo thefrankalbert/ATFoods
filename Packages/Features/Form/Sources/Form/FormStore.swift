@@ -37,6 +37,8 @@ public enum DishPhotoSource {
     public private(set) var menusLoaded: Bool = false
     /// Set once the dish row exists, so a retry after a failed photo upload doesn't create a duplicate.
     private var createdItem: MenuItem? = nil
+    /// One id for every create attempt: a retry after a lost answer hits the same row instead of adding a twin.
+    private let newDishID = UUID()
 
     public init(restaurant: Restaurant, photo: DishPhotoSource? = nil) {
         self.restaurant = restaurant
@@ -69,7 +71,11 @@ public enum DishPhotoSource {
     }
 
     /// Same order as the web list, so saving never reshuffles what the web stored.
-    private var orderedAllergens: [String] { Allergen.all.map(\.id).filter(allergens.contains) }
+    /// Ids this app does not know (added on the web later) are kept, after the known ones.
+    private var orderedAllergens: [String] {
+        let known = Allergen.all.map(\.id)
+        return known.filter(allergens.contains) + allergens.subtracting(known).sorted()
+    }
 
     private func applyDetails(to item: inout MenuItem) {
         let trim = { (t: String) in t.trimmingCharacters(in: .whitespacesAndNewlines) }
@@ -85,7 +91,10 @@ public enum DishPhotoSource {
 
     /// Edit mode: unsaved changes (Back asks before discarding them).
     public var hasUnsavedChanges: Bool {
-        guard let item = editing else { return false }
+        guard let item = editing else {
+            // New dish: typed text would be lost on back (nothing once the dish row exists).
+            return !isDishCreated && !(name + priceText + descriptionText).trimmingCharacters(in: .whitespaces).isEmpty
+        }
         return name.trimmingCharacters(in: .whitespaces) != item.name
             || price != item.price.roundedForCurrency(restaurant.currency)
             || isAvailable != item.isAvailable
@@ -145,7 +154,7 @@ public enum DishPhotoSource {
             error = nil
             if selectedCategoryID == nil { selectedCategoryID = categories.first?.id }
         } catch {
-            self.error = UserMessage.from(error)
+            if !Task.isCancelled { self.error = UserMessage.from(error) }
         }
     }
 
@@ -177,6 +186,19 @@ public enum DishPhotoSource {
             && caloriesError == nil
     }
 
+    /// Shown above a disabled save button: says exactly what is missing, instead of a grey button with no reason.
+    public var missingFieldsHint: String? {
+        guard !isValid, !isDishCreated else { return nil }
+        var missing: [String] = []
+        if name.trimmingCharacters(in: .whitespaces).isEmpty { missing.append("un nom") }
+        if price == nil { missing.append(priceText.trimmingCharacters(in: .whitespaces).isEmpty ? "un prix" : "un prix valide") }
+        if selectedCategoryID == nil { missing.append("une catégorie") }
+        if caloriesError != nil { missing.append("des calories valides") }
+        guard let last = missing.popLast() else { return nil }
+        let list = missing.isEmpty ? last : missing.joined(separator: ", ") + " et " + last
+        return "Ajoutez \(list) pour enregistrer."
+    }
+
     public func submit(networking: any ATFNetworking) async {
         guard isValid, let price, let categoryID = selectedCategoryID else { return }
         isLoading = true
@@ -185,7 +207,8 @@ public enum DishPhotoSource {
         let trimmedName = name.trimmingCharacters(in: .whitespaces)
         let categoryName = categories.first { $0.id == categoryID }?.name ?? ""
 
-        if var item = editing {
+        if let original = editing {
+            var item = original
             item.name = trimmedName
             item.price = price
             item.isAvailable = isAvailable
@@ -193,7 +216,7 @@ public enum DishPhotoSource {
             item.category = categoryName
             applyDetails(to: &item)
             do {
-                editing = try await networking.updateMenuItem(item, restaurantID: restaurant.id)
+                editing = try await networking.updateMenuItem(item, from: original, restaurantID: restaurant.id)
             } catch {
                 self.error = UserMessage.from(error)
             }
@@ -206,6 +229,7 @@ public enum DishPhotoSource {
         } else {
             do {
                 var newItem = MenuItem(
+                    id: newDishID,
                     name: trimmedName,
                     price: price,
                     category: categoryName,

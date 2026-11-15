@@ -24,8 +24,7 @@ public struct LoginView: View {
                     RoundedRectangle(cornerRadius: 20)
                         .fill(Color.atfAccent)
                         .frame(width: 72, height: 72)
-                        .shadow(color: Color.atfAccent.opacity(0.45), radius: 16, y: 6)
-                    ATFIconView(.fork, size: 32, color: .white)
+                    ATFIconView(.fork, size: 32, color: .atfAccentOn)
                 }
 
                 Spacer().frame(height: 20)
@@ -65,9 +64,14 @@ public struct LoginView: View {
                     HStack {
                         Spacer()
                         // The web flow handles the reset email and the new-password page.
-                        Button("Mot de passe oublié ?") { openURL(AttablWeb.forgotPassword) }
-                            .font(.atfSubhead)
-                            .foregroundStyle(Color.atfAccent)
+                        Button { openURL(AttablWeb.forgotPassword) } label: {
+                            Text("Mot de passe oublié ?")
+                                .font(.atfSubhead)
+                                .foregroundStyle(Color.atfText1)
+                                .underline()
+                                .frame(minHeight: 44)
+                                .contentShape(Rectangle())
+                        }
                     }
 
                     ATFButton("Se connecter", kind: .primary, fullWidth: true,
@@ -80,6 +84,12 @@ public struct LoginView: View {
                     .font(.atfCaption)
                     .foregroundStyle(Color.atfText3)
                     .multilineTextAlignment(.center)
+
+                // Legal links reachable before sign-in (App Store guideline 5.1.1).
+                HStack(spacing: 20) {
+                    legalLink("Conditions d'utilisation", AttablWeb.legal)
+                    legalLink("Confidentialité", AttablWeb.privacy)
+                }
 
                 Spacer().frame(height: 32)
             }
@@ -100,8 +110,22 @@ public struct LoginView: View {
             if store.currentUser != nil { onSuccess() }
         }
     }
+
+    private func legalLink(_ title: String, _ url: URL) -> some View {
+        Button { openURL(url) } label: {
+            Text(title)
+                .font(.footnote)
+                .foregroundStyle(Color.atfText2)
+                .underline()
+                .frame(minHeight: 44)
+                .contentShape(Rectangle())
+        }
+    }
 }
 
+// Previews use DEBUG-only demo data (MockNetworking, .mocks): never compiled into Release.
+#if DEBUG
 #Preview("LoginView") {
     LoginView(store: AuthStore(), networking: MockNetworking()) {}
 }
+#endif
