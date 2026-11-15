@@ -7,6 +7,19 @@ final class SubjectDetector: NSObject, AVCaptureVideoDataOutputSampleBufferDeleg
     var onSubject: @Sendable (CGRect?) -> Void = { _ in }
     private var lastRun = CMTime.zero
     private let interval = CMTime(value: 1, timescale: 4)
+    private let orientationLock = NSLock()
+    private var orientation: CGImagePropertyOrientation = .right   // portrait until the preview reports otherwise
+
+    /// Back camera buffers are landscape; map them to the orientation shown on screen.
+    func setPreviewAngle(_ angle: CGFloat) {
+        let value: CGImagePropertyOrientation = switch Int(angle) {
+        case 0: .up
+        case 180: .down
+        case 270: .left
+        default: .right
+        }
+        orientationLock.withLock { orientation = value }
+    }
 
     func captureOutput(_ output: AVCaptureOutput, didOutput sampleBuffer: CMSampleBuffer, from connection: AVCaptureConnection) {
         let now = CMSampleBufferGetPresentationTimeStamp(sampleBuffer)
@@ -15,8 +28,7 @@ final class SubjectDetector: NSObject, AVCaptureVideoDataOutputSampleBufferDeleg
         lastRun = now
 
         let request = VNGenerateObjectnessBasedSaliencyImageRequest()
-        // Back camera buffers are landscape; .right maps them to the portrait UI.
-        let handler = VNImageRequestHandler(cvPixelBuffer: pixels, orientation: .right)
+        let handler = VNImageRequestHandler(cvPixelBuffer: pixels, orientation: orientationLock.withLock { orientation })
         try? handler.perform([request])
         let box = (request.results?.first?.salientObjects ?? [])
             .max { $0.boundingBox.width * $0.boundingBox.height < $1.boundingBox.width * $1.boundingBox.height }?

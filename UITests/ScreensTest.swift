@@ -111,9 +111,8 @@ final class ScreensTest: XCTestCase {
         else { app.coordinate(withNormalizedOffset: .init(dx: 0.5, dy: 0.62)).tap() }   // popover: tap outside
         sleep(1)
 
-        // Back swipe from the left edge works on a pushed screen.
-        app.coordinate(withNormalizedOffset: .init(dx: 0.02, dy: 0.5))
-            .press(forDuration: 0.05, thenDragTo: app.coordinate(withNormalizedOffset: .init(dx: 0.8, dy: 0.5)))
+        // Swipe right goes back from a pushed screen (on the window: in an iPad window it is not at the screen origin).
+        app.windows.firstMatch.swipeRight(velocity: .fast)
         XCTAssertTrue(app.buttons["cameraButton"].waitForExistence(timeout: 4), "Back swipe did not return to Home")
     }
 

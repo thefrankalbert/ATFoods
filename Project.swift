@@ -48,6 +48,12 @@ let project = Project(
                 "CFBundleVersion": .string("$(CURRENT_PROJECT_VERSION)"),
                 "UILaunchScreen": .dictionary(["UIColorName": .string("LaunchBackground")]),
                 "UISupportedInterfaceOrientations": .array([.string("UIInterfaceOrientationPortrait")]),
+                // On iPad the iPhone app runs in a window: portrait-only shows it turned sideways when the iPad is held
+                // in landscape. All orientations keep it upright.
+                "UISupportedInterfaceOrientations~ipad": .array([
+                    .string("UIInterfaceOrientationPortrait"), .string("UIInterfaceOrientationPortraitUpsideDown"),
+                    .string("UIInterfaceOrientationLandscapeLeft"), .string("UIInterfaceOrientationLandscapeRight"),
+                ]),
                 // Tokens are light-only (Home and camera are dark by design): no white-on-white in dark mode.
                 "UIUserInterfaceStyle": .string("Light"),
                 "ITSAppUsesNonExemptEncryption": .boolean(false),
