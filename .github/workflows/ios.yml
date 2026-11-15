@@ -16,10 +16,11 @@ jobs:
     env:
       LC_ALL: C.UTF-8
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Scan app, packages, tests and docs
         run: |
-          if grep -rnP '[\x{2013}\x{2014}]' App Packages UITests docs Project.swift; then
+          # -I: text files only (screenshots and photos are binary)
+          if grep -rnIP '[\x{2013}\x{2014}]' App Packages UITests docs Project.swift; then
             echo "::error::Em or en dash found (house rule: use a comma, colon, period or parentheses)"
             exit 1
           fi
@@ -29,7 +30,7 @@ jobs:
     runs-on: macos-26
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Use the newest Xcode on the runner
         run: |
