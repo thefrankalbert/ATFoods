@@ -76,11 +76,25 @@ final class DemoJourney: XCTestCase {
         XCTAssertTrue(mafe.waitForExistence(timeout: 4))
         mafe.tap()
         pause(2)
+        for category in ["Grillades", "Boisson", "Plat"] {   // the category bar jumps through the menu
+            let chip = app.buttons["category_\(category)"]
+            let bar = app.scrollViews["categoryBar"]
+            for _ in 0..<3 where chip.frame.maxX > bar.frame.maxX { bar.swipeLeft() }   // scroll the bar toward the chip
+            for _ in 0..<3 where chip.frame.minX < bar.frame.minX { bar.swipeRight() }
+            chip.tap()
+            pause(1.5)
+        }
+        app.buttons["filterMenu"].tap()
+        pause(1)
         app.buttons["Épuisés · 1"].tap()
         pause(2.5)
+        app.buttons["filterMenu"].tap()
+        pause(1)
         app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Sans photo'")).firstMatch.tap()
         pause(2.5)
-        app.buttons["Tous"].tap()
+        app.buttons["filterMenu"].tap()
+        pause(1)
+        app.buttons["Tous les plats"].tap()
         pause(1.5)
 
         // 5. Dish card

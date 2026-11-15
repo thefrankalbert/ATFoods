@@ -38,10 +38,12 @@ final class LiveJourney: XCTestCase {
         dismissPasswordPrompt(); pause()
 
         // 3. Home filters
-        let noPhoto = app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Sans photo'")).firstMatch
-        XCTAssertTrue(noPhoto.waitForExistence(timeout: 10), "Home filters missing")
-        noPhoto.tap(); pause()
-        app.buttons["Tous"].tap(); pause()
+        let filters = app.buttons["filterMenu"]
+        XCTAssertTrue(filters.waitForExistence(timeout: 10), "Home filters missing")
+        filters.tap()
+        app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Sans photo'")).firstMatch.tap(); pause()
+        filters.tap()
+        app.buttons["Tous les plats"].tap(); pause()
 
         // 4. Edit a dish: price + sold out, then put it back
         openDish("Poulet DG")

@@ -4,15 +4,13 @@ import Models
 import Networking
 @testable import Home
 
-@MainActor @Test func categoryFilterUsesIDsNotNames() {
+@MainActor @Test func sameNamedCategoriesStayApart() {
     let midi = MenuCategory(name: "Entrées"), soir = MenuCategory(name: "Entrées")
     let store = HomeStore(restaurant: Restaurant.mocks[0])
     store.menuItems = [MenuItem(name: "Salade", price: 1500, category: "Entrées", categoryID: midi.id),
                        MenuItem(name: "Soupe", price: 1800, category: "Entrées", categoryID: soir.id)]
-    store.selectedCategoryID = soir.id
-    #expect(store.filteredItems.map(\.name) == ["Soupe"])
-    store.selectedCategoryID = nil
-    #expect(store.filteredItems.count == 2)
+    #expect(store.sections.map(\.id) == [midi.id.uuidString, soir.id.uuidString])
+    #expect(store.sections.map { $0.items.map(\.name) } == [["Salade"], ["Soupe"]])
 }
 
 @MainActor @Test func workQueueFiltersSearchAndSections() {

@@ -28,7 +28,6 @@ import Networking
     public var error: String?
     /// Failed quick action (availability toggle); the list itself is still up to date.
     public var actionError: String?
-    public var selectedCategoryID: UUID? = nil
     public var filter: Filter = .all
     public var searchText = ""
     /// Availability writes in flight (dish id → value sent).
@@ -62,13 +61,13 @@ import Networking
     public var filteredItems: [MenuItem] {
         let query = searchText.trimmingCharacters(in: .whitespaces)
         return menuItems.filter { item in
-            (selectedCategoryID == nil || item.categoryID == selectedCategoryID)
-                && matches(item, filter)
+            matches(item, filter)
                 && (query.isEmpty || item.name.localizedStandardContains(query))   // case and accent insensitive
         }
     }
 
-    /// Consecutive runs of the same category (menuItems is already in category order).
+    /// Consecutive runs of the same category (menuItems is already in category order). Keyed by category ID:
+    /// two categories with the same name (lunch and dinner menus) stay apart in the list and in the category bar.
     public var sections: [Section] {
         var result: [Section] = []
         for item in filteredItems {

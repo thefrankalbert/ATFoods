@@ -26,14 +26,40 @@ final class ScreensTest: XCTestCase {
 
         // Home: availability switch works from the list, filters count it.
         shot("04_home")
+
+        // The restaurant name opens the list of every restaurant; going back keeps the current one.
+        app.navigationBars["Chez Flora"].buttons["Chez Flora"].tap()
+        let switchButton = app.buttons["Changer d'établissement"]
+        XCTAssertTrue(switchButton.waitForExistence(timeout: 3), "No restaurant switch on the title")
+        shot("04a_title_menu")
+        switchButton.tap()
+        XCTAssertTrue(app.buttons["restaurant_Le Maquis du Port"].waitForExistence(timeout: 5), "Restaurant list not shown")
+        shot("04b_restaurant_list")
+        app.navigationBars.buttons.firstMatch.tap()
+        XCTAssertTrue(app.buttons["cameraButton"].waitForExistence(timeout: 4), "Back from the list did not return to Home")
+        XCTAssertTrue(app.navigationBars["Chez Flora"].exists, "Restaurant changed without a choice")
         let toggle = app.switches["Mafé bœuf disponible"]
         XCTAssertTrue(toggle.waitForExistence(timeout: 5), "Availability switch missing on Home")
         toggle.tap()
+        // Category bar: a tap brings the category to the top and highlights it.
+        let drinks = app.buttons["category_Boisson"]
+        XCTAssertTrue(drinks.waitForExistence(timeout: 3), "Category bar missing")
+        let bar = app.scrollViews["categoryBar"]
+        for _ in 0..<3 where drinks.frame.maxX > bar.frame.maxX { bar.swipeLeft() }   // last chips: scroll the bar
+        drinks.tap()
+        XCTAssertTrue(app.staticTexts["Jus de bissap"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.staticTexts["Jus de bissap"].isHittable, "Category tap did not scroll to its dishes")
+        XCTAssertTrue(drinks.isSelected, "Tapped category not highlighted")
+        shot("05a_home_category")
+        // Work queues behind the filter button.
+        app.buttons["filterMenu"].tap()
         XCTAssertTrue(app.buttons["Épuisés · 1"].waitForExistence(timeout: 3), "Sold-out filter did not count the dish")
         app.buttons["Épuisés · 1"].tap()
         XCTAssertTrue(app.staticTexts["Mafé bœuf"].waitForExistence(timeout: 3))
+        XCTAssertFalse(app.staticTexts["Thieboudienne"].exists, "Sold-out filter did not filter")
         shot("05_home_sold_out")
-        app.buttons["Tous"].tap()
+        app.buttons["filterMenu"].tap()
+        app.buttons["Tous les plats"].tap()
         let search = app.searchFields.firstMatch
         search.tap(); search.typeText("koki")
         XCTAssertTrue(app.staticTexts["Koki"].waitForExistence(timeout: 3), "Search did not find the dish")

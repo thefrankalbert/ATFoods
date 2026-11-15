@@ -121,8 +121,10 @@ struct RootView: View {
             nav.captureStore?.reset()   // rejected photo must not come back on the next shot
             nav.formStore = nil
         }
-        if old.last == .restaurantPicker, new.last == .profile {
-            authStore.selectedRestaurant = nav.homeStore?.restaurant   // picker left without switching
+        // Picker left without switching (back to Home or Profile). After a switch, openRestaurant has already
+        // put the new restaurant in homeStore, so this keeps it.
+        if old.last == .restaurantPicker, new.last != .restaurantPicker, let current = nav.homeStore?.restaurant {
+            authStore.selectedRestaurant = current
         }
     }
 
@@ -205,7 +207,7 @@ struct RootView: View {
                         clearSession()
                     }
                 },
-                // Opened from the profile: allow going back without switching.
+                // Opened from Home or the profile: allow going back without switching.
                 canGoBack: path.count > 1
             )
 
@@ -232,7 +234,8 @@ struct RootView: View {
                     onDish: { item in
                         nav.dishEditStore = FormStore(restaurant: store.restaurant, editing: item)
                         path.append(.dishEdit)
-                    }
+                    },
+                    onSwitchRestaurant: authStore.restaurants.count > 1 ? { path.append(.restaurantPicker) } : nil
                 )
                 .navigationBarBackButtonHidden(true)   // Home has its own (visible) toolbar
             }

@@ -3,7 +3,8 @@ import Models
 import Networking
 import DesignSystem
 
-/// Menu board: native list with search, work-queue filters and an availability switch on every dish.
+/// Menu board: native list grouped by category, with a pinned category bar (tap to jump, follows the scroll),
+/// search, work-queue filters and an availability switch on every dish.
 public struct HomeView: View {
     @Bindable var store: HomeStore
     let networking: any ATFNetworking
@@ -11,6 +12,14 @@ public struct HomeView: View {
     let onDrafts: () -> Void
     let onProfile: () -> Void
     let onDish: (MenuItem) -> Void
+    /// Several restaurants: the title opens a menu to switch (nil hides it).
+    let onSwitchRestaurant: (() -> Void)?
+
+    /// Category shown as current in the bar: the first one with a dish on screen.
+    @State private var activeSectionID: String?
+    @State private var visibleItemIDs: Set<UUID> = []
+    /// While a tap scrolls to a category, rows passing by must not move the highlight.
+    @State private var jumpTarget: String?
 
     public init(
         store: HomeStore,
@@ -18,9 +27,11 @@ public struct HomeView: View {
         onCamera: @escaping () -> Void,
         onDrafts: @escaping () -> Void,
         onProfile: @escaping () -> Void,
-        onDish: @escaping (MenuItem) -> Void
+        onDish: @escaping (MenuItem) -> Void,
+        onSwitchRestaurant: (() -> Void)? = nil
     ) {
         self.onDish = onDish
+        self.onSwitchRestaurant = onSwitchRestaurant
         self.store = store
         self.networking = networking
         self.onCamera = onCamera
@@ -33,9 +44,9 @@ public struct HomeView: View {
             .safeAreaInset(edge: .bottom) { CameraBar(button: cameraButton) }
             .background(Color.atfBg.ignoresSafeArea())
             .navigationTitle(store.restaurant.name)
-            .navigationBarTitleDisplayMode(.large)
             .toolbarBackground(Color.atfBg, for: .navigationBar)
             .toolbar { toolbarContent }
+            .modifier(RestaurantSwitchMenu(onSwitch: onSwitchRestaurant))
             .searchable(text: $store.searchText, placement: .navigationBarDrawer(displayMode: .always),
                         prompt: "Rechercher un plat")
             .task { await store.load(networking: networking) }   // runs on every return to Home
@@ -70,12 +81,8 @@ public struct HomeView: View {
     }
 
     private var list: some View {
-        List {
-            Section {
-                filterBar
-                    .listRowInsets(EdgeInsets(top: 4, leading: 0, bottom: 4, trailing: 0))
-                    .listRowBackground(Color.clear)
-                    .listRowSeparator(.hidden)
+        ScrollViewReader { proxy in
+            List {
                 if let message = store.error ?? store.actionError {
                     Label(message, systemImage: "exclamationmark.circle")
                         .font(.footnote)
@@ -83,17 +90,25 @@ public struct HomeView: View {
                         .listRowBackground(Color.atfSurface2)
                         .onTapGesture { store.actionError = nil }
                 }
-            }
 
-            if store.sections.isEmpty {
-                Text(emptyFilterMessage)
-                    .font(.subheadline)
-                    .foregroundStyle(Color.atfText2)
-                    .listRowBackground(Color.clear)
-            }
+                if store.sections.isEmpty {
+                    Text(emptyFilterMessage)
+                        .font(.subheadline)
+                        .foregroundStyle(Color.atfText2)
+                        .listRowBackground(Color.clear)
+                }
 
-            ForEach(store.sections) { section in
-                Section {
+                ForEach(store.sections) { section in
+                    // Title as a plain row, not a pinned header: the category bar already shows where you are, and a
+                    // pinned header would sit over the first dish.
+                    Text(section.title)
+                        .font(.footnote)
+                        .foregroundStyle(Color.atfText2)
+                        .accessibilityAddTraits(.isHeader)
+                        .listRowBackground(Color.atfBg)
+                        .listRowSeparator(.hidden)
+                        .listRowInsets(EdgeInsets(top: 16, leading: 16, bottom: 0, trailing: 16))
+                        .id(section.id)
                     ForEach(section.items) { item in
                         DishRow(
                             item: item,
@@ -103,19 +118,32 @@ public struct HomeView: View {
                             onToggle: { on in Task { await store.setAvailable(item.id, on, networking: networking) } }
                         )
                         .listRowBackground(Color.atfBg)
+                        .onAppear { visibleItemIDs.insert(item.id); updateActiveSection() }
+                        .onDisappear { visibleItemIDs.remove(item.id); updateActiveSection() }
                     }
-                } header: {
-                    Text(section.title)
-                        .font(.footnote)
-                        .foregroundStyle(Color.atfText2)
-                        .textCase(nil)
                 }
             }
+            .listStyle(.plain)
+            .scrollContentBackground(.hidden)
+            .animation(.default, value: store.filter)
+            .safeAreaInset(edge: .top, spacing: 0) { categoryBar(list: proxy) }
         }
-        .listStyle(.plain)
-        .scrollContentBackground(.hidden)
-        .animation(.default, value: store.filter)
-        .animation(.default, value: store.selectedCategoryID)
+    }
+
+    private func updateActiveSection() {
+        guard jumpTarget == nil else { return }
+        let id = store.sections.first { $0.items.contains { visibleItemIDs.contains($0.id) } }?.id
+        if id != activeSectionID { activeSectionID = id }
+    }
+
+    private func jump(to section: HomeStore.Section, list: ScrollViewProxy) {
+        jumpTarget = section.id
+        activeSectionID = section.id
+        withAnimation { list.scrollTo(section.id, anchor: .top) }
+        Task {
+            try? await Task.sleep(for: .milliseconds(700))
+            jumpTarget = nil
+        }
     }
 
     private var emptyFilterMessage: String {
@@ -123,51 +151,77 @@ public struct HomeView: View {
         switch store.filter {
         case .noPhoto: return "Tous les plats ont une photo."
         case .soldOut: return "Aucun plat épuisé."
-        case .all: return "Aucun plat dans cette catégorie."
+        case .all: return "Aucun plat."
         }
     }
 
-    // MARK: - Filters
+    // MARK: - Category bar & filters
 
-    private var filterBar: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 8) {
-                ForEach(HomeStore.Filter.allCases, id: \.self) { filter in
-                    chip(filter == .all ? filter.label : "\(filter.label) · \(store.count(filter))",
-                         isOn: store.filter == filter) { store.filter = filter }
+    /// Pinned under the search field: the filter button, then one chip per category (with its dish count).
+    private func categoryBar(list: ScrollViewProxy) -> some View {
+        HStack(spacing: 8) {
+            filterMenu
+            if store.sections.count > 1 {
+                ScrollViewReader { chips in
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 8) {
+                            ForEach(store.sections) { section in
+                                categoryChip(section, isOn: section.id == activeSectionID) { jump(to: section, list: list) }
+                                    .id(section.id)
+                            }
+                        }
+                        .padding(.trailing, 16)
+                    }
+                    .accessibilityIdentifier("categoryBar")
+                    .onChange(of: activeSectionID) { _, id in
+                        guard let id else { return }
+                        withAnimation { chips.scrollTo(id, anchor: .center) }
+                    }
                 }
-                if store.categories.count > 1 { categoryMenu }
+            } else {
+                Spacer(minLength: 0)
             }
-            .padding(.horizontal, 16)
         }
-        .sensoryFeedback(.selection, trigger: store.filter)
+        .padding(.leading, 16)
+        .padding(.vertical, 6)
+        .background(Color.atfBg)
+        .sensoryFeedback(.selection, trigger: activeSectionID)
     }
 
-    private var categoryMenu: some View {
+    private func categoryChip(_ section: HomeStore.Section, isOn: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: 6) {
+                Text(section.title)
+                Text("\(section.items.count)")
+                    .monospacedDigit()
+                    .opacity(0.6)
+            }
+            .chipStyle(isOn: isOn)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("\(section.title), \(section.items.count) \(section.items.count > 1 ? "plats" : "plat")")
+        .accessibilityAddTraits(isOn ? .isSelected : [])
+        .accessibilityIdentifier("category_\(section.title)")
+    }
+
+    /// Work queues (no photo, sold out) behind one button: a second row of chips would crowd the categories.
+    private var filterMenu: some View {
         Menu {
-            Picker("Catégorie", selection: $store.selectedCategoryID) {
-                Text("Toutes les catégories").tag(UUID?.none)
-                ForEach(store.categories) { category in
-                    Text(category.name).tag(UUID?.some(category.id))
+            Picker("Afficher", selection: $store.filter) {
+                ForEach(HomeStore.Filter.allCases, id: \.self) { filter in
+                    Text(filter == .all ? "Tous les plats" : "\(filter.label) · \(store.count(filter))").tag(filter)
                 }
             }
         } label: {
-            let name = store.categories.first { $0.id == store.selectedCategoryID }?.name
-            HStack(spacing: 4) {
-                Text(name ?? "Catégories")
-                Image(systemName: "chevron.down").font(.caption.weight(.semibold))
+            HStack(spacing: 6) {
+                Image(systemName: "line.3.horizontal.decrease")
+                if store.filter != .all { Text("\(store.filter.label) · \(store.count(store.filter))") }
             }
-            .chipStyle(isOn: name != nil)
+            .chipStyle(isOn: store.filter != .all)
         }
-        .accessibilityLabel("Catégorie")
-    }
-
-    private func chip(_ label: String, isOn: Bool, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            Text(label).chipStyle(isOn: isOn)
-        }
-        .buttonStyle(.plain)
-        .accessibilityAddTraits(isOn ? .isSelected : [])
+        .accessibilityLabel(store.filter == .all ? "Filtrer" : "Filtre : \(store.filter.label)")
+        .accessibilityIdentifier("filterMenu")
+        .sensoryFeedback(.selection, trigger: store.filter)
     }
 
     // MARK: - Toolbar & camera
@@ -205,6 +259,25 @@ public struct HomeView: View {
         .frame(maxWidth: .infinity)
         .padding(.vertical, 8)
         .background(Color.atfBg)
+    }
+}
+
+/// Several restaurants: the title reads "Chez Flora ⌄" and opens the switch (iOS puts title menus on the compact
+/// title only; a large title would be plain text nobody knows to tap). One restaurant: large title.
+private struct RestaurantSwitchMenu: ViewModifier {
+    let onSwitch: (() -> Void)?
+    func body(content: Content) -> some View {
+        if let onSwitch {
+            content
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbarTitleMenu {
+                Button(action: onSwitch) {
+                    Label("Changer d'établissement", systemImage: "arrow.left.arrow.right")
+                }
+            }
+        } else {
+            content.navigationBarTitleDisplayMode(.large)
+        }
     }
 }
 

@@ -163,8 +163,7 @@ final class NewOwnerJourney: XCTestCase {
         XCTAssertTrue(alloco.label.filter(\.isNumber).contains("2000"), "Web price not shown: \(alloco.label)")
         XCTAssertLessThan(alloco.frame.minY, bissap.frame.minY, "Order differs from the web")
         pause(); shot("web_edits_home")
-        app.buttons["Boissons"].tap(); pause(); shot("web_category_filter")
-        app.buttons["Tous"].tap(); pause()
+        app.buttons["category_Boissons"].tap(); pause(); shot("web_category_jump")
 
         // The web edits on the dish sheet.
         alloco.tap()
