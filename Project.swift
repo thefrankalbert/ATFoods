@@ -31,7 +31,7 @@ let project = Project(
             // XK5L7S88SQ = Frank Albert (Personal Team): installs on a device. App Store upload needs the
             // paid Apple Developer Program team ID instead.
             "DEVELOPMENT_TEAM": "XK5L7S88SQ",
-            // Crash reporting (public client key). Shares the attabl-saas Sentry project, events tagged app=atfood-ios.
+            // Crash reporting (public client key): Sentry project atfood-ios, separate from the web SaaS.
             "SENTRY_DSN": "https://45662e65d94b1ec596d839ba19a0aaeb@o4510850246508544.ingest.de.sentry.io/4512434663325776",
         ]
     ),
@@ -56,6 +56,25 @@ let project = Project(
             ]),
             sources: ["App/**"],
             resources: ["App/Resources/**"],
+            scripts: [
+                // Release builds send their debug symbols to Sentry so App Store crash reports show file and line.
+                // Auth: ~/.sentryclirc (org token, outside the repo). Skipped on CI and when sentry-cli is missing.
+                .post(
+                    script: """
+                    if [ "$CONFIGURATION" != "Release" ] || [ -n "$CI" ]; then exit 0; fi
+                    export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
+                    if ! command -v sentry-cli >/dev/null; then
+                      echo "warning: sentry-cli not installed (brew install getsentry/tools/sentry-cli): crash symbols not sent to Sentry"
+                      exit 0
+                    fi
+                    sentry-cli debug-files upload --org odc-digital-solub --project atfood-ios --include-sources "$DWARF_DSYM_FOLDER_PATH" \\
+                      || echo "warning: crash symbols upload to Sentry failed"
+                    """,
+                    name: "Upload debug symbols to Sentry",
+                    inputPaths: ["${DWARF_DSYM_FOLDER_PATH}/${DWARF_DSYM_FILE_NAME}/Contents/Resources/DWARF/${TARGET_NAME}"],
+                    basedOnDependencyAnalysis: false
+                ),
+            ],
             dependencies: [
                 .package(product: "DesignSystem"),
                 .package(product: "ATFAuth"),
@@ -65,7 +84,9 @@ let project = Project(
                 .package(product: "Drafts"),
                 .package(product: "Profile"),
                 .package(product: "Sentry"),
-            ]
+            ],
+            // The symbols upload reads ~/.sentryclirc and the dSYM folder: not possible inside the script sandbox.
+            settings: .settings(base: ["ENABLE_USER_SCRIPT_SANDBOXING": "NO"])
         ),
         .target(
             name: "ATFoodUITests",

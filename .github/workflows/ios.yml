@@ -1,0 +1,75 @@
+name: iOS
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  text:
+    name: No em or en dash
+    runs-on: ubuntu-latest
+    env:
+      LC_ALL: C.UTF-8
+    steps:
+      - uses: actions/checkout@v4
+      - name: Scan app, packages, tests and docs
+        run: |
+          if grep -rnP '[\x{2013}\x{2014}]' App Packages UITests docs Project.swift; then
+            echo "::error::Em or en dash found (house rule: use a comma, colon, period or parentheses)"
+            exit 1
+          fi
+
+  ios:
+    name: Unit tests and builds
+    runs-on: macos-26
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Use the newest Xcode on the runner
+        run: |
+          XCODE=$(ls -d /Applications/Xcode_*.app | sort -V | tail -1)
+          sudo xcode-select -s "$XCODE"
+          xcodebuild -version
+
+      - uses: jdx/mise-action@v2
+
+      - name: Generate the Xcode project
+        run: tuist generate --no-open
+
+      - name: Pick an iPhone simulator
+        run: |
+          UDID=$(xcrun simctl list devices available -j \
+            | jq -r '[.devices | to_entries[] | select(.key | test("iOS")) | .value[] | select(.name | startswith("iPhone"))] | last | .udid')
+          echo "SIM=$UDID" >> "$GITHUB_ENV"
+          echo "Simulator: $UDID"
+
+      - name: Unit tests (every package with tests)
+        run: |
+          set -o pipefail
+          for dir in Packages/*/*/; do
+            [ -d "$dir/Tests" ] || continue
+            name=$(basename "$dir")
+            echo "::group::$name"
+            (cd "$dir" && xcodebuild test -scheme "$name" -destination "id=$SIM" -quiet)
+            echo "::endgroup::"
+          done
+
+      - name: App builds (Debug simulator, Release device)
+        run: |
+          set -o pipefail
+          xcodebuild build -workspace ATFood.xcworkspace -scheme ATFood -configuration Debug \
+            -destination "id=$SIM" -quiet
+          xcodebuild build -workspace ATFood.xcworkspace -scheme ATFood -configuration Release \
+            -destination 'generic/platform=iOS' CODE_SIGNING_ALLOWED=NO -quiet
+
+      - name: UI smoke tests (mock backend)
+        run: |
+          set -o pipefail
+          xcodebuild test -workspace ATFood.xcworkspace -scheme ATFood -destination "id=$SIM" \
+            -only-testing:ATFoodUITests/SmokeTest -quiet
