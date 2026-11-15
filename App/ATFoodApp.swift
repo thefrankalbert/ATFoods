@@ -18,8 +18,8 @@ struct ATFoodApp: App {
     }
 
     /// Crash reporting runs only in builds distributed by Apple (TestFlight, App Store), when a DSN is configured
-    /// (SENTRY_DSN). Debug builds (Xcode, simulator, UI tests) and cable installs never send anything: a test session must not look like a production
-    /// outage in the Sentry project shared with the web SaaS.
+    /// (SENTRY_DSN, Sentry project "atfood-ios", separate from the web SaaS). Debug builds (Xcode, simulator, UI tests) and cable installs never
+    /// send anything: a test session must not look like a production outage.
     private func startCrashReporting() {
         #if !DEBUG
         // A build installed from Xcode onto a device carries its provisioning profile; store and TestFlight builds do not.
