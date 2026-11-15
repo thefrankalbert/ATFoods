@@ -156,6 +156,7 @@ public struct ProfileView: View {
                     label: store.isDeleting ? "Suppression en cours…" : "Supprimer mon compte",
                     tint: Color.atfDanger,
                     action: { confirmDeletion = true })
+            .accessibilityIdentifier("deleteAccountRow")   // the confirmation button has the same label
             .disabled(store.isDeleting)
             .modifier(SettingsCard())
             .padding(.top, 16)

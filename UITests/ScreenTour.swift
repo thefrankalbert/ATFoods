@@ -72,7 +72,7 @@ final class ScreenTour: XCTestCase {
         // Profile
         app.buttons["profileButton"].tap(); sleep(2); shot("16_profile")
         app.swipeUp(); sleep(1); shot("17_profile_bottom")
-        app.buttons["Supprimer mon compte"].tap(); sleep(1); shot("18_delete_confirm")
+        app.buttons["deleteAccountRow"].tap(); sleep(1); shot("18_delete_confirm")
         // iOS 26 shows the confirmation as a popover (no Cancel button): tap outside to dismiss.
         app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.08)).tap()
     }

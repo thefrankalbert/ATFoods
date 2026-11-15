@@ -95,11 +95,11 @@ final class LiveTest: XCTestCase {
             throw XCTSkip("Set ATF_LIVE_OWNER=1 with a throwaway owner account")
         }
         app.buttons["profileButton"].tap()
-        let row = app.buttons["Supprimer mon compte"]
+        let row = app.buttons["deleteAccountRow"]
         XCTAssertTrue(row.waitForExistence(timeout: 5))
         row.tap()
-        let confirm = app.sheets.buttons["Supprimer mon compte"].exists
-            ? app.sheets.buttons["Supprimer mon compte"] : app.buttons["Supprimer mon compte"].firstMatch
+        let confirm = app.buttons.matching(
+            NSPredicate(format: "label == 'Supprimer mon compte' AND identifier != 'deleteAccountRow'")).firstMatch
         XCTAssertTrue(confirm.waitForExistence(timeout: 5))
         confirm.tap()
         XCTAssertTrue(app.alerts["Supprimer aussi l'établissement ?"].waitForExistence(timeout: 15), "Owner case not explained: \(errorText())")
@@ -116,11 +116,11 @@ final class LiveTest: XCTestCase {
             throw XCTSkip("Set ATF_LIVE_ALLOW_DELETE=1 with a throwaway account")
         }
         app.buttons["profileButton"].tap()
-        let row = app.buttons["Supprimer mon compte"]
+        let row = app.buttons["deleteAccountRow"]
         XCTAssertTrue(row.waitForExistence(timeout: 5))
         row.tap()
-        let confirm = app.sheets.buttons["Supprimer mon compte"].exists
-            ? app.sheets.buttons["Supprimer mon compte"] : app.buttons["Supprimer mon compte"].firstMatch
+        let confirm = app.buttons.matching(
+            NSPredicate(format: "label == 'Supprimer mon compte' AND identifier != 'deleteAccountRow'")).firstMatch
         XCTAssertTrue(confirm.waitForExistence(timeout: 5))
         confirm.tap()
         XCTAssertTrue(app.buttons["Se connecter"].waitForExistence(timeout: 20), "Deletion did not sign out")

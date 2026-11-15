@@ -128,7 +128,7 @@ final class ScreensTest: XCTestCase {
         app.buttons["profileButton"].tap()
         XCTAssertTrue(app.buttons["Se déconnecter"].waitForExistence(timeout: 4))
         shot("16_profile")
-        let deleteRow = app.buttons["Supprimer mon compte"]
+        let deleteRow = app.buttons["deleteAccountRow"]
         deleteRow.coordinate(withNormalizedOffset: .init(dx: 0.75, dy: 0.5)).tap()   // empty part of the row, right of the label
         XCTAssertTrue(app.staticTexts["Supprimer définitivement votre compte ?"].waitForExistence(timeout: 3),
                       "Profile row dead outside its label")

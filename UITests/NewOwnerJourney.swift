@@ -121,9 +121,9 @@ final class NewOwnerJourney: XCTestCase {
         // 6. Profile: a sole owner cannot delete the account; then sign out
         app.buttons["profileButton"].tap(); pause()
         app.swipeUp(); pause()
-        app.buttons["Supprimer mon compte"].tap()
-        let confirm = app.sheets.buttons["Supprimer mon compte"].exists
-            ? app.sheets.buttons["Supprimer mon compte"] : app.buttons["Supprimer mon compte"].firstMatch
+        app.buttons["deleteAccountRow"].tap()
+        let confirm = app.buttons.matching(
+            NSPredicate(format: "label == 'Supprimer mon compte' AND identifier != 'deleteAccountRow'")).firstMatch
         XCTAssertTrue(confirm.waitForExistence(timeout: 5)); pause()
         confirm.tap()
         XCTAssertTrue(app.staticTexts["Compte non supprimé"].waitForExistence(timeout: 20), "Owner guard not shown")
