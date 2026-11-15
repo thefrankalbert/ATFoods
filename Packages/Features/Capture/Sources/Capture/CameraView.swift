@@ -15,6 +15,8 @@ final class CaptureSessionHolder: @unchecked Sendable {
     let videoOutput = AVCaptureVideoDataOutput()
     let detector = SubjectDetector()
     private(set) var device: AVCaptureDevice?
+    /// Set by the preview once the camera runs (main thread): gives the capture angle for the current orientation.
+    var rotation: AVCaptureDevice.RotationCoordinator?
     let captureQueue = DispatchQueue(label: "com.atfoods.capture", qos: .userInitiated)
     private let videoQueue = DispatchQueue(label: "com.atfoods.capture.video", qos: .utility)
 
@@ -144,7 +146,10 @@ public struct CameraView: View {
             Color.black.ignoresSafeArea()
 
             if isCameraAvailable {
-                CameraPreviewLayer(session: holder.session, onTapDevicePoint: { holder.focus(at: $0) })
+                CameraPreviewLayer(holder: holder, onTapDevicePoint: { holder.focus(at: $0) }, onPreviewAngle: { angle in
+                    holder.detector.setPreviewAngle(angle)
+                    guidance.isLandscape = angle == 0 || angle == 180
+                })
                     .ignoresSafeArea()
                 GuidanceOverlay(engine: guidance)
                     .ignoresSafeArea()
@@ -382,6 +387,10 @@ public struct CameraView: View {
             settings.flashMode = flashEnabled ? .on : .off
         }
 
+        if let angle = holder.rotation?.videoRotationAngleForHorizonLevelCapture,
+           let connection = holder.photoOutput.connection(with: .video), connection.isVideoRotationAngleSupported(angle) {
+            connection.videoRotationAngle = angle
+        }
         holder.photoOutput.capturePhoto(with: settings, delegate: coordinator)
     }
 }

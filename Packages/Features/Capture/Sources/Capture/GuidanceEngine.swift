@@ -20,9 +20,9 @@ public enum GuidanceHint: Equatable, Sendable {
 
     public var message: String {
         switch self {
-        case .tiltDown:   "Inclinez le téléphone vers le plat"
-        case .tiltUp:     "Redressez un peu le téléphone"
-        case .level:      "Tenez le téléphone bien droit"
+        case .tiltDown:   "Inclinez l'appareil vers le plat"
+        case .tiltUp:     "Redressez un peu l'appareil"
+        case .level:      "Tenez l'appareil bien droit"
         case .tooDark:    "Trop sombre : rapprochez-vous d'une fenêtre"
         case .tooBright:  "Trop de lumière : évitez le soleil direct"
         case .center:     "Centrez l'assiette dans le cercle"
@@ -43,6 +43,8 @@ public enum GuidanceHint: Equatable, Sendable {
     public private(set) var exposureOffset: Float = 0
     public private(set) var isoRatio: Float = 0    // current ISO / max ISO: high = dim room, grainy photo
     public var subject: CGRect? = nil           // Vision normalized box (origin bottom-left)
+    /// Interface in landscape (iPad turned): the screen's horizontal axis is the device's y axis.
+    public var isLandscape = false
 
     public var hint: GuidanceHint? {
         Self.hint(pitch: pitch, roll: roll, exposureOffset: exposureOffset, isoRatio: isoRatio, subject: subject, mode: mode)
@@ -85,7 +87,8 @@ public enum GuidanceHint: Equatable, Sendable {
 
     private func updateTilt(gravity g: CMAcceleration) {
         let newPitch = asin(max(-1, min(1, -g.z))) * 180 / .pi
-        let newRoll = asin(max(-1, min(1, g.x))) * 180 / .pi
+        let side = isLandscape ? g.y : g.x
+        let newRoll = asin(max(-1, min(1, side))) * 180 / .pi
         // ponytail: simple low-pass to stop the hint flickering; tune alpha if it feels laggy.
         let alpha = 0.25
         pitch += alpha * (newPitch - pitch)
