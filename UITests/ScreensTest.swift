@@ -60,12 +60,12 @@ final class ScreensTest: XCTestCase {
         shot("05_home_sold_out")
         app.buttons["filterMenu"].tap()
         app.buttons["Tous les plats"].tap()
-        let search = app.searchFields.firstMatch
+        let search = app.textFields["searchField"]
         search.tap(); search.typeText("koki")
         XCTAssertTrue(app.staticTexts["Koki"].waitForExistence(timeout: 3), "Search did not find the dish")
         XCTAssertFalse(app.staticTexts["Thieboudienne"].exists, "Search did not filter")
         shot("06_home_search")
-        (app.buttons["Fermer"].exists ? app.buttons["Fermer"] : app.buttons["Annuler"]).firstMatch.tap()
+        app.buttons["Annuler"].firstMatch.tap()   // leaves search and clears the query
 
         // Dish card: system back button, and a question before losing an edit.
         app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Thieboudienne'")).firstMatch.tap()

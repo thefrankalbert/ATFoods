@@ -20,6 +20,7 @@ public struct HomeView: View {
     @State private var visibleItemIDs: Set<UUID> = []
     /// While a tap scrolls to a category, rows passing by must not move the highlight.
     @State private var jumpTarget: String?
+    @FocusState private var isSearching: Bool
 
     public init(
         store: HomeStore,
@@ -41,14 +42,12 @@ public struct HomeView: View {
 
     public var body: some View {
         content
-            .safeAreaInset(edge: .bottom) { CameraBar(button: cameraButton) }
+            .safeAreaInset(edge: .bottom) { if !isSearching { cameraButton } }   // would float above the keyboard
             .background(Color.atfBg.ignoresSafeArea())
             .navigationTitle(store.restaurant.name)
             .toolbarBackground(Color.atfBg, for: .navigationBar)
             .toolbar { toolbarContent }
             .modifier(RestaurantSwitchMenu(onSwitch: onSwitchRestaurant))
-            .searchable(text: $store.searchText, placement: .navigationBarDrawer(displayMode: .always),
-                        prompt: "Rechercher un plat")
             .task { await store.load(networking: networking) }   // runs on every return to Home
             .refreshable { await store.load(networking: networking) }
             .sensoryFeedback(.error, trigger: store.actionError) { _, new in new != nil }
@@ -157,8 +156,54 @@ public struct HomeView: View {
 
     // MARK: - Category bar & filters
 
-    /// Pinned under the search field: the filter button, then one chip per category (with its dish count).
+    /// Pinned at the top: search, then the filter button and one chip per category (with its dish count). Search is
+    /// ours, not .searchable: on a stack root iOS 26 moves the system one to the bottom, under the camera button.
     private func categoryBar(list: ScrollViewProxy) -> some View {
+        VStack(spacing: 4) {
+            searchField
+            chipsRow(list: list)
+        }
+        .background(Color.atfBg)
+    }
+
+    private var searchField: some View {
+        HStack(spacing: 8) {
+            HStack(spacing: 6) {
+                Image(systemName: "magnifyingglass")
+                    .foregroundStyle(Color.atfText2)
+                    .accessibilityHidden(true)
+                TextField("Rechercher un plat", text: $store.searchText)
+                    .focused($isSearching)
+                    .submitLabel(.search)
+                    .autocorrectionDisabled()
+                    .accessibilityIdentifier("searchField")
+                if !store.searchText.isEmpty {
+                    Button { store.searchText = "" } label: {
+                        Image(systemName: "xmark.circle.fill").foregroundStyle(Color.atfText3)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Effacer la recherche")
+                }
+            }
+            .padding(.horizontal, 12)
+            .frame(minHeight: 40)
+            .background(Color.atfSurface2, in: Capsule())
+            .contentShape(Capsule())
+            .onTapGesture { isSearching = true }
+            if isSearching {
+                Button("Annuler") {
+                    store.searchText = ""
+                    isSearching = false
+                }
+                .foregroundStyle(Color.atfText1)
+                .frame(minHeight: 44)
+            }
+        }
+        .padding(.horizontal, 16)
+        .animation(.default, value: isSearching)
+    }
+
+    private func chipsRow(list: ScrollViewProxy) -> some View {
         HStack(spacing: 8) {
             filterMenu
             if store.sections.count > 1 {
@@ -183,8 +228,7 @@ public struct HomeView: View {
             }
         }
         .padding(.leading, 16)
-        .padding(.vertical, 6)
-        .background(Color.atfBg)
+        .padding(.vertical, 2)
         .sensoryFeedback(.selection, trigger: activeSectionID)
     }
 
@@ -278,15 +322,6 @@ private struct RestaurantSwitchMenu: ViewModifier {
         } else {
             content.navigationBarTitleDisplayMode(.large)
         }
-    }
-}
-
-/// The camera button leaves the screen while the user searches: it would float above the keyboard.
-private struct CameraBar<Content: View>: View {
-    @Environment(\.isSearching) private var isSearching
-    let button: Content
-    var body: some View {
-        if !isSearching { button }
     }
 }
 

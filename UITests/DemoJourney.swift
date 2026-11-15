@@ -62,13 +62,11 @@ final class DemoJourney: XCTestCase {
         pause(1.5)
         app.swipeDown(velocity: .slow)
         pause(1.5)
-        let search = app.searchFields.firstMatch
+        let search = app.textFields["searchField"]
         search.tap()
         type("ndole", into: search)
         pause(2.5)
-        // Leave search mode: iOS 26 labels the button "Fermer", older iOS "Annuler". It also clears the query.
-        let close = app.buttons["Fermer"].exists ? app.buttons["Fermer"] : app.buttons["Annuler"]
-        close.firstMatch.tap()
+        app.buttons["Annuler"].firstMatch.tap()   // leaves search and clears the query
         XCTAssertTrue(app.buttons["draftsButton"].waitForExistence(timeout: 3), "Search mode did not close")
         pause(1.5)
 
