@@ -126,7 +126,7 @@ final class LiveJourney: XCTestCase {
         // 8. Profile: deletion dialog (cancelled), then sign out
         app.buttons["profileButton"].tap(); pause()
         app.swipeUp(); pause()
-        app.staticTexts["Supprimer mon compte"].tap(); pause()
+        app.buttons["Supprimer mon compte"].tap(); pause()
         app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.08)).tap(); pause()   // dismiss, nothing deleted
         app.buttons["Se déconnecter"].tap()
         XCTAssertTrue(app.buttons["Se connecter"].waitForExistence(timeout: 10), "Sign-out failed")

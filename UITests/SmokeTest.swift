@@ -96,7 +96,7 @@ final class SmokeTest: XCTestCase {
         app.buttons["profileButton"].tap()
         XCTAssertTrue(app.buttons["Se déconnecter"].waitForExistence(timeout: 4), "Profile not shown")
         XCTAssertTrue(app.staticTexts["Politique de confidentialité"].exists, "Privacy link missing")
-        XCTAssertTrue(app.staticTexts["Supprimer mon compte"].exists, "Account deletion missing")
+        XCTAssertTrue(app.buttons["Supprimer mon compte"].exists, "Account deletion missing")
         for removed in ["Crédits IA", "Passer au Pro", "Activer Face ID", "Mode hors-ligne", "Langue", "Notifications"] {
             XCTAssertFalse(app.staticTexts[removed].exists, "Removed row still visible: \(removed)")
         }
@@ -115,7 +115,7 @@ final class SmokeTest: XCTestCase {
     func testAccountDeletionExplainsSoleOwnerRefusal() throws {
         navigateToHome()
         app.buttons["profileButton"].tap()
-        let row = app.staticTexts["Supprimer mon compte"]
+        let row = app.buttons["Supprimer mon compte"]
         XCTAssertTrue(row.waitForExistence(timeout: 4))
         row.tap()
         let confirm = app.buttons["Supprimer mon compte"].firstMatch

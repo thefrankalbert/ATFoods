@@ -29,6 +29,7 @@ final class GestureSafetyTest: XCTestCase {
         swipeBack(.slow); swipeBack(.fast)
         XCTAssertTrue(flora.waitForExistence(timeout: 3), "A swipe left the first restaurant picker")
         XCTAssertFalse(app.buttons["Se connecter"].exists, "A swipe uncovered the login screen")
+        XCTAssertFalse(app.buttons["restaurant_Le Maquis du Port"].isSelected, "A swipe picked a restaurant")
 
         let cta = app.buttons["Continuer"]
         for _ in 0..<6 where !app.buttons["cameraButton"].exists {
@@ -40,6 +41,9 @@ final class GestureSafetyTest: XCTestCase {
         XCTAssertTrue(app.buttons["cameraButton"].exists, "Home not reached")
         if app.buttons["Plus tard"].waitForExistence(timeout: 3) { app.buttons["Plus tard"].tap() }
         sleep(1)
+        XCTAssertTrue(app.buttons["restaurantSwitch"].label.hasPrefix("Chez Flora"), "Home opened another restaurant")
+        XCTAssertTrue(app.buttons["profileButton"].isHittable && app.buttons["draftsButton"].isHittable,
+                      "Toolbar buttons hidden in an overflow menu")
 
         // Home: swipes on the list and on the category bar keep Home.
         swipeBack(.slow); swipeBack(.fast)
@@ -52,10 +56,11 @@ final class GestureSafetyTest: XCTestCase {
         // Unsaved edit on a dish: neither a slow nor a fast swipe drops it.
         app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Thieboudienne'")).firstMatch.tap()
         XCTAssertTrue(app.navigationBars["Fiche plat"].waitForExistence(timeout: 4))
-        app.switches["À la une"].tap()
+        turnOnFeatured()
         sleep(1)
         swipeBack(.slow); swipeBack(.fast)
-        XCTAssertTrue(app.navigationBars["Fiche plat"].exists, "A swipe dropped an unsaved edit")
+        XCTAssertTrue(app.navigationBars["Fiche plat"].exists, "A swipe left a dish with an unsaved edit")
+        XCTAssertEqual(app.switches["À la une"].value as? String, "1", "A swipe dropped the unsaved edit")
 
         // New category sheet with a typed name: a swipe down does not close it.
         app.buttons["newCategoryButton"].tap()
@@ -72,6 +77,7 @@ final class GestureSafetyTest: XCTestCase {
         XCTAssertTrue(app.buttons["Abandonner"].waitForExistence(timeout: 3))
         app.buttons["Abandonner"].tap()
         XCTAssertTrue(app.buttons["cameraButton"].waitForExistence(timeout: 4))
+        XCTAssertTrue(app.buttons["profileButton"].waitForExistence(timeout: 6))
         app.buttons["profileButton"].tap()
         XCTAssertTrue(app.buttons["Se déconnecter"].waitForExistence(timeout: 4))
         swipeBack(.fast)
@@ -79,6 +85,17 @@ final class GestureSafetyTest: XCTestCase {
     }
 
     // MARK: - Helpers
+
+    /// Flip "À la une" on and check it took: the row's switch is the inner control (the element spans the row on iPad).
+    private func turnOnFeatured() {
+        let row = app.switches["À la une"]
+        XCTAssertTrue(row.waitForExistence(timeout: 4))
+        let control = row.switches.firstMatch.exists ? row.switches.firstMatch : row
+        control.tap()
+        if row.value as? String != "1" { row.coordinate(withNormalizedOffset: .init(dx: 0.93, dy: 0.5)).tap() }
+        XCTAssertEqual(row.value as? String, "1", "Could not turn on À la une")
+        print("PROBE featured frame=\(row.frame) value=\(String(describing: row.value))")
+    }
 
     private func swipeBack(_ velocity: XCUIGestureVelocity) {
         app.windows.firstMatch.swipeRight(velocity: velocity)

@@ -28,7 +28,7 @@ final class ScreensTest: XCTestCase {
         shot("04_home")
 
         // The restaurant name opens the list of every restaurant; going back keeps the current one.
-        app.navigationBars["Chez Flora"].buttons["Chez Flora"].tap()
+        app.buttons["restaurantSwitch"].tap()
         let switchButton = app.buttons["Changer d'établissement"]
         XCTAssertTrue(switchButton.waitForExistence(timeout: 3), "No restaurant switch on the title")
         shot("04a_title_menu")
@@ -37,7 +37,7 @@ final class ScreensTest: XCTestCase {
         shot("04b_restaurant_list")
         app.navigationBars.buttons.firstMatch.tap()
         XCTAssertTrue(app.buttons["cameraButton"].waitForExistence(timeout: 4), "Back from the list did not return to Home")
-        XCTAssertTrue(app.navigationBars["Chez Flora"].exists, "Restaurant changed without a choice")
+        XCTAssertTrue(app.buttons["restaurantSwitch"].label.hasPrefix("Chez Flora"), "Restaurant changed without a choice")
         let toggle = app.switches["Mafé bœuf disponible"]
         XCTAssertTrue(toggle.waitForExistence(timeout: 5), "Availability switch missing on Home")
         toggle.tap()
@@ -47,23 +47,23 @@ final class ScreensTest: XCTestCase {
         let bar = app.scrollViews["categoryBar"]
         for _ in 0..<3 where drinks.frame.maxX > bar.frame.maxX { bar.swipeLeft() }   // last chips: scroll the bar
         drinks.tap()
-        XCTAssertTrue(app.staticTexts["Jus de bissap"].waitForExistence(timeout: 3))
-        XCTAssertTrue(app.staticTexts["Jus de bissap"].isHittable, "Category tap did not scroll to its dishes")
+        XCTAssertTrue(app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Jus de bissap'")).firstMatch.waitForExistence(timeout: 3))
+        XCTAssertTrue(app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Jus de bissap'")).firstMatch.isHittable, "Category tap did not scroll to its dishes")
         XCTAssertTrue(drinks.isSelected, "Tapped category not highlighted")
         shot("05a_home_category")
         // Work queues behind the filter button.
         app.buttons["filterMenu"].tap()
         XCTAssertTrue(app.buttons["Épuisés · 1"].waitForExistence(timeout: 3), "Sold-out filter did not count the dish")
         app.buttons["Épuisés · 1"].tap()
-        XCTAssertTrue(app.staticTexts["Mafé bœuf"].waitForExistence(timeout: 3))
-        XCTAssertFalse(app.staticTexts["Thieboudienne"].exists, "Sold-out filter did not filter")
+        XCTAssertTrue(app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Mafé bœuf'")).firstMatch.waitForExistence(timeout: 3))
+        XCTAssertFalse(app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Thieboudienne'")).firstMatch.exists, "Sold-out filter did not filter")
         shot("05_home_sold_out")
         app.buttons["filterMenu"].tap()
         app.buttons["Tous les plats"].tap()
         let search = app.textFields["searchField"]
         search.tap(); search.typeText("koki")
-        XCTAssertTrue(app.staticTexts["Koki"].waitForExistence(timeout: 3), "Search did not find the dish")
-        XCTAssertFalse(app.staticTexts["Thieboudienne"].exists, "Search did not filter")
+        XCTAssertTrue(app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Koki'")).firstMatch.waitForExistence(timeout: 3), "Search did not find the dish")
+        XCTAssertFalse(app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Thieboudienne'")).firstMatch.exists, "Search did not filter")
         shot("06_home_search")
         app.buttons["Annuler"].firstMatch.tap()   // leaves search and clears the query
 
@@ -128,8 +128,8 @@ final class ScreensTest: XCTestCase {
         app.buttons["profileButton"].tap()
         XCTAssertTrue(app.buttons["Se déconnecter"].waitForExistence(timeout: 4))
         shot("16_profile")
-        let deleteRow = app.staticTexts["Supprimer mon compte"]
-        deleteRow.coordinate(withNormalizedOffset: .init(dx: 1.5, dy: 0.5)).tap()   // empty part of the row, right of the label
+        let deleteRow = app.buttons["Supprimer mon compte"]
+        deleteRow.coordinate(withNormalizedOffset: .init(dx: 0.75, dy: 0.5)).tap()   // empty part of the row, right of the label
         XCTAssertTrue(app.staticTexts["Supprimer définitivement votre compte ?"].waitForExistence(timeout: 3),
                       "Profile row dead outside its label")
         shot("17_delete_confirm")

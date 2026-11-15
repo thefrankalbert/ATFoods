@@ -36,10 +36,11 @@ final class DeviceTest: XCTestCase {
         // An unsaved edit is never swiped away.
         dish()
         XCTAssertTrue(app.navigationBars["Fiche plat"].waitForExistence(timeout: 4))
-        app.switches["À la une"].tap()
+        turnOnFeatured()
         window.swipeRight(velocity: .fast)
         sleep(1)
-        XCTAssertTrue(app.navigationBars["Fiche plat"].exists, "Swipe dropped an unsaved edit")
+        XCTAssertTrue(app.navigationBars["Fiche plat"].exists, "Swipe left a dish with an unsaved edit")
+        XCTAssertEqual(app.switches["À la une"].value as? String, "1", "Swipe dropped the unsaved edit")
         app.navigationBars.buttons.firstMatch.tap()
         XCTAssertTrue(app.buttons["Abandonner"].waitForExistence(timeout: 3))
         app.buttons["Abandonner"].tap()
@@ -70,6 +71,17 @@ final class DeviceTest: XCTestCase {
     }
 
     // MARK: - Helpers
+
+    /// Flip "À la une" on and check it took: the row's switch is the inner control (the element spans the row on iPad).
+    private func turnOnFeatured() {
+        let row = app.switches["À la une"]
+        XCTAssertTrue(row.waitForExistence(timeout: 4))
+        let control = row.switches.firstMatch.exists ? row.switches.firstMatch : row
+        control.tap()
+        if row.value as? String != "1" { row.coordinate(withNormalizedOffset: .init(dx: 0.93, dy: 0.5)).tap() }
+        XCTAssertEqual(row.value as? String, "1", "Could not turn on À la une")
+        print("PROBE featured frame=\(row.frame) value=\(String(describing: row.value))")
+    }
 
     private func signIn() {
         let email = app.textFields.firstMatch

@@ -233,25 +233,22 @@ public struct ProfileView: View {
 
     private func settingsRow(icon: String, label: String, tint: Color? = nil,
                              action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            HStack(spacing: 14) {
-                Image(systemName: icon)
-                    .font(.body)
-                    .foregroundStyle(tint ?? Color.atfText2)
-                    .frame(width: 22)
-                Text(label)
-                    .font(.body)
-                    .foregroundStyle(tint ?? Color.atfText1)
-                Spacer()
-                Image(systemName: "chevron.right")
-                    .font(.footnote.weight(.semibold))
-                    .foregroundStyle(Color.atfText3)
-            }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 14)
-            .contentShape(Rectangle())   // the whole row is tappable, not only the glyphs
+        HStack(spacing: 14) {
+            Image(systemName: icon)
+                .font(.body)
+                .foregroundStyle(tint ?? Color.atfText2)
+                .frame(width: 22)
+            Text(label)
+                .font(.body)
+                .foregroundStyle(tint ?? Color.atfText1)
+            Spacer()
+            Image(systemName: "chevron.right")
+                .font(.footnote.weight(.semibold))
+                .foregroundStyle(Color.atfText3)
         }
-        .buttonStyle(.plain)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 14)
+        .tapOnly(label, action: action)   // the whole row answers a tap, never the end of a swipe
     }
 
     // MARK: - Sign Out

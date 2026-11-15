@@ -121,7 +121,7 @@ final class NewOwnerJourney: XCTestCase {
         // 6. Profile: a sole owner cannot delete the account; then sign out
         app.buttons["profileButton"].tap(); pause()
         app.swipeUp(); pause()
-        app.staticTexts["Supprimer mon compte"].tap()
+        app.buttons["Supprimer mon compte"].tap()
         let confirm = app.sheets.buttons["Supprimer mon compte"].exists
             ? app.sheets.buttons["Supprimer mon compte"] : app.buttons["Supprimer mon compte"].firstMatch
         XCTAssertTrue(confirm.waitForExistence(timeout: 5)); pause()

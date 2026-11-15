@@ -95,7 +95,7 @@ final class LiveTest: XCTestCase {
             throw XCTSkip("Set ATF_LIVE_OWNER=1 with a throwaway owner account")
         }
         app.buttons["profileButton"].tap()
-        let row = app.staticTexts["Supprimer mon compte"]
+        let row = app.buttons["Supprimer mon compte"]
         XCTAssertTrue(row.waitForExistence(timeout: 5))
         row.tap()
         let confirm = app.sheets.buttons["Supprimer mon compte"].exists
@@ -116,7 +116,7 @@ final class LiveTest: XCTestCase {
             throw XCTSkip("Set ATF_LIVE_ALLOW_DELETE=1 with a throwaway account")
         }
         app.buttons["profileButton"].tap()
-        let row = app.staticTexts["Supprimer mon compte"]
+        let row = app.buttons["Supprimer mon compte"]
         XCTAssertTrue(row.waitForExistence(timeout: 5))
         row.tap()
         let confirm = app.sheets.buttons["Supprimer mon compte"].exists

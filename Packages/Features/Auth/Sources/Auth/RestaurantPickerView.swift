@@ -76,15 +76,12 @@ public struct RestaurantPickerView: View {
                             .padding(.top, 40)
                     }
                     ForEach(store.restaurants) { restaurant in
-                        Button {
-                            store.selectedRestaurant = restaurant
-                        } label: {
-                            RestaurantRow(
-                                restaurant: restaurant,
-                                isSelected: store.selectedRestaurant?.id == restaurant.id
-                            )
-                        }
-                        .buttonStyle(.plain)
+                        RestaurantRow(
+                            restaurant: restaurant,
+                            isSelected: store.selectedRestaurant?.id == restaurant.id
+                        )
+                        .tapOnly { store.selectedRestaurant = restaurant }
+                        .accessibilityAddTraits(store.selectedRestaurant?.id == restaurant.id ? .isSelected : [])
                         .accessibilityIdentifier("restaurant_\(restaurant.name)")
                     }
                 }

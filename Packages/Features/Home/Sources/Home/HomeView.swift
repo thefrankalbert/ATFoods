@@ -47,7 +47,7 @@ public struct HomeView: View {
             .navigationTitle(store.restaurant.name)
             .toolbarBackground(Color.atfBg, for: .navigationBar)
             .toolbar { toolbarContent }
-            .modifier(RestaurantSwitchMenu(onSwitch: onSwitchRestaurant))
+            .modifier(RestaurantSwitchMenu(title: store.restaurant.name, onSwitch: onSwitchRestaurant))
             .task { await store.load(networking: networking) }   // runs on every return to Home
             .refreshable { await store.load(networking: networking) }
             .sensoryFeedback(.error, trigger: store.actionError) { _, new in new != nil }
@@ -306,19 +306,40 @@ public struct HomeView: View {
     }
 }
 
-/// Several restaurants: the title reads "Chez Flora ⌄" and opens the switch (iOS puts title menus on the compact
-/// title only; a large title would be plain text nobody knows to tap). One restaurant: large title.
+/// Several restaurants: the name, top left, is a menu ("Chez Flora ⌄") to switch. A width-capped toolbar item rather
+/// than the system title menu: a long name in a narrow iPad window pushed Brouillons and Profil into an overflow
+/// "Plus" button. One restaurant: large title.
 private struct RestaurantSwitchMenu: ViewModifier {
+    let title: String
     let onSwitch: (() -> Void)?
     func body(content: Content) -> some View {
         if let onSwitch {
             content
                 .navigationBarTitleDisplayMode(.inline)
-                .toolbarTitleMenu {
-                Button(action: onSwitch) {
-                    Label("Changer d'établissement", systemImage: "arrow.left.arrow.right")
+                .toolbar {
+                    ToolbarItem(placement: .principal) { Text("").accessibilityHidden(true) }   // the menu shows the name
+                    ToolbarItem(placement: .topBarLeading) {
+                        Menu {
+                            Button(action: onSwitch) {
+                                Label("Changer d'établissement", systemImage: "arrow.left.arrow.right")
+                            }
+                        } label: {
+                            HStack(spacing: 4) {
+                                Text(title)
+                                    .font(.headline)
+                                    .foregroundStyle(Color.atfText1)
+                                    .lineLimit(1)
+                                    .truncationMode(.tail)
+                                Image(systemName: "chevron.down")
+                                    .font(.caption.weight(.semibold))
+                                    .foregroundStyle(Color.atfText2)
+                            }
+                            .frame(maxWidth: 180, alignment: .leading)
+                        }
+                        .accessibilityLabel("\(title), changer d'établissement")
+                        .accessibilityIdentifier("restaurantSwitch")
+                    }
                 }
-            }
         } else {
             content.navigationBarTitleDisplayMode(.large)
         }
@@ -336,24 +357,21 @@ private struct DishRow: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            Button(action: onOpen) {
-                HStack(spacing: 12) {
-                    thumbnail
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(item.name)
-                            .font(.body)
-                            .foregroundStyle(item.isAvailable ? Color.atfText1 : Color.atfText2)
-                            .lineLimit(2)
-                        Text(subtitle)
-                            .font(.footnote)
-                            .monospacedDigit()
-                            .foregroundStyle(Color.atfText2)
-                    }
-                    Spacer(minLength: 0)
+            HStack(spacing: 12) {
+                thumbnail
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(item.name)
+                        .font(.body)
+                        .foregroundStyle(item.isAvailable ? Color.atfText1 : Color.atfText2)
+                        .lineLimit(2)
+                    Text(subtitle)
+                        .font(.footnote)
+                        .monospacedDigit()
+                        .foregroundStyle(Color.atfText2)
                 }
-                .contentShape(Rectangle())
+                Spacer(minLength: 0)
             }
-            .buttonStyle(.plain)
+            .tapOnly("\(item.name), \(subtitle)", action: onOpen)
 
             Toggle("Disponible", isOn: Binding(get: { item.isAvailable }, set: onToggle))
                 .labelsHidden()

@@ -57,6 +57,7 @@ public struct DishFormView: View {
         // Unsaved input: the system back button and swipe give way to a button that asks first.
         // Mid-save: no way out, the save pops the screen itself.
         .navigationBarBackButtonHidden(store.hasUnsavedChanges || store.isLoading)
+        .backGestureLocked(store.hasUnsavedChanges || store.isLoading)
         .toolbar {
             if store.hasUnsavedChanges && !store.isLoading {
                 ToolbarItem(placement: .topBarLeading) {
