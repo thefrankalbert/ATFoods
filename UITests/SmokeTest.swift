@@ -116,7 +116,9 @@ final class SmokeTest: XCTestCase {
         navigateToHome()
         app.buttons["profileButton"].tap()
         let row = app.buttons["deleteAccountRow"]
-        XCTAssertTrue(row.waitForExistence(timeout: 4))
+        // Last row of the profile: below the fold on small screens, where the list has not built it yet.
+        for _ in 0..<5 where !row.waitForExistence(timeout: 1) { app.swipeUp() }
+        XCTAssertTrue(row.waitForExistence(timeout: 4), "Delete account row missing")
         row.tap()
         let confirm = app.buttons.matching(
             NSPredicate(format: "label == 'Supprimer mon compte' AND identifier != 'deleteAccountRow'")).firstMatch
