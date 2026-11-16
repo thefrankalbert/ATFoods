@@ -6,6 +6,8 @@ import Networking
 
 private final class FailingDelete: ATFNetworking, @unchecked Sendable {
     func signIn(email: String, password: String) async throws -> AppUser { AppUser.mock }
+    func signInWithGoogle() async throws -> AppUser? { AppUser.mock }
+    func signInWithApple(idToken: String, nonce: String) async throws -> AppUser { AppUser.mock }
     func restoreSession() async -> AppUser? { nil }
     func signOut() async throws {}
     func deleteAccount() async throws -> AccountDeletionResult { .deleted }

@@ -1,3 +1,4 @@
+import AuthenticationServices
 import Foundation
 import Models
 import Supabase
@@ -51,6 +52,24 @@ public struct SupabaseNetworking: ATFNetworking {
 
     public func signIn(email: String, password: String) async throws -> AppUser {
         let session = try await client.auth.signIn(email: email, password: password)
+        return await resolveUser(session.user)
+    }
+
+    /// Where Supabase sends the browser back after Google. Must be in the project's allowed redirect URLs.
+    static let authCallback = URL(string: "atfood://login-callback")!
+
+    public func signInWithGoogle() async throws -> AppUser? {
+        do {
+            let session = try await client.auth.signInWithOAuth(provider: .google, redirectTo: Self.authCallback)
+            return await resolveUser(session.user)
+        } catch let error as ASWebAuthenticationSessionError where error.code == .canceledLogin {
+            return nil
+        }
+    }
+
+    public func signInWithApple(idToken: String, nonce: String) async throws -> AppUser {
+        let session = try await client.auth.signInWithIdToken(
+            credentials: OpenIDConnectCredentials(provider: .apple, idToken: idToken, nonce: nonce))
         return await resolveUser(session.user)
     }
 

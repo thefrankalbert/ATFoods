@@ -4,6 +4,11 @@ import Models
 public protocol ATFNetworking: Sendable {
     // Auth
     func signIn(email: String, password: String) async throws -> AppUser
+    /// Google in the system sign-in sheet: the same Google account as on the À Table dashboard.
+    /// nil = the user closed the sheet.
+    func signInWithGoogle() async throws -> AppUser?
+    /// Identity token from Sign in with Apple. `nonce` is the raw value whose SHA-256 went into the Apple request.
+    func signInWithApple(idToken: String, nonce: String) async throws -> AppUser
     /// Session saved in the keychain by a previous launch, refreshed if needed. nil = must log in.
     func restoreSession() async -> AppUser?
     func signOut() async throws

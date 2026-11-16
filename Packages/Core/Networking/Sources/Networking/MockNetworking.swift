@@ -12,6 +12,16 @@ public final class MockNetworking: ATFNetworking {
         return AppUser.mock
     }
 
+    public func signInWithGoogle() async throws -> AppUser? {
+        try await Task.sleep(for: .milliseconds(700))
+        return AppUser.mock
+    }
+
+    public func signInWithApple(idToken: String, nonce: String) async throws -> AppUser {
+        try await Task.sleep(for: .milliseconds(700))
+        return AppUser.mock
+    }
+
     public func restoreSession() async -> AppUser? { nil }   // UI tests always start logged out
 
     public func deleteAccount() async throws -> AccountDeletionResult {

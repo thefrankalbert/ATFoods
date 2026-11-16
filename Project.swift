@@ -1,6 +1,10 @@
 // Project.swift
 import ProjectDescription
 
+// Sign in with Apple: needs the paid Apple Developer Program team (a Personal Team cannot sign this entitlement)
+// and the Apple provider enabled on Supabase with client ID com.attable.atfood. Turn on with the team switch below.
+let signInWithApple = false
+
 let project = Project(
     name: "ATFood",
     organizationName: "ATTable",
@@ -44,6 +48,8 @@ let project = Project(
             deploymentTargets: .iOS("17.0"),
             infoPlist: .extendingDefault(with: [
                 "CFBundleDisplayName": .string("Atfood"),
+                // System prompts (Google sign-in sheet) use the bundle name: same spelling as the home screen.
+                "CFBundleName": .string("Atfood"),
                 "CFBundleShortVersionString": .string("$(MARKETING_VERSION)"),
                 "CFBundleVersion": .string("$(CURRENT_PROJECT_VERSION)"),
                 "UILaunchScreen": .dictionary(["UIColorName": .string("LaunchBackground")]),
@@ -59,9 +65,12 @@ let project = Project(
                 "ITSAppUsesNonExemptEncryption": .boolean(false),
                 "NSCameraUsageDescription": .string("Atfood utilise l'appareil photo pour photographier vos plats et les publier sur votre menu."),
                 "SentryDSN": .string("$(SENTRY_DSN)"),
+                "ATFSignInWithApple": .boolean(signInWithApple),
             ]),
             sources: ["App/**"],
             resources: ["App/Resources/**"],
+            entitlements: signInWithApple
+                ? .dictionary(["com.apple.developer.applesignin": .array([.string("Default")])]) : nil,
             scripts: [
                 // Release builds send their debug symbols to Sentry so App Store crash reports show file and line.
                 // Auth: ~/.sentryclirc (org token, outside the repo). Skipped on CI and when sentry-cli is missing.
