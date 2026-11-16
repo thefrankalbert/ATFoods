@@ -78,6 +78,8 @@ public struct NewCategorySheet: View {
         .scrollDismissesKeyboard(.interactively)
         .background(Color.atfBg.ignoresSafeArea())
         .presentationDetents([.medium, .large])
+        // A typed name or a save in progress is not lost to a swipe down: Annuler is the way out.
+        .interactiveDismissDisabled(isSaving || !name.trimmingCharacters(in: .whitespaces).isEmpty)
         .onAppear {
             if store.menus.count == 1 { menuID = store.menus.first?.id }
         }

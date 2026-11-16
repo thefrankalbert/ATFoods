@@ -12,33 +12,35 @@ concurrency:
 jobs:
   text:
     name: No em or en dash
-    runs-on: ubuntu-latest
+    # Self-hosted Mac runner (free): GitHub-hosted minutes are blocked on this account.
+    runs-on: [self-hosted, atfood-mac]
     env:
-      LC_ALL: C.UTF-8
+      LC_ALL: en_US.UTF-8
     steps:
       - uses: actions/checkout@v5
       - name: Scan app, packages, tests and docs
         run: |
           # -I: text files only (screenshots and photos are binary)
-          if grep -rnIP '[\x{2013}\x{2014}]' App Packages UITests docs Project.swift; then
+          if git grep -nIP '[\x{2013}\x{2014}]' -- App Packages UITests docs Project.swift; then
             echo "::error::Em or en dash found (house rule: use a comma, colon, period or parentheses)"
             exit 1
           fi
 
   ios:
     name: Unit tests and builds
-    runs-on: macos-26
+    runs-on: [self-hosted, atfood-mac]
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v5
 
-      - name: Use the newest Xcode on the runner
-        run: |
-          XCODE=$(ls -d /Applications/Xcode_*.app | sort -V | tail -1)
-          sudo xcode-select -s "$XCODE"
-          xcodebuild -version
+      - name: Xcode on the runner
+        run: xcodebuild -version
 
-      - uses: jdx/mise-action@v2
+      - name: Tuist (version pinned in mise.toml, mise installed on the Mac)
+        run: |
+          mise trust --yes
+          mise install
+          dirname "$(mise which tuist)" >> "$GITHUB_PATH"
 
       - name: Generate the Xcode project
         run: tuist generate --no-open
@@ -46,7 +48,7 @@ jobs:
       - name: Pick an iPhone simulator
         run: |
           UDID=$(xcrun simctl list devices available -j \
-            | jq -r '[.devices | to_entries[] | select(.key | test("iOS")) | .value[] | select(.name | startswith("iPhone"))] | last | .udid')
+            | jq -r '[.devices | to_entries[] | select(.key | test("iOS")) | .value[] | select(.name == "iPhone 17 Pro")] | first | .udid')
           echo "SIM=$UDID" >> "$GITHUB_ENV"
           echo "Simulator: $UDID"
 

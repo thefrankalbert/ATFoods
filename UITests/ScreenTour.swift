@@ -39,8 +39,8 @@ final class ScreenTour: XCTestCase {
         sleep(2)
         if app.buttons["Plus tard"].waitForExistence(timeout: 2) { app.buttons["Plus tard"].tap() }
         sleep(2); shot("06_home")
-        app.buttons["Plats"].tap(); sleep(1); shot("07_home_filter_plats")
-        app.buttons["Tous"].tap()
+        app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'category_'")).element(boundBy: 2).tap()
+        sleep(1); shot("07_home_category")
 
         // Dish card
         app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Ndolé'")).firstMatch.tap()
@@ -72,7 +72,7 @@ final class ScreenTour: XCTestCase {
         // Profile
         app.buttons["profileButton"].tap(); sleep(2); shot("16_profile")
         app.swipeUp(); sleep(1); shot("17_profile_bottom")
-        app.staticTexts["Supprimer mon compte"].tap(); sleep(1); shot("18_delete_confirm")
+        app.buttons["deleteAccountRow"].tap(); sleep(1); shot("18_delete_confirm")
         // iOS 26 shows the confirmation as a popover (no Cancel button): tap outside to dismiss.
         app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.08)).tap()
     }

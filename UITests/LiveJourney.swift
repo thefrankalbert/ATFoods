@@ -38,10 +38,12 @@ final class LiveJourney: XCTestCase {
         dismissPasswordPrompt(); pause()
 
         // 3. Home filters
-        let noPhoto = app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Sans photo'")).firstMatch
-        XCTAssertTrue(noPhoto.waitForExistence(timeout: 10), "Home filters missing")
-        noPhoto.tap(); pause()
-        app.buttons["Tous"].tap(); pause()
+        let filters = app.buttons["filterMenu"]
+        XCTAssertTrue(filters.waitForExistence(timeout: 10), "Home filters missing")
+        filters.tap()
+        app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Sans photo'")).firstMatch.tap(); pause()
+        filters.tap()
+        app.buttons["Tous les plats"].tap(); pause()
 
         // 4. Edit a dish: price + sold out, then put it back
         openDish("Poulet DG")
@@ -124,7 +126,7 @@ final class LiveJourney: XCTestCase {
         // 8. Profile: deletion dialog (cancelled), then sign out
         app.buttons["profileButton"].tap(); pause()
         app.swipeUp(); pause()
-        app.staticTexts["Supprimer mon compte"].tap(); pause()
+        app.buttons["deleteAccountRow"].tap(); pause()
         app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.08)).tap(); pause()   // dismiss, nothing deleted
         app.buttons["Se déconnecter"].tap()
         XCTAssertTrue(app.buttons["Se connecter"].waitForExistence(timeout: 10), "Sign-out failed")

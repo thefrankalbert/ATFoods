@@ -121,9 +121,9 @@ final class NewOwnerJourney: XCTestCase {
         // 6. Profile: a sole owner cannot delete the account; then sign out
         app.buttons["profileButton"].tap(); pause()
         app.swipeUp(); pause()
-        app.staticTexts["Supprimer mon compte"].tap()
-        let confirm = app.sheets.buttons["Supprimer mon compte"].exists
-            ? app.sheets.buttons["Supprimer mon compte"] : app.buttons["Supprimer mon compte"].firstMatch
+        app.buttons["deleteAccountRow"].tap()
+        let confirm = app.buttons.matching(
+            NSPredicate(format: "label == 'Supprimer mon compte' AND identifier != 'deleteAccountRow'")).firstMatch
         XCTAssertTrue(confirm.waitForExistence(timeout: 5)); pause()
         confirm.tap()
         XCTAssertTrue(app.staticTexts["Compte non supprimé"].waitForExistence(timeout: 20), "Owner guard not shown")
@@ -163,8 +163,7 @@ final class NewOwnerJourney: XCTestCase {
         XCTAssertTrue(alloco.label.filter(\.isNumber).contains("2000"), "Web price not shown: \(alloco.label)")
         XCTAssertLessThan(alloco.frame.minY, bissap.frame.minY, "Order differs from the web")
         pause(); shot("web_edits_home")
-        app.buttons["Boissons"].tap(); pause(); shot("web_category_filter")
-        app.buttons["Tous"].tap(); pause()
+        app.buttons["category_Boissons"].tap(); pause(); shot("web_category_jump")
 
         // The web edits on the dish sheet.
         alloco.tap()

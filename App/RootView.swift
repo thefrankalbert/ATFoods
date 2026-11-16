@@ -55,7 +55,11 @@ struct RootView: View {
     @AppStorage(StorageKey.hasSeenOnboarding) private var hasSeenOnboarding = false
     @AppStorage(StorageKey.lastRestaurantID) private var lastRestaurantID = ""
     @State private var isRestoringSession = true
+    /// Screens above the root. The root is not in it: Login, then the restaurant picker or Home once chosen. Home and
+    /// the first picker are roots so no back gesture (edge or content swipe) can uncover the login screen behind them.
     @State private var path: [ATFRoute] = []
+    /// Signed in, no restaurant chosen yet: the picker is the root.
+    @State private var pickerIsRoot = false
     @State private var toast: ATFToastData?
     @State private var toastTask: Task<Void, Never>?
 
@@ -88,13 +92,10 @@ struct RootView: View {
                 splash
             } else {
                 NavigationStack(path: $path) {
-                    LoginView(store: authStore, networking: networking) {
-                        openRestaurant()
-                    }
-                    .navigationBarHidden(true)
-                    .navigationDestination(for: ATFRoute.self) { route in
-                        routeView(route)
-                    }
+                    stackRoot
+                        .navigationDestination(for: ATFRoute.self) { route in
+                            routeView(route)
+                        }
                 }
             }
 
@@ -121,8 +122,24 @@ struct RootView: View {
             nav.captureStore?.reset()   // rejected photo must not come back on the next shot
             nav.formStore = nil
         }
-        if old.last == .restaurantPicker, new.last == .profile {
-            authStore.selectedRestaurant = nav.homeStore?.restaurant   // picker left without switching
+        // Picker left without switching (back to Home or Profile). After a switch, openRestaurant has already
+        // put the new restaurant in homeStore, so this keeps it.
+        if old.last == .restaurantPicker, new.last != .restaurantPicker, let current = nav.homeStore?.restaurant {
+            authStore.selectedRestaurant = current
+        }
+    }
+
+    @ViewBuilder
+    private var stackRoot: some View {
+        if nav.homeStore != nil {
+            routeView(.home)
+        } else if pickerIsRoot {
+            routeView(.restaurantPicker)
+        } else {
+            LoginView(store: authStore, networking: networking) {
+                openRestaurant()
+            }
+            .navigationBarHidden(true)
         }
     }
 
@@ -160,10 +177,12 @@ struct RootView: View {
         if let restaurant = authStore.selectedRestaurant {
             lastRestaurantID = restaurant.id.uuidString
             nav.homeStore = HomeStore(restaurant: restaurant)
-            path = [.home]
+            pickerIsRoot = false
         } else {
-            path = [.restaurantPicker]
+            nav.homeStore = nil
+            pickerIsRoot = true
         }
+        path = []
     }
 
     /// Clears local state; the network sign-out is done by the caller (ProfileStore shows its spinner).
@@ -180,6 +199,7 @@ struct RootView: View {
         nav.dishEditStore = nil
         nav.draftsStore = nil
         nav.profileStore = nil
+        pickerIsRoot = false
         path = []
     }
 
@@ -195,7 +215,7 @@ struct RootView: View {
                 onRetry: {
                     await authStore.loadRestaurants(networking: networking)
                     // Restore after an offline start: go straight back to the last restaurant.
-                    guard path == [.restaurantPicker], authStore.restaurantsError == nil else { return }
+                    guard pickerIsRoot, path.isEmpty, authStore.restaurantsError == nil else { return }
                     authStore.selectedRestaurant = authStore.restaurants.first { $0.id.uuidString == lastRestaurantID }
                     if authStore.selectedRestaurant != nil || authStore.restaurants.count == 1 { openRestaurant() }
                 },
@@ -205,8 +225,8 @@ struct RootView: View {
                         clearSession()
                     }
                 },
-                // Opened from the profile: allow going back without switching.
-                canGoBack: path.count > 1
+                // Opened from Home or the profile: allow going back without switching.
+                canGoBack: path.contains(.restaurantPicker)
             )
 
         case .home:
@@ -232,7 +252,8 @@ struct RootView: View {
                     onDish: { item in
                         nav.dishEditStore = FormStore(restaurant: store.restaurant, editing: item)
                         path.append(.dishEdit)
-                    }
+                    },
+                    onSwitchRestaurant: authStore.restaurants.count > 1 ? { path.append(.restaurantPicker) } : nil
                 )
                 .navigationBarBackButtonHidden(true)   // Home has its own (visible) toolbar
             }
@@ -394,14 +415,12 @@ struct RootView: View {
         }
     }
 
-    /// Pops back to the last occurrence of `route` (Home if absent).
+    /// Pops back to the last occurrence of `route`, or to Home (the root) if absent.
     private func popTo(_ route: ATFRoute) {
         if let idx = path.lastIndex(of: route) {
             path = Array(path[...idx])
-        } else if let idx = path.firstIndex(of: .home) {
-            path = Array(path[...idx])
         } else {
-            path = [.home]
+            path = []
         }
     }
 }

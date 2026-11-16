@@ -94,6 +94,7 @@ public struct AttachDishView: View {
         .background(Color.atfBg.ignoresSafeArea())
         .atfScreen(fixedDish == nil ? "Cette photo, c'est pour…" : "Remplacer la photo")
         .navigationBarBackButtonHidden(isBusy)   // attach and draft pop the stack themselves
+        .backGestureLocked(isBusy)
         .sensoryFeedback(.selection, trigger: selectedItem?.id)
         .sensoryFeedback(.error, trigger: error) { _, new in new != nil }
         .task {
@@ -108,23 +109,20 @@ public struct AttachDishView: View {
     }
 
     private func actionRow(_ title: String, icon: String, loading: Bool = false, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            HStack(spacing: 12) {
-                Group {
-                    if loading { ProgressView().tint(Color.atfText2) } else { Image(systemName: icon) }
-                }
-                .frame(width: 24)
-                Text(title)
-                Spacer()
-                Image(systemName: "chevron.right").font(.footnote.weight(.semibold)).foregroundStyle(Color.atfText3)
+        HStack(spacing: 12) {
+            Group {
+                if loading { ProgressView().tint(Color.atfText2) } else { Image(systemName: icon) }
             }
-            .foregroundStyle(Color.atfText1)
-            .padding(.horizontal, 16)
-            .frame(minHeight: 50)
-            .contentShape(Rectangle())
+            .frame(width: 24)
+            Text(title)
+            Spacer()
+            Image(systemName: "chevron.right").font(.footnote.weight(.semibold)).foregroundStyle(Color.atfText3)
         }
-        .buttonStyle(.plain)
-        .disabled(isBusy)
+        .foregroundStyle(Color.atfText1)
+        .padding(.horizontal, 16)
+        .frame(minHeight: 50)
+        .opacity(isBusy ? 0.5 : 1)
+        .tapOnly(title) { if !isBusy { action() } }
     }
 
     private var searchField: some View {
@@ -232,37 +230,34 @@ private struct DishRow: View {
     let onTap: () -> Void
 
     var body: some View {
-        Button(action: onTap) {
-            HStack(spacing: 12) {
-                ATFRemoteImage(Thumbnail.url(item.photoURL, points: 44), fallback: item.photoURL) {
-                    Color.atfSurface2.overlay(
-                        Image(systemName: item.photoURL == nil ? "camera" : "photo").foregroundStyle(Color.atfText3)
-                    )
-                }
-                .frame(width: 44, height: 44)
-                .clipShape(RoundedRectangle(cornerRadius: 8))
-                .accessibilityHidden(true)
-
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(item.name)
-                        .font(isSelected ? .body.weight(.semibold) : .body)
-                        .foregroundStyle(Color.atfText1)
-                    Text(subtitle)
-                        .font(.footnote)
-                        .foregroundStyle(Color.atfText2)
-                }
-                Spacer(minLength: 0)
-                if isSelected {
-                    Image(systemName: "checkmark")
-                        .font(.body.weight(.semibold))
-                        .foregroundStyle(Color.atfText1)
-                }
+        HStack(spacing: 12) {
+            ATFRemoteImage(Thumbnail.url(item.photoURL, points: 44), fallback: item.photoURL) {
+                Color.atfSurface2.overlay(
+                    Image(systemName: item.photoURL == nil ? "camera" : "photo").foregroundStyle(Color.atfText3)
+                )
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 10)
-            .contentShape(Rectangle())
+            .frame(width: 44, height: 44)
+            .clipShape(RoundedRectangle(cornerRadius: 8))
+            .accessibilityHidden(true)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(item.name)
+                    .font(isSelected ? .body.weight(.semibold) : .body)
+                    .foregroundStyle(Color.atfText1)
+                Text(subtitle)
+                    .font(.footnote)
+                    .foregroundStyle(Color.atfText2)
+            }
+            Spacer(minLength: 0)
+            if isSelected {
+                Image(systemName: "checkmark")
+                    .font(.body.weight(.semibold))
+                    .foregroundStyle(Color.atfText1)
+            }
         }
-        .buttonStyle(.plain)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 10)
+        .tapOnly(action: onTap)
         .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 

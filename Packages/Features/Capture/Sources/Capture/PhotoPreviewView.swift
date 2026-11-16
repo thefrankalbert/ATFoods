@@ -85,6 +85,7 @@ public struct PhotoPreviewView: View {
         .toolbarColorScheme(.dark, for: .navigationBar)
         .tint(.white)
         .navigationBarBackButtonHidden(isRemovingBackground)   // the cutout must not land after the user left
+        .backGestureLocked(isRemovingBackground)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Button { showCropper = true } label: { Image(systemName: "crop.rotate") }

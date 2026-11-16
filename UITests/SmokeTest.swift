@@ -96,7 +96,7 @@ final class SmokeTest: XCTestCase {
         app.buttons["profileButton"].tap()
         XCTAssertTrue(app.buttons["Se déconnecter"].waitForExistence(timeout: 4), "Profile not shown")
         XCTAssertTrue(app.staticTexts["Politique de confidentialité"].exists, "Privacy link missing")
-        XCTAssertTrue(app.staticTexts["Supprimer mon compte"].exists, "Account deletion missing")
+        XCTAssertTrue(app.buttons["deleteAccountRow"].exists, "Account deletion missing")
         for removed in ["Crédits IA", "Passer au Pro", "Activer Face ID", "Mode hors-ligne", "Langue", "Notifications"] {
             XCTAssertFalse(app.staticTexts[removed].exists, "Removed row still visible: \(removed)")
         }
@@ -115,12 +115,15 @@ final class SmokeTest: XCTestCase {
     func testAccountDeletionExplainsSoleOwnerRefusal() throws {
         navigateToHome()
         app.buttons["profileButton"].tap()
-        let row = app.staticTexts["Supprimer mon compte"]
-        XCTAssertTrue(row.waitForExistence(timeout: 4))
+        let row = app.buttons["deleteAccountRow"]
+        // Last row of the profile: below the fold on small screens, where the list has not built it yet.
+        for _ in 0..<5 where !row.waitForExistence(timeout: 1) { app.swipeUp() }
+        XCTAssertTrue(row.waitForExistence(timeout: 4), "Delete account row missing")
         row.tap()
-        let confirm = app.buttons["Supprimer mon compte"].firstMatch
+        let confirm = app.buttons.matching(
+            NSPredicate(format: "label == 'Supprimer mon compte' AND identifier != 'deleteAccountRow'")).firstMatch
         XCTAssertTrue(confirm.waitForExistence(timeout: 3), "Deletion confirmation missing")
-        app.sheets.buttons["Supprimer mon compte"].exists ? app.sheets.buttons["Supprimer mon compte"].tap() : confirm.tap()
+        confirm.tap()
         // Mock answers "sole owner of Chez Flora": the owner can still start the deletion in the app (Apple 5.1.1(v)).
         XCTAssertTrue(app.alerts["Supprimer aussi l'établissement ?"].waitForExistence(timeout: 5), "Owner case not explained")
         app.alerts.buttons["Demander la suppression"].tap()
