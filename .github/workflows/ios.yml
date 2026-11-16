@@ -36,7 +36,11 @@ jobs:
       - name: Xcode on the runner
         run: xcodebuild -version
 
-      - uses: jdx/mise-action@v2
+      - name: Tuist (version pinned in mise.toml, mise installed on the Mac)
+        run: |
+          mise trust --yes
+          mise install
+          dirname "$(mise which tuist)" >> "$GITHUB_PATH"
 
       - name: Generate the Xcode project
         run: tuist generate --no-open
