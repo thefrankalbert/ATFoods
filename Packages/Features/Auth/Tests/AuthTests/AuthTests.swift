@@ -19,3 +19,11 @@ import Networking
     #expect(store.currentUser != nil)
     #expect(!store.restaurants.isEmpty)
 }
+
+@MainActor @Test func googleLoginLoadsRestaurants() async {
+    let store = AuthStore()
+    await store.signInWithGoogle(networking: MockNetworking())
+    #expect(store.currentUser != nil)
+    #expect(!store.restaurants.isEmpty)
+    #expect(store.pending == nil)
+}

@@ -1,3 +1,5 @@
+import AuthenticationServices
+import CryptoKit
 import SwiftUI
 import DesignSystem
 import Networking
@@ -7,6 +9,12 @@ public struct LoginView: View {
     let networking: any ATFNetworking
     @Environment(\.openURL) private var openURL
     let onSuccess: () -> Void
+    /// Raw nonce of the Apple request in flight: Supabase checks it against the hash inside Apple's token.
+    @State private var appleNonce = ""
+
+    /// Sign in with Apple needs the paid Apple Developer Program (entitlement) and the Apple provider on Supabase.
+    /// Project.swift turns both the entitlement and this flag on together.
+    private let appleSignInEnabled = Bundle.main.object(forInfoDictionaryKey: "ATFSignInWithApple") as? Bool == true
 
     public init(store: AuthStore, networking: any ATFNetworking, onSuccess: @escaping () -> Void) {
         self.store = store
@@ -75,7 +83,28 @@ public struct LoginView: View {
                     }
 
                     ATFButton("Se connecter", kind: .primary, fullWidth: true,
-                              loading: store.isLoading, disabled: !store.canSubmit, action: signIn)
+                              loading: store.pending == .password, disabled: !store.canSubmit || store.isLoading,
+                              action: signIn)
+
+                    HStack(spacing: 12) {
+                        Rectangle().fill(Color.atfBorder).frame(height: 1)
+                        Text("ou").font(.atfCaption).foregroundStyle(Color.atfText3)
+                        Rectangle().fill(Color.atfBorder).frame(height: 1)
+                    }
+                    .accessibilityHidden(true)
+
+                    ATFButton("Continuer avec Google", kind: .outline, fullWidth: true,
+                              loading: store.pending == .google, disabled: store.isLoading, action: signInWithGoogle)
+                        .accessibilityIdentifier("googleSignIn")
+
+                    if appleSignInEnabled {
+                        SignInWithAppleButton(.continue, onRequest: prepareApple, onCompletion: finishApple)
+                            .signInWithAppleButtonStyle(.black)
+                            .frame(height: 52)
+                            .clipShape(Capsule())
+                            .disabled(store.isLoading)
+                            .accessibilityIdentifier("appleSignIn")
+                    }
                 }
 
                 Spacer().frame(height: 32)
@@ -108,6 +137,39 @@ public struct LoginView: View {
         Task {
             await store.signIn(networking: networking)
             if store.currentUser != nil { onSuccess() }
+        }
+    }
+
+    private func signInWithGoogle() {
+        Task {
+            await store.signInWithGoogle(networking: networking)
+            if store.currentUser != nil { onSuccess() }
+        }
+    }
+
+    private func prepareApple(_ request: ASAuthorizationAppleIDRequest) {
+        appleNonce = UUID().uuidString + UUID().uuidString
+        request.requestedScopes = [.fullName, .email]
+        request.nonce = SHA256.hash(data: Data(appleNonce.utf8)).map { String(format: "%02x", $0) }.joined()
+    }
+
+    private func finishApple(_ result: Result<ASAuthorization, Error>) {
+        switch result {
+        case .success(let authorization):
+            guard let credential = authorization.credential as? ASAuthorizationAppleIDCredential,
+                  let token = credential.identityToken.flatMap({ String(data: $0, encoding: .utf8) }) else {
+                store.error = "Connexion avec Apple impossible. Réessayez."
+                return
+            }
+            let nonce = appleNonce
+            Task {
+                await store.signInWithApple(idToken: token, nonce: nonce, networking: networking)
+                if store.currentUser != nil { onSuccess() }
+            }
+        case .failure(let error):
+            // Closing the Apple sheet is a choice, not an error.
+            if (error as? ASAuthorizationError)?.code == .canceled { return }
+            store.error = "Connexion avec Apple impossible. Réessayez."
         }
     }
 
