@@ -22,7 +22,9 @@ let project = Project(
         .local(path: "Packages/Features/Form"),
         .local(path: "Packages/Features/Drafts"),
         .local(path: "Packages/Features/Profile"),
-        .remote(url: "https://github.com/getsentry/sentry-cocoa.git", requirement: .upToNextMajor(from: "9.33.0")),
+        // ponytail: exact pin. Package.resolved is not committed, so a range let CI pick each new Sentry release and
+        // download its large binaries (9.35.0 timed out the job). Bump this line by hand to update Sentry.
+        .remote(url: "https://github.com/getsentry/sentry-cocoa.git", requirement: .exact("9.33.0")),
     ],
     settings: .settings(
         base: [
